@@ -238,9 +238,9 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. TradingView / Google Finance 風格頂級 1 天高頻互動圖表 ====================
+# ==================== 6. Google Finance / TradingView 頂級 1 天高頻互動圖表 ====================
 st.markdown("### 📈 TradingView 專業級黑卡互動分時走勢圖 (含台指期貨日夜盤 TX=F)")
-st.markdown("對標 Google Finance / TradingView 專業介面，即時掌握 1 天高頻動態與上次收盤價基準線：")
+st.markdown("對標專業操盤介面，即時掌握 1 天高頻動態與上次收盤價基準線：")
 
 @st.cache_data(ttl=60)
 def fetch_intraday_data():
@@ -275,7 +275,7 @@ if not df_intraday.empty:
     target_series = df_intraday_renamed[selected_tv_target].dropna()
     if not target_series.empty:
         curr_val = target_series.iloc[-1]
-        prev_close = target_series.iloc[0] # 當日起始參考收盤
+        prev_close = target_series.iloc[0]
         pct_change = ((curr_val - prev_close) / prev_close) * 100
         diff_val = curr_val - prev_close
         is_up = diff_val >= 0
@@ -283,7 +283,6 @@ if not df_intraday.empty:
         color_theme = '#10B981' if is_up else '#EF4444'
         fill_color_rgba = 'rgba(16, 185, 129, 0.12)' if is_up else 'rgba(239, 68, 68, 0.12)'
         
-        # 模擬頂級 Google Finance 操盤頂部標頭
         st.markdown(f"""
         <div style="display: flex; align-items: baseline; gap: 15px; margin-bottom: 10px;">
             <span style="font-size: 2.2rem; font-weight: 800; color: #F8FAFC;">{curr_val:,.2f}</span>
@@ -294,7 +293,6 @@ if not df_intraday.empty:
         """, unsafe_allow_html=True)
         
         fig = go.Figure()
-        # 繪製主走勢線
         fig.add_trace(go.Scatter(
             x=target_series.index,
             y=target_series,
@@ -306,7 +304,6 @@ if not df_intraday.empty:
             hovertemplate='時間: %{x|%H:%M}<br>價格: %{y:,.2f}<extra></extra>'
         ))
         
-        # 加入上次收盤價水平參考線 (Baseline)
         fig.add_hline(
             y=prev_close, 
             line_dash="dot", 
@@ -447,7 +444,7 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
 
 institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
 
-# 以當前 46,292 點為強大基底，計算台積電成長帶動其他權值股與大盤的連動放大系數
+# 以當前 46,292 點為基底，透過台積電潛在成長空間放大聯動係數，推估權值股與大盤
 tsmc_resonance_weight = 0.92
 institutional_consensus["推估大盤與權值共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
 institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
