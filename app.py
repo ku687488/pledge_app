@@ -40,11 +40,6 @@ st.markdown(
         background: rgba(30, 41, 59, 0.95); border: 1px solid #3B82F6; border-left: 6px solid #3B82F6;
         padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC; font-size: 0.9rem;
     }
-    .wealth-box {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(30, 41, 59, 0.8) 100%);
-        border: 1px solid #F59E0B; border-left: 6px solid #F59E0B;
-        padding: 18px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
-    }
     .ai-alert-box {
         background: rgba(239, 68, 68, 0.12); border: 1px solid #EF4444; border-left: 6px solid #EF4444;
         padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; color: #F8FAFC; font-size: 0.9rem;
@@ -67,20 +62,19 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.9rem; font-weight:600;">
-        💎 富人槓桿與現金流自償性戰略引擎 • 隨年紀降曝險至最低 150% 模型 • AI 動態偏離預警與 TSMC EPS 多情境試算
+        💎 富人槓桿與現金流自償性戰略引擎 • 自由調控 LTV (預警 25%) 與質押資金投入比 • AI 動態偏離預警
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. 側邊欄：生命週期降曝險、資本與負債模組 ====================
+# ==================== 2. 側邊欄：生命週期、資本結構與自由調控模組 ====================
 st.sidebar.markdown("<h3 style='color:#F3F4F6;'>👤 投資人戰略風格與槓桿模式</h3>", unsafe_allow_html=True)
 
 enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (隨年紀收斂至最低 150% 曝險)", value=True)
 user_age = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=25, step=1)
 
-# 隨年紀降曝險至最低 150% (例如 25歲設定為 280% 高曝險，隨年紀增長線性下降，但下限收斂至 150% 曝險)
 target_lifecycle_exposure = max(280.0 - (user_age - 25) * 3.5, 150.0)
 
 if enable_lifecycle_exposure:
@@ -89,9 +83,11 @@ else:
     st.sidebar.info("🔓 【完全自由曝險模式】：由您自行掌控曝險倍數，AI 僅負責試算與即時偏離提醒。")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 資本結構與永續槓桿設定</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 資本結構與自由質押設定</h3>", unsafe_allow_html=True)
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
+
+# 質押成數 LTV 自由調整，並以 25% 為基準提示
 ltv_ratio = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
 
 auto_loan_amount = int(total_equity_cost * ltv_ratio)
@@ -103,6 +99,10 @@ else:
     st.sidebar.info(f"💡 自動連動質押金額：**NT$ {loan_amount:,.0f}** (只付利息)")
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
+
+# 質押資金再投入比例自由調整 (不再強制固定 95%)
+pledged_invest_ratio = st.sidebar.slider("4. 質押借出資金再投入比例 (%)", min_value=0.0, max_value=100.0, value=95.0, step=1.0) / 100.0
+st.sidebar.info(f"💡 質押資金投入部位：**{pledged_invest_ratio*100:.1f}%** | 留存現金流部位：**{(1-pledged_invest_ratio)*100:.1f}%**")
 
 # 獨立房貸與信貸模組
 st.sidebar.markdown("---")
@@ -195,8 +195,6 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#F3F4F6;'>⚖️ 目標資產配置權重</h4>", unsafe_allow_html=True)
 target_weight_1 = st.sidebar.slider("目標攻擊標的權重 (%)", min_value=10.0, max_value=90.0, value=70.0, step=5.0) / 100.0
 
-pledged_invest_ratio = 0.95
-
 # ==================== 3. 抓取短期高頻真實市場數據引擎 ====================
 @st.cache_data(ttl=30)
 def fetch_short_term_data(ticker):
@@ -276,40 +274,43 @@ exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 
 st.markdown(f"""
 <div class="web-push-ticker">
     📡 <b>【Apex 家族辦公室量化戰情快報 (AI 動態智慧監控模式)】</b><br>
-    • 戰略模式：{'<b>[生命週期降曝險中 (底線 150% 曝險)]</b>' if enable_lifecycle_exposure else '<b>[完全自由曝險模式]</b>'} | 當前曝險率：<b>{exposure_vs_equity:.1f}%</b><br>
+    • 當前 LTV 質押成數：<b>{ltv_ratio*100:.1f}%</b> {'(⚠️ 已超過建議最高 25% 安全線)' if ltv_ratio > 0.25 else '(🟢 符合最多 25% 穩健原則)'}<br>
     • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | VIX <b>{cur_vix:.2f}</b>
 </div>
 """, unsafe_allow_html=True)
 
-def generate_ai_dynamic_alerts(exp_eq, t_exp, w_dev, net_c, is_lifecycle, age):
+def generate_ai_dynamic_alerts(ltv, exp_eq, t_exp, w_dev, net_c, is_lifecycle, age):
     alerts = []
     
+    # 1. LTV 超過 25% 提醒
+    if ltv > 0.25:
+        alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過您設定的最多 25% 穩健防禦上限。雖然可以自由調整，但請務必留意波動風險！")
+    else:
+        alerts.append(f"🟢 **[質押 LTV 合規]** 目前 LTV 質押成數為 {ltv*100:.1f}%，完美控制在最多 25% 的黃金安全防線內。")
+        
+    # 2. 生命週期降曝險檢核
     if is_lifecycle:
         if exp_eq > t_exp + 15:
-            alerts.append(f"🚨 **[生命週期降曝險警報]** 目前淨權益曝險率 ({exp_eq:.1f}%) 高於您 {age} 歲設定的收斂目標 ({t_exp:.1f}%)。建議依計畫逐步降低曝險倍數，落實保守防禦。")
+            alerts.append(f"🚨 **[生命週期降曝險警報]** 目前淨權益曝險率 ({exp_eq:.1f}%) 高於 {age} 歲設定的目標 ({t_exp:.1f}%)。")
         else:
-            alerts.append(f"🟢 **[生命週期合規]** 目前曝險率 ({exp_eq:.1f}%) 符合 {age} 歲階段的降曝險規劃（目標下限 150% 曝險）。")
-    else:
-        if exp_eq > 300:
-            alerts.append(f"⚠️ **[自由模式高曝險警示]** 當前曝險率為 {exp_eq:.1f}%，槓桿倍數較高，請留意市場極端震盪。")
-        else:
-            alerts.append(f"🟢 **[自由曝險運作正常]** 曝險率 {exp_eq:.1f}% 運作良好，完全由您自主掌控。")
-        
+            alerts.append(f"🟢 **[生命週期合規]** 曝險率 ({exp_eq:.1f}%) 符合 {age} 歲階段防禦規劃。")
+            
+    # 3. 權重與現金流檢核
     if abs(w_dev) > 0.10:
         direction = "攻擊標的過重" if w_dev > 0 else "防禦標的過重"
         alerts.append(f"⚖️ **[資產配置權重偏離警告]** 實際攻擊權重為 {current_weight_1*100:.1f}%，偏離目標超過 10% ({direction})，建議執行再平衡。")
         
     if net_c < 0:
-        alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於配息收益，請確保流動性現金緩衝。")
+        alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於配息收益。")
     else:
         alerts.append(f"🟢 **[現金流自償達成]** 達成 Positive Carry (+NT$ {net_c:,.0f}/年)，負債利息完全由配息覆蓋！")
         
     return alerts
 
-ai_insights = generate_ai_dynamic_alerts(exposure_vs_equity, target_lifecycle_exposure, weight_deviation, net_carry, enable_lifecycle_exposure, user_age)
+ai_insights = generate_ai_dynamic_alerts(ltv_ratio, exposure_vs_equity, target_lifecycle_exposure, weight_deviation, net_carry, enable_lifecycle_exposure, user_age)
 
 for insight in ai_insights:
-    if "警報" in insight or "警告" in insight or "警示" in insight or "提醒" in insight:
+    if "警報" in insight or "警告" in insight or "提醒" in insight:
         st.markdown(f'<div class="ai-alert-box">{insight}</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="ai-success-box">{insight}</div>', unsafe_allow_html=True)
@@ -350,7 +351,7 @@ with c4:
     <div class="metric-card">
         <div class="card-title">自有資金淨權益曝險</div>
         <div class="card-value text-blue">{exposure_vs_equity:.1f}%</div>
-        <div class="card-subtitle">{'生命週期目標: ~' + f'{target_lifecycle_exposure:.1f}%' if enable_lifecycle_exposure else '自由曝險模式'}</div>
+        <div class="card-subtitle">再投入比例: {pledged_invest_ratio*100:.0f}%</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -475,7 +476,7 @@ st.markdown("### 💵 核心重點：現金流自償性與永續槓桿損益試�
 lc, rc = st.columns(2)
 with lc:
     st.metric("年度質押利息支出 (只付利息)", f"-NT$ {annual_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}%")
-    st.metric(f"標的 2 預期年度配息收益", f"+NT$ {expected_div_2:,.0f}", f"質押再投入部位 95% × 殖利率 {div_yield_2*100:.1f}%")
+    st.metric(f"標的 2 預期年度配息收益", f"+NT$ {expected_div_2:,.0f}", f"質押再投入部位 {pledged_invest_ratio*100:.0f}% × 殖利率 {div_yield_2*100:.1f}%")
     
     if enable_mortgage:
         st.metric(f"房貸年度現金流支出", f"-NT$ {mortgage_annual_outflow:,.0f}")
