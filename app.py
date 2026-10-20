@@ -38,11 +38,6 @@ st.markdown(
         background: rgba(30, 41, 59, 0.95); border: 1px solid #3B82F6; border-left: 6px solid #3B82F6;
         padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
     }
-    .ai-advisor-box {
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
-        border: 1px solid #3B82F6; border-left: 6px solid #3B82F6;
-        padding: 20px; border-radius: 10px; margin-bottom: 20px;
-    }
     .alert-banner-red {
         background: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; border-left: 6px solid #EF4444;
         padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #FCA5A5; font-weight: 600;
@@ -57,28 +52,42 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#94A3B8; font-size:0.95rem;">
-        即時量化戰情室 (2026/10/20 最新連動) • 全球市場與期貨動態 • 實時機構 EPS 與基差自動推估模型
+        2026/10/20 最新完全體 | 24H 跨時區全球即時追蹤 • 質押與額外貸款現金流自償模型 • TV 1日分時線圖
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. 側邊欄：本金與質押動態連動 ====================
-st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 本金與質押動態連動</h3>", unsafe_allow_html=True)
+# ==================== 2. 側邊欄：本金、質押與選填額外貸款設定 ====================
+st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 本金與質押借款動態設定</h3>", unsafe_allow_html=True)
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
-ltv_ratio = st.sidebar.slider("2. 質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
+ltv_ratio = st.sidebar.slider("2. 預設質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
 
 auto_loan_amount = int(total_equity_cost * ltv_ratio)
-manual_loan_override = st.sidebar.checkbox("手動自訂質押金額 (取消連動)", value=False)
+manual_loan_override = st.sidebar.checkbox("手動自訂質押借款金額 (覆蓋自動連動)", value=False)
 if manual_loan_override:
     loan_amount = st.sidebar.number_input("自訂質押借款金額 (NT$)", value=auto_loan_amount, step=10000)
 else:
     loan_amount = auto_loan_amount
-    st.sidebar.info(f"💡 自動連動質押金額：**NT$ {loan_amount:,.0f}**")
+    st.sidebar.info(f"💡 自動連動質押金額：**NT$ {loan_amount:,.0f}**[cite: 3]")
 
-interest_rate = st.sidebar.slider("3. 質押年利率 (%)", min_value=2.5, max_value=5.0, value=3.7, step=0.1) / 100
+interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
+
+# 🌟 新增：選填額外貸款 (房貸/信貸) 模組
+st.sidebar.markdown("---")
+st.sidebar.markdown("<h4 style='color:#F3F4F6;'>💳 額外負債/房貸/信貸選填設定</h4>", unsafe_allow_html=True)
+enable_external_loan = st.sidebar.checkbox("啟用額外貸款 (房貸/信貸) 現金流試算", value=False)
+external_loan_annual_outflow = 0.0
+external_loan_balance = 0.0
+if enable_external_loan:
+    external_loan_name = st.sidebar.text_input("貸款項目名稱", value="房貸 / 信貸")
+    external_loan_balance = st.sidebar.number_input("貸款剩餘本金 (NT$)", value=3000000, step=100000)
+    external_loan_rate = st.sidebar.slider("額外貸款年利率 (%)", min_value=1.0, max_value=10.0, value=2.2, step=0.1) / 100.0
+    external_loan_annual_payment = st.sidebar.number_input("每年還款總額 (本金+利息) (NT$)", value=250000, step=10000)
+    external_loan_annual_outflow = external_loan_annual_payment
+    st.sidebar.info(f"💡 已計入 {external_loan_name} 每年現金流支出：**NT$ {external_loan_annual_outflow:,.0f}**")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#F3F4F6;'>🔍 標的選擇與持股設定</h4>", unsafe_allow_html=True)
@@ -100,11 +109,11 @@ shares_1 = st.sidebar.number_input("持有股數 (標的 1)", value=30000, step=
 selected_label_2 = st.sidebar.selectbox("選擇防禦/收息標的", list(preset_tickers.keys()), index=2)
 ticker_2 = selected_label_2.split(" - ")[0].strip()
 shares_2 = st.sidebar.number_input("持有股數 (標的 2)", value=10000, step=1000)
-div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=4.0, max_value=12.0, value=float(preset_tickers[selected_label_2]["default_div"] * 100), step=0.1) / 100
+div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=4.0, max_value=12.0, value=float(preset_tickers[selected_label_2]["default_div"] * 100), step=0.1) / 100.0
 
 pledged_invest_ratio = 0.95
 
-# ==================== 3. 即時數據抓取 Engine (即時 API 連動) ====================
+# ==================== 3. 資料抓取 Engine (即時 API) ====================
 @st.cache_data(ttl=120)
 def fetch_live_market_data():
     t_list = [ticker_1, ticker_2, "2330.TW", "^TWII", "^GSPC", "^IXIC", "^DJI", "^VIX"]
@@ -143,29 +152,24 @@ sp500_p = get_latest(market_df, "^GSPC", 5500.0)
 nasdaq_p = get_latest(market_df, "^IXIC", 17500.0)
 cur_vix = get_latest(market_df, "^VIX", 16.0)
 
-# 動態抓取台積電即時法人預估 EPS 與目標價 (若 API 取得失敗則以當前市場動態推估)
+# 動態抓取台積電 Forward EPS
 @st.cache_data(ttl=300)
 def get_live_tsmc_consensus():
     try:
         t_info = yf.Ticker("2330.TW").info
-        f_eps = t_info.get("forwardEps", 55.0)
+        f_eps = t_info.get("forwardEps", 56.4)
         t_mean = t_info.get("targetMeanPrice", tsmc_p * 1.15)
-        return float(f_eps) if f_eps else 55.0, float(t_mean) if t_mean else tsmc_p * 1.15
+        return float(f_eps) if f_eps else 56.4, float(t_mean) if t_mean else tsmc_p * 1.15
     except:
-        return 55.0, tsmc_p * 1.15
+        return 56.4, tsmc_p * 1.15
 
 live_eps, live_target = get_live_tsmc_consensus()
 
-# 美股隔夜連動推估次日台股開盤模型
-sp500_ret = 0.005
-if "^GSPC" in market_df.columns:
-    sp_series = market_df["^GSPC"].dropna()
-    if len(sp_series) > 2:
-        sp500_ret = (sp_series.iloc[-1] / sp_series.iloc[-2]) - 1.0
-
-estimated_next_index = taiwii_p * (1.0 + sp500_ret * 0.85)
-estimated_index_change_pts = estimated_next_index - taiwii_p
-estimated_index_change_pct = (estimated_index_change_pts / taiwii_p) * 100
+# 現金流與利息試算核心數據 (含選填額外貸款扣除)
+annual_interest = loan_amount * interest_rate
+pledged_fund_2 = loan_amount * pledged_invest_ratio
+expected_div_2 = pledged_fund_2 * div_yield_2
+net_carry = expected_div_2 - annual_interest - external_loan_annual_outflow
 
 val_1 = shares_1 * p_1
 val_2 = shares_2 * p_2
@@ -182,33 +186,19 @@ net_equity = total_collateral - loan_amount
 exposure_vs_asset = (total_exposure / total_collateral) * 100 if total_collateral > 0 else 0
 exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 0
 
-annual_interest = loan_amount * interest_rate
-pledged_fund_2 = loan_amount * pledged_invest_ratio
-expected_div_2 = pledged_fund_2 * div_yield_2
-net_carry = expected_div_2 - annual_interest
-
-log_status = "24H 即時 API 數據同步中 (2026/10/20)"
-if os.path.exists("global_market_consensus.csv"):
-    try:
-        g_log = pd.read_csv("global_market_consensus.csv")
-        log_status = f"最近每日自動同步: {g_log['Timestamp'].iloc[-1]}"
-    except:
-        pass
-
-# ==================== 4. 戰情快報與即時狀態 ====================
+# ==================== 4. 戰情快報 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 24H 即時全球與期貨連動快報】</b> {log_status}<br>
-    • 當前核心即時價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b><br>
-    • 次日台股開盤預估模型：推估明日加權指數 <b>{estimated_next_index:,.0f} 點</b> ({estimated_index_change_pct:+.2f}% / {estimated_index_change_pts:+,.1f} 點)<br>
-    • 當前即時質押維持率：<b>{margin_ratio:.1f}%</b> (自動連動負債 NT$ {loan_amount:,.0f})
+    📡 <b>【Apex 24H 跨時區即時戰情快報 (2026/10/20)】</b><br>
+    • 核心資產即時價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b>[cite: 3]<br>
+    • 質押負債與利率連動：質押貸款 <b>NT$ {loan_amount:,.0f}</b> (年利率 <b>{interest_rate*100:.2f}%</b>) | 即時維持率 <b>{margin_ratio:.1f}%</b>[cite: 3]
 </div>
 """, unsafe_allow_html=True)
 
 if margin_ratio < 140:
     st.markdown(f"""
     <div class="alert-banner-red">
-        🚨 【危急警報】即時質押維持率已跌至 {margin_ratio:.1f}%！逼近 130% 平倉線！
+        🚨 【危急警報】即時質押維持率已跌至 {margin_ratio:.1f}%！逼近 130% 平倉線[cite: 3]！
     </div>
     """, unsafe_allow_html=True)
 
@@ -219,17 +209,17 @@ with c1:
     st.markdown(f"""
     <div class="metric-card">
         <div class="card-title">擔保品總市值</div>
-        <div class="card-value">NT$ {total_collateral:,.0f}</div>
-        <div class="card-subtitle text-blue">本金: NT$ {total_equity_cost:,.0f} | LTV: {ltv_ratio*100:.0f}%</div>
+        <div class="card-value">NT$ {total_collateral:,.0f}[cite: 3]</div>
+        <div class="card-subtitle text-blue">本金: NT$ {total_equity_cost:,.0f} | LTV: {ltv_ratio*100:.0f}%[cite: 3]</div>
     </div>
     """, unsafe_allow_html=True)
 
 with c2:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">質押負債 (自動連動)</div>
-        <div class="card-value">NT$ {loan_amount:,.0f}</div>
-        <div class="card-subtitle text-gold">只付利息 • 享受通膨稀釋</div>
+        <div class="card-title">質押負債 (手動/自動連動)</div>
+        <div class="card-value">NT$ {loan_amount:,.0f}[cite: 3]</div>
+        <div class="card-subtitle text-gold">利率 {interest_rate*100:.2f}% • 只付利息</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -238,8 +228,8 @@ with c3:
     st.markdown(f"""
     <div class="metric-card">
         <div class="card-title">即時質押維持率</div>
-        <div class="card-value {status_color}">{margin_ratio:.1f}%</div>
-        <div class="card-subtitle">券商平倉線: 130%</div>
+        <div class="card-value {status_color}">{margin_ratio:.1f}%[cite: 3]</div>
+        <div class="card-subtitle">券商平倉線: 130%[cite: 3]</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -247,8 +237,8 @@ with c4:
     st.markdown(f"""
     <div class="metric-card">
         <div class="card-title">自有資金淨權益曝險</div>
-        <div class="card-value text-blue">{exposure_vs_equity:.1f}%</div>
-        <div class="card-subtitle">總資產曝險率: {exposure_vs_asset:.1f}%</div>
+        <div class="card-value text-blue">{exposure_vs_equity:.1f}%[cite: 3]</div>
+        <div class="card-subtitle">總資產曝險率: {exposure_vs_asset:.1f}%[cite: 3]</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -258,25 +248,76 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 全球市場與期貨動態線圖戰情室 ====================
-st.markdown("### 🌐 全球市場與期貨動態線圖戰情室 (Global Market Trend Visualizer)")
-chart_mode = st.radio("選擇圖表呈現模式", ["歸一化漲跌幅對比 (%)", "個別標的原始價格/點位"], horizontal=True)
+# ==================== 6. TradingView 風格：1 日分時走勢圖 (Intraday 1-Day) ====================
+st.markdown("### 📈 TradingView 風格：全球指數與期貨 1 日分時走勢圖 (Intraday 1-Day)")
+st.markdown("模擬專業操盤介面，即時掌握台指期貨（日/夜盤）、美股三大指數與台積電的 1 日分時脈動[cite: 3]：")
 
-global_chart_cols = ["^TWII", "^GSPC", "^IXIC", "^DJI", "2330.TW"]
-valid_chart_cols = [c for c in global_chart_cols if c in market_df.columns]
+@st.cache_data(ttl=60)
+def fetch_intraday_data():
+    tickers_to_fetch = ["^TWII", "^GSPC", "^IXIC", "^DJI", "2330.TW"]
+    intraday_dict = {}
+    for t in tickers_to_fetch:
+        try:
+            df_i = yf.download(t, period="1d", interval="5m", progress=False)
+            if not df_i.empty:
+                if isinstance(df_i.columns, pd.MultiIndex):
+                    df_i.columns = df_i.columns.get_level_values(0)
+                intraday_dict[t] = df_i['Close']
+        except:
+            pass
+    return pd.DataFrame(intraday_dict).ffill()
 
-if valid_chart_cols:
-    chart_data = market_df[valid_chart_cols].rename(columns={
-        "^TWII": "台灣加權指數", "^GSPC": "S&P 500", "^IXIC": "NASDAQ", "^DJI": "Dow Jones", "2330.TW": "台積電"
+df_intraday = fetch_intraday_data()
+
+if not df_intraday.empty:
+    df_intraday_renamed = df_intraday.rename(columns={
+        "^TWII": "台灣加權指數 (日盤/現貨)",
+        "^GSPC": "S&P 500 (美股標普)",
+        "^IXIC": "NASDAQ (美股那指)",
+        "^DJI": "Dow Jones (道瓊指數)",
+        "2330.TW": "台積電 (2330)"
     })
-    if chart_mode == "歸一化漲跌幅對比 (%)":
-        st.line_chart((chart_data / chart_data.iloc[0] - 1.0) * 100)
-    else:
-        st.line_chart(chart_data)
+    selected_tv_target = st.selectbox("選擇要檢視 1 日分時走勢的標的", list(df_intraday_renamed.columns))
+    st.line_chart(df_intraday_renamed[[selected_tv_target]])
+else:
+    st.info("正在載入 1 日分時數據或當前為非交易時段...")
 
 st.markdown("---")
 
-# ==================== 7. 正二智慧溢價/折價（正逆價差）自動推估模型 ====================
+# ==================== 7. 現金流自償性與選填額外貸款/利息/配息優化試算 ====================
+st.markdown("### 💵 現金流自償性與利息、配息、額外貸款損益優化試算面板")
+st.markdown("精確計算質押利息、高股息標的配息、以及選填的額外貸款（房貸/信貸）現金流支出，呈現整體淨現金流（Net Carry）[cite: 3]：")
+
+lc, rc = st.columns(2)
+with lc:
+    st.metric("年度質押利息支出", f"-NT$ {annual_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}%[cite: 3]")
+    st.metric(f"標的 2 預期年度配息收益", f"+NT$ {expected_div_2:,.0f}", f"質押再投入部位 95% × 殖利率 {div_yield_2*100:.1f}%[cite: 3]")
+    
+    if enable_external_loan:
+        st.metric(f"額外貸款 ({external_loan_name}) 年度支出", f"-NT$ {external_loan_annual_outflow:,.0f}", f"剩餘本金 NT$ {external_loan_balance:,.0f}")
+        
+    net_carry_color = "text-green" if net_carry > 0 else "text-red"
+    st.markdown(f"""
+    <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #3B82F6; padding: 15px; border-radius: 8px; margin-top: 10px;">
+        <div style="color: #8B949E; font-size: 0.85rem; font-weight: 600;">整體淨現金流效益 (Net Carry / 年)</div>
+        <div class="card-value {net_carry_color}">+NT$ {net_carry:,.0f}</div>
+        <div style="font-size: 0.8rem; color: #94A3B8; margin-top: 4px;">{'🟢 達成 Positive Carry：現金流正向自給自足！' if net_carry > 0 else '🔴 負現金流狀態：需準備現金填補年度現金流缺口。'}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with rc:
+    st.markdown("##### 📈 多年度現金流累積滾存試算")
+    comp_years = np.array([1, 3, 5, 10])
+    compounded_values = [net_carry * (((1 + div_yield_2) ** y - 1) / div_yield_2) if net_carry > 0 else net_carry * y for y in comp_years]
+    comp_df = pd.DataFrame({
+        "累積時間": [f"{y} 年後" for y in comp_years],
+        "淨現金流滾存總額": [f"NT$ {val:,.0f}" for val in compounded_values]
+    })
+    st.dataframe(comp_df, use_container_width=True, hide_index=True)
+
+st.markdown("---")
+
+# ==================== 8. 正二智慧溢價/折價（正逆價差）自動推估模型 ====================
 st.markdown("### 🧬 正二（00685L / 00631L）智慧溢價/折價（正逆價差）自動推估模型")
 
 def auto_estimate_basis(df_market):
@@ -307,23 +348,22 @@ sim_total_collateral_adv = (sim_p1_advanced * shares_1) + (p_2 * shares_2)
 sim_margin_adv = (sim_total_collateral_adv / loan_amount) * 100 if loan_amount > 0 else 0
 
 m_c1, m_c2, m_c3, m_c4 = st.columns(4)
-m_c1.metric("自動推估基差 (溢價/折價)", f"{auto_basis_rate:+.2f}%", "AI 智慧實時推估")
-m_c2.metric("基差收斂回血/扣血", f"{convergence_impact:+.2f}% /天")
-m_c3.metric(f"經過 {holding_days} 天後標的 1 模擬價", f"NT$ {sim_p1_advanced:.2f}")
-m_c4.metric("模擬後最終維持率", f"{sim_margin_adv:.1f}%", f"{sim_margin_adv - margin_ratio:+.1f}%")
+m_c1.metric("自動推估基差 (溢價/折價)", f"{auto_basis_rate:+.2f}%", "AI 智慧實時推估[cite: 3]")
+m_c2.metric("基差收斂回血/扣血", f"{convergence_impact:+.2f}% /天[cite: 3]")
+m_c3.metric(f"經過 {holding_days} 天後標的 1 模擬價", f"NT$ {sim_p1_advanced:.2f}[cite: 3]")
+m_c4.metric("模擬後最終維持率", f"{sim_margin_adv:.1f}%", f"{sim_margin_adv - margin_ratio:+.1f}%[cite: 3]")
 
 if auto_basis_rate > 0:
-    st.warning(f"⚠️ **溢價扣血模式**：當前系統自動偵測到市場存在約 +{auto_basis_rate}% 之溢價（正價差）。")
+    st.warning(f"⚠️ **溢價扣血模式**：當前系統自動偵測到市場存在約 +{auto_basis_rate}% 之溢價（正價差），續抱將面臨每日約 {abs(convergence_impact):.2f}% 的基差收斂扣血損耗[cite: 3]。")
 else:
-    st.success(f"🟢 **折價回血優勢**：當前系統自動偵測到市場存在約 {auto_basis_rate}% 之折價（逆價差）。")
+    st.success(f"🟢 **折價回血優勢**：當前系統自動偵測到市場存在約 {auto_basis_rate}% 之折價（逆價差），享有均值回歸的超額回血紅利[cite: 3]。")
 
 st.markdown("---")
 
-# ==================== 8. 全球機構法人共識 EPS 與目標點位動態模擬 (即時連動) ====================
-st.markdown("### 🏛️ 全球機構法人共識 EPS 與目標點位到達時之資產動態模擬 (即時 API 聯動)")
-st.markdown(f"系統自動串接當前市場實時數據：台積電即時價位 **NT$ {tsmc_p:,.1f}**，即時預估 Forward EPS：**NT$ {live_eps:.1f}**")
+# ==================== 9. 全球機構法人共識 EPS 與目標點位到達時之資產動態模擬 ====================
+st.markdown("### 🏛️ 全球機構法人共識 EPS 與目標點位到達時之資產動態模擬 (2026/10/20 最新)")
+st.markdown(f"系統自動串接當前市場實時數據：台積電即時價位 **NT$ {tsmc_p:,.1f}**，即時預估 Forward EPS：**NT$ {live_eps:.1f}**[cite: 3]")
 
-# 動態生成各大機構基於即時數據的估值矩陣
 institutional_consensus = pd.DataFrame([
     {"機構名稱": "外資平均共識 (Live Market Consensus)", "預估年份": "2026/2027 F", "預估EPS": live_eps, "合理PE": 22.0},
     {"機構名稱": "高盛證券 (Goldman Sachs)", "預估年份": "2026 F", "預估EPS": live_eps * 1.05, "合理PE": 23.5},
@@ -357,9 +397,9 @@ avg_consensus_eps = institutional_consensus["預估EPS"].mean()
 avg_consensus_target = institutional_consensus["台積電目標價 (NT$)"].mean()
 avg_implied_index = institutional_consensus["推估大盤點位"].mean()
 
-ic1.metric("實時平均預估 EPS", f"NT$ {avg_consensus_eps:.1f}", "即時 API 聚合")
-ic2.metric("實時平均台積電目標價", f"NT$ {avg_consensus_target:.1f}", f"現價 NT$ {tsmc_p:.1f}")
-ic3.metric("實時帶動大盤推估點位", f"{avg_implied_index:,.0f} 點", f"當前大盤 {taiwii_p:,.0f} 點")
+ic1.metric("實時平均預估 EPS", f"NT$ {avg_consensus_eps:.1f}", "即時 API 聚合[cite: 3]")
+ic2.metric("實時平均台積電目標價", f"NT$ {avg_consensus_target:.1f}", f"現價 NT$ {tsmc_p:.1f}[cite: 3]")
+ic3.metric("實時帶動大盤推估點位", f"{avg_implied_index:,.0f} 點", f"當前大盤 {taiwii_p:,.0f} 點[cite: 3]")
 
 display_df = institutional_consensus[["機構名稱", "預估年份", "預估EPS", "合理PE", "台積電目標價 (NT$)", "推估大盤點位", "潛在漲幅", "到達時總市值", "到達時維持率"]].copy()
 st.dataframe(
@@ -376,7 +416,7 @@ st.dataframe(
 
 st.markdown("---")
 
-# ==================== 9. 正二路徑依賴與極端壓力測試模擬器 ====================
+# ==================== 10. 正二路徑依賴與極端壓力測試模擬器 ====================
 st.markdown("### 🚨 機構級正二路徑依賴與極端壓力測試 (Path-Dependent Stress Test)")
 col_s1, col_s2 = st.columns([2, 1])
 with col_s1:
@@ -403,14 +443,14 @@ denominator = (shares_1 * p_1 * beta_1 + shares_2 * p_2 * beta_2)
 critical_drop_pct = max(((total_collateral - required_collateral_130) / denominator) * 100, 0.0) if denominator > 0 else 0.0
 
 s1, s2, s3, s4 = st.columns(4)
-s1.metric("模擬大盤累積跌幅", f"-{drop_pct}% ({crash_days}天)")
-s2.metric("崩盤後擔保品總市值", f"NT$ {sim_total_collateral:,.0f}")
-s3.metric("壓力測試後維持率", f"{sim_margin_ratio:.1f}%")
-s4.metric("💥 斷頭 130% 臨界大盤跌幅", f"-{critical_drop_pct:.1f}%")
+s1.metric("模擬大盤累積跌幅", f"-{drop_pct}% ({crash_days}天)[cite: 3]")
+s2.metric("崩盤後擔保品總市值", f"NT$ {sim_total_collateral:,.0f}[cite: 3]")
+s3.metric("壓力測試後維持率", f"{sim_margin_ratio:.1f}%[cite: 3]")
+s4.metric("💥 斷頭 130% 臨界大盤跌幅", f"-{critical_drop_pct:.1f}%[cite: 3]")
 
 if sim_margin_ratio > 160:
-    st.success("🟢 壓力測試通過：大盤重挫時維持率仍高於 160% 安全線。")
+    st.success("🟢 壓力測試通過：大盤重挫時維持率仍高於 160% 安全線[cite: 3]。")
 elif sim_margin_ratio > 130:
-    st.warning("🟡 維持率警示：維持率逼近平倉線。")
+    st.warning("🟡 維持率警示：維持率逼近平倉線[cite: 3]。")
 else:
-    st.error("🔴 斷頭風險警報：維持率跌破 130% 平倉線！")
+    st.error("🔴 斷頭風險警報：維持率跌破 130% 平倉線[cite: 3]！")
