@@ -53,14 +53,14 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#94A3B8; font-size:0.95rem;">
-        2026/10 終極完全體 | 24H 跨時區即時追蹤 • 台指期貨日夜盤 (TX=F) • TradingView 專業黑卡互動走勢 • 權值共振超大波段聯動模型
+        2026/10 終極完全體 | 動態彈性自訂負債格子 • TradingView 專業高頻圖表 (Y軸高張力自動縮放) • 權值共振超大波段聯動模型
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. 側邊欄：本金、質押與選填額外貸款設定 ====================
+# ==================== 2. 側邊欄：本金、質押與動態彈性負債模組 ====================
 st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 本金與質押借款動態設定</h3>", unsafe_allow_html=True)
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
@@ -76,19 +76,55 @@ else:
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
-# 選填額外貸款 (房貸/信貸) 模組
+# 獨立房貸與信貸模組
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#F3F4F6;'>💳 額外負債/房貸/信貸選填設定</h4>", unsafe_allow_html=True)
-enable_external_loan = st.sidebar.checkbox("啟用額外貸款 (房貸/信貸) 現金流試算", value=False)
-external_loan_annual_outflow = 0.0
-external_loan_balance = 0.0
-if enable_external_loan:
-    external_loan_name = st.sidebar.text_input("貸款項目名稱", value="房貸 / 信貸")
-    external_loan_balance = st.sidebar.number_input("貸款剩餘本金 (NT$)", value=3000000, step=100000)
-    external_loan_rate = st.sidebar.slider("額外貸款年利率 (%)", min_value=1.0, max_value=10.0, value=2.2, step=0.1) / 100.0
-    external_loan_annual_payment = st.sidebar.number_input("每年還款總額 (本金+利息) (NT$)", value=250000, step=10000)
-    external_loan_annual_outflow = external_loan_annual_payment
-    st.sidebar.info(f"💡 已計入 {external_loan_name} 每年現金流支出：**NT$ {external_loan_annual_outflow:,.0f}**")
+st.sidebar.markdown("<h4 style='color:#F3F4F6;'>💳 獨立負債模組：房貸與信貸</h4>", unsafe_allow_html=True)
+
+enable_mortgage = st.sidebar.checkbox("啟用房貸現金流試算", value=False)
+mortgage_annual_outflow = 0.0
+if enable_mortgage:
+    mortgage_balance = st.sidebar.number_input("房貸剩餘本金 (NT$)", value=8000000, step=100000)
+    mortgage_rate = st.sidebar.slider("房貸年利率 (%)", min_value=1.5, max_value=4.0, value=2.2, step=0.1)
+    mortgage_annual_payment = st.sidebar.number_input("房貸每年還款總額 (本金+利息) (NT$)", value=360000, step=10000)
+    mortgage_annual_outflow = mortgage_annual_payment
+    st.sidebar.info(f"💡 房貸年現金流支出：**NT$ {mortgage_annual_outflow:,.0f}** (利率 {mortgage_rate}%)")
+
+enable_credit_loan = st.sidebar.checkbox("啟用信貸現金流試算", value=False)
+credit_annual_outflow = 0.0
+if enable_credit_loan:
+    credit_balance = st.sidebar.number_input("信貸剩餘本金 (NT$)", value=1500000, step=50000)
+    credit_rate = st.sidebar.slider("信貸年利率 (%)", min_value=2.0, max_value=8.0, value=2.8, step=0.1)
+    credit_annual_payment = st.sidebar.number_input("信貸每年還款總額 (本金+利息) (NT$)", value=200000, step=10000)
+    credit_annual_outflow = credit_annual_payment
+    st.sidebar.info(f"💡 信貸年現金流支出：**NT$ {credit_annual_outflow:,.0f}** (利率 {credit_rate}%)")
+
+# 動態自訂負債格子管理器 (極致靈活度)
+st.sidebar.markdown("---")
+st.sidebar.markdown("<h4 style='color:#F3F4F6;'>➕ 自訂彈性擴充負債格子</h4>", unsafe_allow_html=True)
+if 'custom_debts' not in st.session_state:
+    st.session_state.custom_debts = []
+
+if st.sidebar.button("➕ 新增自訂負債項目"):
+    st.session_state.custom_debts.append({
+        "name": f"自訂負債 {len(st.session_state.custom_debts)+1}",
+        "balance": 500000.0,
+        "rate": 3.0,
+        "outflow": 50000.0
+    })
+
+custom_debts_total_outflow = 0.0
+for i, debt in enumerate(st.session_state.custom_debts):
+    st.sidebar.markdown(f"**📌 項目 #{i+1}**")
+    debt["name"] = st.sidebar.text_input(f"負債名稱 #{i+1}", value=debt["name"], key=f"c_name_{i}")
+    debt["balance"] = st.sidebar.number_input(f"剩餘本金 #{i+1} (NT$)", value=debt["balance"], step=50000, key=f"c_bal_{i}")
+    debt["rate"] = st.sidebar.slider(f"年利率 #{i+1} (%)", min_value=1.0, max_value=10.0, value=debt["rate"], step=0.1, key=f"c_rate_{i}")
+    debt["outflow"] = st.sidebar.number_input(f"每年還款總額 #{i+1} (NT$)", value=debt["outflow"], step=10000, key=f"c_out_{i}")
+    custom_debts_total_outflow += debt["outflow"]
+    if st.sidebar.button(f"🗑️ 刪除此項 #{i+1}", key=f"del_c_{i}"):
+        st.session_state.custom_debts.pop(i)
+        st.rerun()
+
+total_external_outflow = mortgage_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#F3F4F6;'>🔍 標的選擇與持股設定</h4>", unsafe_allow_html=True)
@@ -159,7 +195,7 @@ cur_vix = get_latest(market_df, "^VIX", 16.0)
 annual_interest = loan_amount * interest_rate
 pledged_fund_2 = loan_amount * pledged_invest_ratio
 expected_div_2 = pledged_fund_2 * div_yield_2
-net_carry = expected_div_2 - annual_interest - external_loan_annual_outflow
+net_carry = expected_div_2 - annual_interest - total_external_outflow
 
 val_1 = shares_1 * p_1
 val_2 = shares_2 * p_2
@@ -238,9 +274,9 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. TradingView / Google Finance 頂級 1 天高頻互動圖表 (自動縮放 Y 軸) ====================
+# ==================== 6. TradingView 頂級高頻互動圖表 (Y軸高張力自動縮放) ====================
 st.markdown("### 📈 TradingView 專業級黑卡互動分時走勢圖 (含台指期貨日夜盤 TX=F)")
-st.markdown("對標專業操盤介面，即時掌握 1 天高頻動態、夜盤與自動縮放起伏：")
+st.markdown("對標專業操盤介面，即時掌握 1 天高頻動態、夜盤與高張力波動起伏：")
 
 @st.cache_data(ttl=60)
 def fetch_intraday_data():
@@ -248,7 +284,6 @@ def fetch_intraday_data():
     intraday_dict = {}
     for t in tickers_to_fetch:
         try:
-            # 抓取 5 天高頻數據以確保涵蓋日夜盤連續脈動
             df_i = yf.download(t, period="5d", interval="5m", progress=False)
             if not df_i.empty:
                 if isinstance(df_i.columns, pd.MultiIndex):
@@ -275,7 +310,6 @@ if not df_intraday.empty:
     
     target_series = df_intraday_renamed[selected_tv_target].dropna()
     if not target_series.empty:
-        # 取最近一個交易日或最近 100 筆高頻脈動來做精細放大展示
         recent_session_series = target_series.tail(120)
         curr_val = recent_session_series.iloc[-1]
         prev_close = recent_session_series.iloc[0]
@@ -317,7 +351,12 @@ if not df_intraday.empty:
             annotation_font_color="#8B949E"
         )
         
-        # 關鍵修正：啟用自動縮放 Y 軸 (autorange=True)，讓線圖隨高低起伏自動放大，絕不被壓扁
+        # 關鍵精進：計算高低價包絡範圍，確保 Y 軸緊密貼合波動、放大起伏張力，絕不平淡！
+        ymin = recent_session_series.min()
+        ymax = recent_session_series.max()
+        buffer = (ymax - ymin) * 0.03 if ymin != ymax else ymin * 0.01
+        yaxis_range = [ymin - buffer, ymax + buffer]
+
         fig.update_layout(
             template='plotly_dark',
             paper_bgcolor='#0B0E14',
@@ -325,7 +364,7 @@ if not df_intraday.empty:
             margin=dict(l=10, r=10, t=10, b=10),
             height=440,
             xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
-            yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
+            yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=yaxis_range, title=''),
             hovermode='x unified',
             showlegend=False
         )
@@ -335,17 +374,21 @@ else:
 
 st.markdown("---")
 
-# ==================== 7. 現金流自償性與選填額外貸款損益優化試算 ====================
-st.markdown("### 💵 現金流自償性與利息、配息、額外貸款損益優化試算面板")
-st.markdown("精確計算質押利息、高股息標的配息、以及選填的額外貸款（房貸/信貸）現金流支出，呈現整體淨現金流（Net Carry）：")
+# ==================== 7. 現金流自償性與獨立負債損益試算 ====================
+st.markdown("### 💵 現金流自償性與利息、配息、房貸、信貸與自訂負債損益試算面板")
+st.markdown("精確計算質押利息、高股息標的配息、以及所有房貸、信貸與動態自訂負債的現金流支出，呈現整體淨現金流（Net Carry）：")
 
 lc, rc = st.columns(2)
 with lc:
     st.metric("年度質押利息支出", f"-NT$ {annual_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}%")
     st.metric(f"標的 2 預期年度配息收益", f"+NT$ {expected_div_2:,.0f}", f"質押再投入部位 95% × 殖利率 {div_yield_2*100:.1f}%")
     
-    if enable_external_loan:
-        st.metric(f"額外貸款 ({external_loan_name}) 年度支出", f"-NT$ {external_loan_annual_outflow:,.0f}", f"剩餘本金 NT$ {external_loan_balance:,.0f}")
+    if enable_mortgage:
+        st.metric(f"房貸年度現金流支出", f"-NT$ {mortgage_annual_outflow:,.0f}")
+    if enable_credit_loan:
+        st.metric(f"信貸年度現金流支出", f"-NT$ {credit_annual_outflow:,.0f}")
+    if st.session_state.custom_debts:
+        st.metric(f"自訂彈性負債年度總支出", f"-NT$ {custom_debts_total_outflow:,.0f}", f"包含 {len(st.session_state.custom_debts)} 個自訂項目")
         
     net_carry_color = "text-green" if net_carry > 0 else "text-red"
     st.markdown(f"""
@@ -368,7 +411,7 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 8. 正二智慧溢價/折價（正逆價差）自動推估模型 ====================
+# ==================== 8. 正二智慧溢價/折價自動推估模型 ====================
 st.markdown("### 🧬 正二（00685L / 00631L）智慧溢價/折價（正逆價差）自動推估模型")
 
 def auto_estimate_basis(df_market):
@@ -413,7 +456,7 @@ st.markdown("---")
 
 # ==================== 9. 【全面權值大爆發聯動模型】基於 46,000+ 點與台積電 3,500 ~ 4,200 元目標 ====================
 st.markdown("### 🏛️ 全球機構法人共識 EPS 與權值共振聯動模擬 (超前進階：48,000 ~ 58,000 點大關)")
-st.markdown(f"系統即時動態追蹤（2026/10 最新行情）：台積電現價 **NT$ {tsmc_p:,.1f}**，當前大盤基底 **{taiwii_p:,.2f} 點**。基於 2 奈米與 CoWoS 狂潮，外資將台積電目標價推升至 **NT$ 3,500 ~ 4,200**。透過台積電與權值股（鴻海、聯發科、廣達等）的骨牌效應，全面驅動加權指數直奔 **48,000 至 58,000 點**：")
+st.markdown(f"系統即時動態追蹤（2026/10 最新行情）：台積電現價 **NT$ {tsmc_p:,.1f}**，當前大盤基底 **{taiwii_p:,.2f} 點**。基於 2 奈米與 CoWoS 狂潮，外資將台積電目標價推升至 **NT$ 3,500 ~ 4,200**。透過台積電與權值股的骨牌效應，全面驅動加權指數直奔 **48,000 至 58,000 點**：")
 
 @st.cache_data(ttl=300)
 def get_dynamic_institutional_consensus(current_tsmc_price):
