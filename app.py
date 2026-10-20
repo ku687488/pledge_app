@@ -45,6 +45,18 @@ st.markdown(
         border: 1px solid #F59E0B; border-left: 6px solid #F59E0B;
         padding: 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
     }
+    .ai-alert-box {
+        background: rgba(239, 68, 68, 0.12); border: 1px solid #EF4444; border-left: 6px solid #EF4444;
+        padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
+    }
+    .ai-success-box {
+        background: rgba(16, 185, 129, 0.12); border: 1px solid #10B981; border-left: 6px solid #10B981;
+        padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
+    }
+    .chart-container-box {
+        background: rgba(18, 24, 36, 0.85); border: 1px solid #2A364F; border-radius: 12px;
+        padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -55,14 +67,26 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:600;">
-        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 專業看盤軟體級靈動 Y 軸現貨走勢與成交量矩陣
+        💎 富人槓桿與現金流自償性戰略引擎 • 自由曝險與 AI 動態智慧偏離預警模型
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. 側邊欄：本金、質押與進階負債模組 ====================
+# ==================== 2. 側邊欄：生命週期/自由選擇模式、本金與負債模組 ====================
+st.sidebar.markdown("<h3 style='color:#F3F4F6;'>👤 投資人戰略風格與槓桿模式</h3>", unsafe_allow_html=True)
+
+enable_lifecycle_deleveraging = st.sidebar.checkbox("啟用生命週期動態降槓桿 (隨年紀降至 ~150%)", value=False)
+user_age = st.sidebar.number_input("目前真實年紀 (歲 - 僅供參考)", min_value=20, max_value=90, value=25, step=1)
+
+target_lifecycle_margin = min(max(135.0 + (user_age - 25) * 0.8, 135.0), 180.0)
+if enable_lifecycle_deleveraging:
+    st.sidebar.info(f"🎯 已啟用生命週期模型 ({user_age}歲)：目標維持率收斂至 ~{target_lifecycle_margin:.1f}%")
+else:
+    st.sidebar.info("🔓 目前為【完全自由曝險模式】：由您自行掌控槓桿與風險偏好，AI 僅負責動態試算與提醒。")
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 資本結構與永續槓桿設定</h3>", unsafe_allow_html=True)
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
@@ -144,7 +168,7 @@ for i, debt in enumerate(st.session_state.custom_debts):
 total_external_outflow = mortgage_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#F3F4F6;'>🔍 標的選擇與持股設定</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#F3F4F6;'>🔍 標的選擇與最佳權重設定</h4>", unsafe_allow_html=True)
 
 preset_tickers = {
     "00685L.TW - 元大台灣加權正2 (槓桿攻擊)": {"beta": 2.0, "default_div": 0.0},
@@ -156,27 +180,29 @@ preset_tickers = {
     "00919.TW - 群益台灣精選高息": {"beta": 0.9, "default_div": 0.10}
 }
 
-selected_label_1 = st.sidebar.selectbox("選擇攻擊/槓桿標的", list(preset_tickers.keys()), index=0)
+selected_label_1 = st.sidebar.selectbox("選擇攻擊/槓桿標的 (標的 1)", list(preset_tickers.keys()), index=0)
 ticker_1 = selected_label_1.split(" - ")[0].strip()
 shares_1 = st.sidebar.number_input("持有股數 (標的 1)", value=30000, step=1000)
 
-selected_label_2 = st.sidebar.selectbox("選擇防禦/收息標的", list(preset_tickers.keys()), index=2)
+selected_label_2 = st.sidebar.selectbox("選擇防禦/收息標的 (標的 2)", list(preset_tickers.keys()), index=2)
 ticker_2 = selected_label_2.split(" - ")[0].strip()
 shares_2 = st.sidebar.number_input("持有股數 (標的 2)", value=10000, step=1000)
 div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=4.0, max_value=12.0, value=float(preset_tickers[selected_label_2]["default_div"] * 100), step=0.1) / 100.0
 
+st.sidebar.markdown("---")
+st.sidebar.markdown("<h4 style='color:#F3F4F6;'>⚖️ 目標資產配置權重</h4>", unsafe_allow_html=True)
+target_weight_1 = st.sidebar.slider("目標攻擊標的權重 (%)", min_value=10.0, max_value=90.0, value=70.0, step=5.0) / 100.0
+
 pledged_invest_ratio = 0.95
 
-# ==================== 3. 抓取穩定真實市場數據引擎 ====================
-@st.cache_data(ttl=60)
-def fetch_market_data(ticker):
+# ==================== 3. 抓取短期高頻真實市場數據引擎 ====================
+@st.cache_data(ttl=30)
+def fetch_short_term_data(ticker):
     data_dict = {}
     configs = {
-        "過去 1 個月": ("1mo", "1d"),
-        "過去 6 個月": ("6mo", "1d"),
-        "過去 1 年": ("1y", "1d"),
-        "過去 3 年": ("3y", "1wk"),
-        "歷史全部": ("max", "1mo")
+        "1天 (即時高頻)": ("1d", "2m"),
+        "5天 (近期走勢)": ("5d", "15m"),
+        "1個月": ("1mo", "1d")
     }
     for label, (per, iv) in configs.items():
         try:
@@ -197,15 +223,15 @@ def fetch_market_data(ticker):
             pass
     return data_dict
 
-market_data_twii = fetch_market_data("^TWII")
-market_data_tsmc = fetch_market_data("2330.TW")
-market_data_gspc = fetch_market_data("^GSPC")
-market_data_ixic = fetch_market_data("^IXIC")
-market_data_dji = fetch_market_data("^DJI")
-market_data_vix = fetch_market_data("^VIX")
+market_data_twii = fetch_short_term_data("^TWII")
+market_data_tsmc = fetch_short_term_data("2330.TW")
+market_data_gspc = fetch_short_term_data("^GSPC")
+market_data_ixic = fetch_short_term_data("^IXIC")
+market_data_dji = fetch_short_term_data("^DJI")
+market_data_vix = fetch_short_term_data("^VIX")
 
 def get_latest_price(data_dict, fallback):
-    for key in ["過去 1 個月", "過去 6 個月", "過去 1 年"]:
+    for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
         if key in data_dict and not data_dict[key].empty:
             val = data_dict[key].iloc[-1]
             if not pd.isna(val) and val > 100:
@@ -234,6 +260,9 @@ margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 beta_1 = preset_tickers.get(selected_label_1, {"beta": 1.5})["beta"]
 beta_2 = preset_tickers.get(selected_label_2, {"beta": 0.7})["beta"]
 
+current_weight_1 = val_1 / total_collateral if total_collateral > 0 else 0
+weight_deviation = current_weight_1 - target_weight_1
+
 exposure_1 = val_1 * beta_1
 exposure_2 = val_2 * beta_2
 total_exposure = exposure_1 + exposure_2
@@ -241,21 +270,50 @@ net_equity = total_collateral - loan_amount
 exposure_vs_asset = (total_exposure / total_collateral) * 100 if total_collateral > 0 else 0
 exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 0
 
-# ==================== 4. 戰情快報 ====================
+# ==================== 4. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室量化戰情快報 (2026/10 最新)】</b><br>
-    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | S&P 500 <b>{sp500_p:,.2f}</b> | VIX <b>{cur_vix:.2f}</b><br>
-    • 永續負債架構：質押貸款 <b>NT$ {loan_amount:,.0f}</b> (利率 <b>{interest_rate*100:.2f}%</b> • 只付利息不還本) | 即時維持率 <b>{margin_ratio:.1f}%</b>
+    📡 <b>【Apex 家族辦公室量化戰情快報 (AI 動態智慧監控模式)】</b><br>
+    • 戰略模式：{'<b>[生命週期收斂中]</b>' if enable_lifecycle_deleveraging else '<b>[完全自由曝險模式]</b>'} | 當前維持率：<b>{margin_ratio:.1f}%</b><br>
+    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | VIX <b>{cur_vix:.2f}</b>
 </div>
 """, unsafe_allow_html=True)
 
-if margin_ratio < 140:
-    st.markdown(f"""
-    <div class="alert-banner-red">
-        🚨 【危急警報】即時質押維持率已跌至 {margin_ratio:.1f}%！逼近 130% 平倉線！
-    </div>
-    """, unsafe_allow_html=True)
+def generate_ai_dynamic_alerts(m_ratio, t_margin, w_dev, net_c, is_lifecycle, age):
+    alerts = []
+    
+    # 1. 槓桿與模式檢核
+    if is_lifecycle:
+        if m_ratio < t_margin - 15:
+            alerts.append(f"🚨 **[生命週期降槓桿警報]** 目前維持率 ({m_ratio:.1f}%) 低於您啟用之 {age} 歲生命週期目標 ({t_margin:.1f}%)。建議逐步調整曝險部位。")
+        elif m_ratio > t_margin + 40:
+            alerts.append(f"🚀 **[槓桿擴張空間]** 目前維持率 ({m_ratio:.1f}% ) 相當充裕，高於 {age} 歲階段的收斂目標，具備良好通膨稀釋空間。")
+    else:
+        if m_ratio < 150:
+            alerts.append(f"⚠️ **[自由模式風險提醒]** 當前維持率為 {m_ratio:.1f}%。由於您選擇自由曝險，請隨時留意大盤波動對維持率的衝擊，確保安全邊際。")
+        else:
+            alerts.append(f"🟢 **[自由模式運作良好]** 維持率 {m_ratio:.1f}% 處於健康區間，您可以完全依照個人策略自由調配槓桿與曝險部位。")
+        
+    # 2. 最佳權重偏移檢核
+    if abs(w_dev) > 0.10:
+        direction = "攻擊標的過重" if w_dev > 0 else "防禦標的過重"
+        alerts.append(f"⚖️ **[資產配置權重偏移警告]** 攻擊標的實際權重為 {current_weight_1*100:.1f}%，偏離目標設定超過 10% ({direction})。建議執行部位再平衡。")
+        
+    # 3. 現金流檢核
+    if net_c < 0:
+        alerts.append(f"⚠️ **[負現金流警報 (Negative Carry)]** 目前年度淨現金流為 -NT$ {abs(net_c):,.0f}。利息與外部負債支出大於配息收益，請留意流動性緩衝。")
+    else:
+        alerts.append(f"🟢 **[現金流自償達成]** 目前達成 Positive Carry (+NT$ {net_c:,.0f}/年)，負債利息完全由資產配息覆蓋，完美實現富人永續槓桿！")
+        
+    return alerts
+
+ai_insights = generate_ai_dynamic_alerts(margin_ratio, target_lifecycle_margin, weight_deviation, net_carry, enable_lifecycle_deleveraging, user_age)
+
+for insight in ai_insights:
+    if "警報" in insight or "警告" in insight or "提醒" in insight:
+        st.markdown(f'<div class="ai-alert-box">{insight}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="ai-success-box">{insight}</div>', unsafe_allow_html=True)
 
 # ==================== 5. 主戰情室 KPI 儀表板 ====================
 c1, c2, c3, c4 = st.columns(4)
@@ -284,16 +342,16 @@ with c3:
     <div class="metric-card">
         <div class="card-title">即時質押維持率</div>
         <div class="card-value {status_color}">{margin_ratio:.1f}%</div>
-        <div class="card-subtitle">券商平倉線: 130%</div>
+        <div class="card-subtitle">{'生命週期目標: ~' + f'{target_lifecycle_margin:.1f}%' if enable_lifecycle_deleveraging else '自由曝險模式'}</div>
     </div>
     """, unsafe_allow_html=True)
 
 with c4:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">自有資金淨權益曝險</div>
-        <div class="card-value text-blue">{exposure_vs_equity:.1f}%</div>
-        <div class="card-subtitle">總資產曝險率: {exposure_vs_asset:.1f}%</div>
+        <div class="card-title">權重配置狀態</div>
+        <div class="card-value text-blue">{current_weight_1*100:.1f}%</div>
+        <div class="card-subtitle">目標設定: {target_weight_1*100:.1f}%</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -303,13 +361,13 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 【核心區】台灣加權現貨滿版專業看盤走勢圖 ====================
-st.markdown("### 📈 核心旗艦區：台灣加權現貨走勢與成交量矩陣 (^TWII)")
-st.markdown("專業看盤軟體規格：取消強制從 0 開始的呆板限制，Y 軸根據區間最高最低價靈動自適應縮放，下方同步呈現成交量柱狀圖：")
+# ==================== 6. 【核心圖表方格區】台股現貨與美股指數精巧方格矩陣 ====================
+st.markdown("### 📈 即時高頻市場行情方格 (短期即時檢視)")
+st.markdown("優先呈現 1 天 / 5 天短期高頻走勢，靈活 Y 軸縮放不從 0 開始，搭配下方成交量矩陣：")
 
-def create_flexible_y_chart(series, title_text):
+def create_square_card_chart(series, title_text):
     if series is None or series.empty:
-        series = pd.Series([46000, 46500, 46200, 46900], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='D'))
+        series = pd.Series([46000, 46500, 46200, 46900], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='h'))
         
     s_open = series.iloc[0]
     s_curr = series.iloc[-1]
@@ -318,32 +376,28 @@ def create_flexible_y_chart(series, title_text):
     is_up = s_diff >= 0
     line_color = '#10B981' if is_up else '#EF4444'
     
-    # 建立雙子圖結構 (上方價格，下方成交量)
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.75, 0.25])
     
-    # 上方：價格走勢曲線
     fig.add_trace(go.Scatter(
         x=series.index, y=series, mode='lines', name=title_text,
-        line=dict(color=line_color, width=2.8),
-        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.18)' if is_up else 'rgba(239, 68, 68, 0.18)',
-        hovertemplate='日期: %{x|%Y-%m-%d}<br>點位: %{y:,.2f}<extra></extra>'
+        line=dict(color=line_color, width=2.2),
+        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.15)' if is_up else 'rgba(239, 68, 68, 0.15)',
+        hovertemplate='時間: %{x}<br>點位: %{y:,.2f}<extra></extra>'
     ), row=1, col=1)
     
-    # 下方：成交量柱狀圖
-    volumes = np.random.uniform(10000, 50000, len(series))
+    volumes = np.random.uniform(1000, 8000, len(series))
     fig.add_trace(go.Bar(
         x=series.index, y=volumes, name='成交量',
-        marker_color=['#10B981' if v > 30000 else '#EF4444' for v in volumes],
-        hovertemplate='日期: %{x|%Y-%m-%d}<br>成交量: %{y:,.0f} 張<extra></extra>'
+        marker_color=['#10B981' if v > 4000 else '#EF4444' for v in volumes],
+        hovertemplate='時間: %{x}<br>量: %{y:,.0f}<extra></extra>'
     ), row=2, col=1)
     
-    # 靈動 Y 軸縮放
     ymin, ymax = float(series.min()), float(series.max())
-    y_padding = (ymax - ymin) * 0.08 if ymax != ymin else 100.0
+    y_padding = (ymax - ymin) * 0.08 if ymax != ymin else 50.0
     
     fig.update_layout(
-        template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=10, b=10), height=450,
+        template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
+        margin=dict(l=5, r=5, t=5, b=5), height=280,
         xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
         yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - y_padding, ymax + y_padding], autorange=False, title=''),
         yaxis2=dict(showgrid=False, side='right', title=''),
@@ -351,94 +405,76 @@ def create_flexible_y_chart(series, title_text):
     )
     return fig, s_curr, s_pct, s_diff, line_color
 
-selected_p_spot = st.selectbox("選擇加權現貨歷史區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="spot_period_box")
-spot_series = market_data_twii.get(selected_p_spot, list(market_data_twii.values())[0] if market_data_twii else None)
+box_col1, box_col2 = st.columns(2)
 
-fig_spot, s_curr, s_pct, s_diff, col_s = create_flexible_y_chart(spot_series, "加權現貨")
-st.markdown(f"""
-<div style="display: flex; align-items: baseline; gap: 15px; margin-bottom: 10px;">
-    <span style="font-size: 2rem; font-weight: 800; color: #F8FAFC;">{s_curr:,.2f} 點</span>
-    <span style="font-size: 1rem; font-weight: 700; color: {col_s};">
-        {selected_p_spot}變動: {'+' if s_diff >= 0 else ''}{s_pct:.2f}% ({'+' if s_diff >= 0 else ''}{s_diff:,.2f} 點)
-    </span>
-</div>
-""", unsafe_allow_html=True)
-st.plotly_chart(fig_spot, use_container_width=True)
-
-st.markdown("---")
-
-# ==================== 7. 【美股三大指數與全球指標獨立對照區】 ====================
-st.markdown("### 📊 美國三大指數與全球關鍵指標獨立對照區")
-st.markdown("美股三大指數與權值指標同步啟用靈動 Y 軸縮放：")
-
-us_preset_tickers = {
-    "^GSPC": ("S&P 500 (美股標普 500 指數)", market_data_gspc),
-    "^IXIC": ("NASDAQ (美股那斯達克指數)", market_data_ixic),
-    "^DJI": ("Dow Jones (美股道瓊工業指數)", market_data_dji),
-    "2330.TW": ("台積電 (2330.TW 權值領航)", market_data_tsmc),
-    "^VIX": ("VIX 恐慌指數 (波動率追蹤)", market_data_vix)
-}
-
-col_us_sel, col_us_per = st.columns([2, 1])
-with col_us_sel:
-    selected_us_key = st.selectbox("選擇下方要獨立對照的美股/全球指標", list(us_preset_tickers.keys()), format_func=lambda x: us_preset_tickers[x][0])
-with col_us_per:
-    selected_us_period = st.selectbox("選擇美股指標區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="us_period_box")
-
-us_title, us_dict = us_preset_tickers[selected_us_key]
-us_series = us_dict.get(selected_us_period, list(us_dict.values())[0] if us_dict else None)
-
-fig_us, u_curr, u_pct, u_diff, col_u = create_flexible_y_chart(us_series, us_title)
-st.markdown(f"""
-<div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-    <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title} ({selected_us_period})</div>
-    <div style="display: flex; align-items: baseline; gap: 10px;">
-        <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{u_curr:,.2f}</span>
-        <span style="font-size: 0.95rem; font-weight: 700; color: {col_u};">
-            {'+' if u_diff >= 0 else ''}{u_pct:.2f}% ({'+' if u_diff >= 0 else ''}{u_diff:,.2f})
-        </span>
+with box_col1:
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📌 台灣加權現貨 (^TWII)")
+    p_sel_1 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="twii_box_sel")
+    ser_1 = market_data_twii.get(p_sel_1, list(market_data_twii.values())[0] if market_data_twii else None)
+    fig_1, curr_1, pct_1, diff_1, col_1 = create_square_card_chart(ser_1, "加權現貨")
+    st.markdown(f"""
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px;">
+        <span style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC;">{curr_1:,.2f}</span>
+        <span style="font-size: 0.85rem; font-weight: 700; color: {col_1};">{'+' if diff_1 >= 0 else ''}{pct_1:.2f}% ({'+' if diff_1 >= 0 else ''}{diff_1:,.2f})</span>
     </div>
-</div>
-""", unsafe_allow_html=True)
-st.plotly_chart(fig_us, use_container_width=True)
+    """, unsafe_allow_html=True)
+    st.plotly_chart(fig_1, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with box_col2:
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📌 美國 S&P 500 (^GSPC)")
+    p_sel_2 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="sp500_box_sel")
+    ser_2 = market_data_gspc.get(p_sel_2, list(market_data_gspc.values())[0] if market_data_gspc else None)
+    fig_2, curr_2, pct_2, diff_2, col_2 = create_square_card_chart(ser_2, "S&P 500")
+    st.markdown(f"""
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px;">
+        <span style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC;">{curr_2:,.2f}</span>
+        <span style="font-size: 0.85rem; font-weight: 700; color: {col_2};">{'+' if diff_2 >= 0 else ''}{pct_2:.2f}% ({'+' if diff_2 >= 0 else ''}{diff_2:,.2f})</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.plotly_chart(fig_2, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+box_col3, box_col4 = st.columns(2)
+
+with box_col3:
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📌 那斯達克指數 (^IXIC)")
+    p_sel_3 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="nasdaq_box_sel")
+    ser_3 = market_data_ixic.get(p_sel_3, list(market_data_ixic.values())[0] if market_data_ixic else None)
+    fig_3, curr_3, pct_3, diff_3, col_3 = create_square_card_chart(ser_3, "NASDAQ")
+    st.markdown(f"""
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px;">
+        <span style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC;">{curr_3:,.2f}</span>
+        <span style="font-size: 0.85rem; font-weight: 700; color: {col_3};">{'+' if diff_3 >= 0 else ''}{pct_3:.2f}% ({'+' if diff_3 >= 0 else ''}{diff_3:,.2f})</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.plotly_chart(fig_3, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with box_col4:
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📌 台積電 (2330.TW)")
+    p_sel_4 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="tsmc_box_sel")
+    ser_4 = market_data_tsmc.get(p_sel_4, list(market_data_tsmc.values())[0] if market_data_tsmc else None)
+    fig_4, curr_4, pct_4, diff_4, col_4 = create_square_card_chart(ser_4, "台積電")
+    st.markdown(f"""
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px;">
+        <span style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC;">NT$ {curr_4:,.1f}</span>
+        <span style="font-size: 0.85rem; font-weight: 700; color: {col_4};">{'+' if diff_4 >= 0 else ''}{pct_4:.2f}% ({'+' if diff_4 >= 0 else ''}{diff_4:,.1f})</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.plotly_chart(fig_4, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
-# ==================== 8. 【富人思維專屬】AI 槓桿與通膨稀釋優化建議引擎 ====================
-st.markdown("### 💎 富人思維戰略分析與 AI 槓桿優化建議")
+# ==================== 7. 【核心重點】現金流自償性與永續槓桿損益試算面板 ====================
+st.markdown("### 💵 核心重點：現金流自償性與永續槓桿損益試算面板")
+st.markdown("家族辦公室核心戰略：不還本金、只付利息，透過配息收益完美覆蓋融資成本（Net Carry）模型：")
 
-def generate_wealth_optimization_advice(loan_amt, total_coll, net_c, m_ratio):
-    advice_list = []
-    if net_c > 0:
-        advice_list.append("🟢 **Positive Carry（正向現金流）達成**：您的配息與收益完全能夠覆蓋所有負債利息。在富人思維中，這代表這筆負債是零成本的「印鈔機」，建議持續將多餘現金流滾入核心資產，讓通膨幫您吃掉債務實質本金。")
-    else:
-        advice_list.append("🟡 **Negative Carry（逆向現金流）警示**：目前利息與外部負債支出大於標的配息。若要維持『本金永不還』的富人架構，建議適度降低質押 LTV 或調配高息防禦標的，確保現金流安全邊際。")
-    
-    if m_ratio > 200:
-        advice_list.append("🚀 **槓桿空間極具潛力**：維持率高於 200%，資產安全邊際極高。富人思維在此階段會考慮適度『增貸/加碼』，在多頭趨勢中用通膨與資產擴張進一步稀釋負債佔比。")
-    elif m_ratio > 150:
-        advice_list.append("⚖️ **黃金平衡槓桿區**：維持率在 150%-200% 之間，既能享受到指數級的資產放大效益，又能兼顧波動防禦。")
-    else:
-        advice_list.append("⚠️ **高風險警戒區**：維持率逼近危險邊緣，務必預留現金緩衝，避免因短期黑天鵝觸及券商平倉線，破壞『永不還本、長期滾存』的富人複利計畫。")
-        
-    return advice_list
-
-wealth_tips = generate_wealth_optimization_advice(loan_amount, total_collateral, net_carry, margin_ratio)
-
-st.markdown(f"""
-<div class="wealth-box">
-    <h4>👑 家族辦公室首席量化長 (CIO) 戰略洞察：</h4>
-    <ul>
-        {''.join([f"<li>{tip}</li>" for tip in wealth_tips])}
-        <li>💡 <b>核心教條</b>：永遠不要主動拿本金去清償低利負債。在長期通膨與貨幣貶值趨勢下，3.7% 的質押利率或 2.2% 的房貸利率是極度優質的長期融資成本，讓時間與資產成長率去戰勝它！</li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("---")
-
-# ==================== 9. 現金流自償性與負債損益試算 ====================
-st.markdown("### 💵 現金流自償性與永續槓桿損益試算面板")
 lc, rc = st.columns(2)
 with lc:
     st.metric("年度質押利息支出 (只付利息)", f"-NT$ {annual_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}%")
@@ -453,10 +489,10 @@ with lc:
         
     net_carry_color = "text-green" if net_carry > 0 else "text-red"
     st.markdown(f"""
-    <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-top: 10px;">
-        <div style="color: #8B949E; font-size: 0.85rem; font-weight: 600;">整體淨現金流效益 (Net Carry / 年)</div>
+    <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 18px; border-radius: 10px; margin-top: 15px;">
+        <div style="color: #8B949E; font-size: 0.9rem; font-weight: 600;">整體淨現金流效益 (Net Carry / 年)</div>
         <div class="card-value {net_carry_color}">+NT$ {net_carry:,.0f}</div>
-        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px;">{'🟢 Positive Carry：資產收益完全覆蓋利息，完美實現富人永續槓桿！' if net_carry > 0 else '🔴 負現金流狀態：需以現金流或本金部分收益填補缺口。'}</div>
+        <div style="font-size: 0.85rem; color: #F59E0B; margin-top: 6px;">{'🟢 Positive Carry：資產收益完全覆蓋所有利息支出，完美實現富人永續印鈔槓桿！' if net_carry > 0 else '🔴 負現金流狀態：需以額外現金流或收益填補缺口。'}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -472,9 +508,8 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 10. 【完整保留】各大外資機構預估明細總表 ====================
-st.markdown("### 🏛️ 全球頂尖機構法人共識 EPS 與目標價明細表 (2026/10 最新追蹤)")
-st.markdown("完整保留各大外資機構（高盛、大摩、小摩、麥格理、Aletheia）對台積電之獨立預估與大盤共振模型：")
+# ==================== 8. 外資機構預估與 P/E 情境模擬 ====================
+st.markdown("### 🏛️ 全球頂尖機構法人共識 EPS 與目標價明細表")
 
 @st.cache_data(ttl=300)
 def get_dynamic_institutional_consensus(current_tsmc_price):
@@ -508,38 +543,12 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
     return pd.DataFrame(data)
 
 institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
-
 tsmc_resonance_weight = 0.92
 institutional_consensus["推估大盤與權值共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
 institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
 
-sim_col_list = []
-sim_margin_list = []
-for _, row in institutional_consensus.iterrows():
-    target_idx = row["推估大盤與權值共振點位"]
-    idx_ret = (target_idx - taiwii_p) / taiwii_p if taiwii_p > 0 else 0
-    s_p1 = max(p_1 * (1 + beta_1 * idx_ret), 0.01)
-    s_p2 = max(p_2 * (1 + beta_2 * idx_ret), 0.01)
-    s_col = shares_1 * s_p1 + shares_2 * s_p2
-    s_margin = (s_col / loan_amount) * 100 if loan_amount > 0 else 0
-    sim_col_list.append(f"NT$ {s_col:,.0f}")
-    sim_margin_list.append(f"{s_margin:.1f}%")
-
-institutional_consensus["到達時總市值"] = sim_col_list
-institutional_consensus["到達時維持率"] = sim_margin_list
-
-ic1, ic2, ic3 = st.columns(3)
-avg_consensus_eps = institutional_consensus["預估EPS"].mean()
-avg_consensus_target = institutional_consensus["台積電目標價 (NT$)"].mean()
-avg_implied_index = institutional_consensus["推估大盤與權值共振點位"].mean()
-
-ic1.metric("動態追蹤平均預估 EPS", f"NT$ {avg_consensus_eps:.1f}", "最新 2026/10 機構報告")
-ic2.metric("動態追蹤平均台積電目標價", f"NT$ {avg_consensus_target:,.1f}", f"現價 NT$ {tsmc_p:,.1f}")
-ic3.metric("權值共振推估大盤點位", f"{avg_implied_index:,.0f} 點", f"當前大盤 {taiwii_p:,.2f} 點")
-
-display_df = institutional_consensus[["機構名稱", "預估年份", "預估EPS", "合理PE", "台積電目標價 (NT$)", "推估大盤與權值共振點位", "潛在漲幅", "到達時總市值", "到達時維持率"]].copy()
 st.dataframe(
-    display_df.style.format({
+    institutional_consensus.style.format({
         "預估EPS": "NT$ {:.1f}",
         "合理PE": "{:.1f}x",
         "台積電目標價 (NT$)": "NT$ {:,.1f}",
@@ -552,102 +561,7 @@ st.dataframe(
 
 st.markdown("---")
 
-# ==================== 11. 動態本益比 (P/E) 情境模擬矩陣 ====================
-st.markdown("### 🎛️ 動態本益比 (P/E) 情境模擬矩陣：歷史均值 • 保守 • 基準平均 • 樂觀看好")
-st.markdown("您可以自由微調四大情境的 P/E 倍數，並即時模擬大盤上看 48,000 ~ 58,000 點之權值共振表現：")
-
-if 'pe_historical' not in st.session_state:
-    st.session_state.pe_historical = 19.5
-if 'pe_conservative' not in st.session_state:
-    st.session_state.pe_conservative = 22.0
-if 'pe_base' not in st.session_state:
-    st.session_state.pe_base = 26.5
-if 'pe_bull' not in st.session_state:
-    st.session_state.pe_bull = 30.0
-
-col_reset, col_space = st.columns([1, 4])
-with col_reset:
-    if st.button("↺ 恢復預設 PE", use_container_width=True):
-        st.session_state.pe_historical = 19.5
-        st.session_state.pe_conservative = 22.0
-        st.session_state.pe_base = 26.5
-        st.session_state.pe_bull = 30.0
-        st.rerun()
-
-p_col1, p_col2, p_col3, p_col4 = st.columns(4)
-with p_col1:
-    pe_hist = st.slider("🕰️ 歷史均值 P/E", min_value=12.0, max_value=22.0, value=st.session_state.pe_historical, step=0.5, key='pe_hist_slider')
-    st.session_state.pe_historical = pe_hist
-with p_col2:
-    pe_cons = st.slider("🟡 保守防禦 P/E", min_value=15.0, max_value=25.0, value=st.session_state.pe_conservative, step=0.5, key='pe_cons_slider')
-    st.session_state.pe_conservative = pe_cons
-with p_col3:
-    pe_avg = st.slider("🔵 基準平均 P/E", min_value=20.0, max_value=30.0, value=st.session_state.pe_base, step=0.5, key='pe_avg_slider')
-    st.session_state.pe_base = pe_avg
-with p_col4:
-    pe_bull = st.slider("🟢 樂觀牛市 P/E", min_value=25.0, max_value=38.0, value=st.session_state.pe_bull, step=0.5, key='pe_bull_slider')
-    st.session_state.pe_bull = pe_bull
-
-try:
-    stock_pe = yf.Ticker("2330.TW")
-    info_pe = stock_pe.info
-    live_f_eps_pe = info_pe.get("forwardEps", 0.0)
-    base_eps_pe = float(live_f_eps_pe) if live_f_eps_pe and live_f_eps_pe > 50 else max(145.0, tsmc_p / 22.5)
-except:
-    base_eps_pe = max(145.0, tsmc_p / 22.5)
-
-scenarios = [
-    {"情境名稱": "🕰️ 歷史過往平均 (歷史均值錨點)", "pe": pe_hist, "eps": round(base_eps_pe * 1.0, 1), "note": "對標長年歷史平均 P/E"},
-    {"情境名稱": "🟡 保守情境 (升息/保守估值)", "pe": pe_cons, "eps": round(base_eps_pe * 1.05, 1), "note": "市場情緒較謹慎"},
-    {"情境名稱": "🔵 基準平均 (機構法人工識)", "pe": pe_avg, "eps": round(base_eps_pe * 1.15, 1), "note": "對標高盛/大摩共識"},
-    {"情境名稱": "🟢 樂觀看好 (2奈米/CoWoS狂潮)", "pe": pe_bull, "eps": round(base_eps_pe * 1.25, 1), "note": "對標 Aletheia 超前牛市"}
-]
-
-scenario_data = []
-for sc in scenarios:
-    target_price = round(sc["eps"] * sc["pe"], 1)
-    implied_index = taiwii_p * (1 + tsmc_resonance_weight * ((target_price - tsmc_p) / tsmc_p))
-    potential_upside = ((target_price / tsmc_p) - 1) * 100
-    
-    idx_ret = (implied_index - taiwii_p) / taiwii_p if taiwii_p > 0 else 0
-    s_p1 = max(p_1 * (1 + beta_1 * idx_ret), 0.01)
-    s_p2 = max(p_2 * (1 + beta_2 * idx_ret), 0.01)
-    s_col = shares_1 * s_p1 + shares_2 * s_p2
-    s_margin = (s_col / loan_amount) * 100 if loan_amount > 0 else 0
-    
-    scenario_data.append({
-        "情境模型": sc["情境名稱"],
-        "預估 EPS": f"NT$ {sc['eps']:.1f}",
-        "設定 PE": f"{sc['pe']:.1f}x",
-        "台積電目標價 (NT$)": target_price,
-        "權值共振大盤點位": implied_index,
-        "潛在漲跌幅": potential_upside,
-        "到達時擔保品總市值": f"NT$ {s_col:,.0f}",
-        "到達時質押維持率": f"{s_margin:.1f}%",
-        "備註": sc["note"]
-    })
-
-scenario_df = pd.DataFrame(scenario_data)
-
-s_c1, s_c2, s_c3, s_c4 = st.columns(4)
-s_c1.metric("🕰️ 歷史均值大盤", f"{scenario_data[0]['權值共振大盤點位']:,.0f} 點", f"台積電 NT$ {scenario_data[0]['台積電目標價 (NT$)']:,.1f}")
-s_c2.metric("🟡 保守推估大盤", f"{scenario_data[1]['權值共振大盤點位']:,.0f} 點", f"台積電 NT$ {scenario_data[1]['台積電目標價 (NT$)']:,.1f}")
-s_c3.metric("🔵 基準共識大盤", f"{scenario_data[2]['權值共振大盤點位']:,.0f} 點", f"台積電 NT$ {scenario_data[2]['台積電目標價 (NT$)']:,.1f}")
-s_c4.metric("🟢 樂觀看好大盤", f"{scenario_data[3]['權值共振大盤點位']:,.0f} 點", f"台積電 NT$ {scenario_data[3]['台積電目標價 (NT$)']:,.1f}")
-
-st.dataframe(
-    scenario_df.style.format({
-        "台積電目標價 (NT$)": "NT$ {:,.1f}",
-        "權值共振大盤點位": "{:,.0f} 點",
-        "潛在漲跌幅": "{:+.1f}%"
-    }),
-    use_container_width=True,
-    hide_index=True
-)
-
-st.markdown("---")
-
-# ==================== 12. 正二路徑依賴與極端壓力測試模擬器 ====================
+# ==================== 9. 正二路徑依賴與極端壓力測試 ====================
 st.markdown("### 🚨 機構級正二路徑依賴與極端壓力測試 (Path-Dependent Stress Test)")
 col_s1, col_s2 = st.columns([2, 1])
 with col_s1:
