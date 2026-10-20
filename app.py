@@ -33,15 +33,16 @@ st.markdown(
     .text-red { color: #EF4444 !important; }
     .hero-header {
         background: linear-gradient(90deg, #1E293B 0%, #0F172A 100%);
-        border-left: 4px solid #3B82F6; padding: 20px 24px; border-radius: 8px; margin-bottom: 20px;
+        border-left: 4px solid #F59E0B; padding: 20px 24px; border-radius: 8px; margin-bottom: 20px;
     }
     .web-push-ticker {
         background: rgba(30, 41, 59, 0.95); border: 1px solid #3B82F6; border-left: 6px solid #3B82F6;
         padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
     }
-    .alert-banner-red {
-        background: rgba(239, 68, 68, 0.15); border: 1px solid #EF4444; border-left: 6px solid #EF4444;
-        padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #FCA5A5; font-weight: 600;
+    .wealth-box {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(30, 41, 59, 0.8) 100%);
+        border: 1px solid #F59E0B; border-left: 6px solid #F59E0B;
+        padding: 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
     }
 </style>
 """,
@@ -52,51 +53,68 @@ st.markdown(
     """
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
-    <p style="margin:5px 0 0 0; color:#94A3B8; font-size:0.95rem;">
-        2026/10 終極完全體 | 現貨定盤 vs 24H 夜盤期貨高頻對照 (具備強韌備援引擎) • 多重彈性負債格子 • 機構共識與歷史平均 PE 矩陣
+    <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:600;">
+        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 寬限期與進階本息攤還試算 • 24H 完整歷史高頻圖表
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. 側邊欄：本金、質押與動態彈性負債模組 ====================
-st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 本金與質押借款動態設定</h3>", unsafe_allow_html=True)
+# ==================== 2. 側邊欄：本金、質押與進階負債模組 ====================
+st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 資本結構與永續槓桿設定</h3>", unsafe_allow_html=True)
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
-ltv_ratio = st.sidebar.slider("2. 預設質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
+ltv_ratio = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
 
 auto_loan_amount = int(total_equity_cost * ltv_ratio)
-manual_loan_override = st.sidebar.checkbox("手動自訂質押借款金額 (覆蓋自動連動)", value=False)
+manual_loan_override = st.sidebar.checkbox("手動自訂質押借款金額 (永久不還本金)", value=False)
 if manual_loan_override:
     loan_amount = st.sidebar.number_input("自訂質押借款金額 (NT$)", value=auto_loan_amount, step=10000)
 else:
     loan_amount = auto_loan_amount
-    st.sidebar.info(f"💡 自動連動質押金額：**NT$ {loan_amount:,.0f}**")
+    st.sidebar.info(f"💡 自動連動質押金額：**NT$ {loan_amount:,.0f}** (只付利息)")
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
-# 獨立房貸與信貸模組
+# 獨立房貸與信貸模組（支援年限、寬限期、本息攤還/只付利息）
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#F3F4F6;'>💳 獨立負債模組：房貸與信貸</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#F3F4F6;'>💳 外部不動產/信貸負債模組</h4>", unsafe_allow_html=True)
 
 enable_mortgage = st.sidebar.checkbox("啟用房貸現金流試算", value=False)
 mortgage_annual_outflow = 0.0
 if enable_mortgage:
-    mortgage_balance = st.sidebar.number_input("房貸剩餘本金 (NT$)", value=8000000, step=100000)
-    mortgage_rate = st.sidebar.slider("房貸年利率 (%)", min_value=1.5, max_value=4.0, value=2.2, step=0.1)
-    mortgage_annual_payment = st.sidebar.number_input("房貸每年還款總額 (本金+利息) (NT$)", value=360000, step=10000)
-    mortgage_annual_outflow = mortgage_annual_payment
-    st.sidebar.info(f"💡 房貸年現金流支出：**NT$ {mortgage_annual_outflow:,.0f}** (利率 {mortgage_rate}%)")
+    m_balance = st.sidebar.number_input("房貸剩餘本金 (NT$)", value=8000000, step=100000)
+    m_rate = st.sidebar.slider("房貸年利率 (%)", min_value=1.5, max_value=5.0, value=2.2, step=0.1) / 100.0
+    m_term = st.sidebar.slider("房貸總年限 (年)", min_value=10, max_value=40, value=30, step=5)
+    m_grace = st.sidebar.checkbox("房貸享有寬限期", value=True)
+    m_grace_years = st.sidebar.slider("寬限期年數 (只付利息)", min_value=1, max_value=5, value=3, step=1) if m_grace else 0
+    
+    # 計算房貸現金流
+    m_interest_only = m_balance * m_rate
+    if m_grace and m_grace_years > 0:
+        mortgage_annual_outflow = m_interest_only
+        st.sidebar.info(f"💡 寬限期內年息支出：**NT$ {mortgage_annual_outflow:,.0f}** (富人思維：不還本金)")
+    else:
+        # 本息攤還公式 (PMT)
+        m_months = m_term * 12
+        m_m_rate = m_rate / 12.0
+        m_monthly_pmt = m_balance * (m_m_rate * (1 + m_m_rate)**m_months) / ((1 + m_m_rate)**m_months - 1)
+        mortgage_annual_outflow = m_monthly_pmt * 12
+        st.sidebar.info(f"💡 本息攤還年支出：**NT$ {mortgage_annual_outflow:,.0f}**")
 
 enable_credit_loan = st.sidebar.checkbox("啟用信貸現金流試算", value=False)
 credit_annual_outflow = 0.0
 if enable_credit_loan:
-    credit_balance = st.sidebar.number_input("信貸剩餘本金 (NT$)", value=1500000, step=50000)
-    credit_rate = st.sidebar.slider("信貸年利率 (%)", min_value=2.0, max_value=8.0, value=2.8, step=0.1)
-    credit_annual_payment = st.sidebar.number_input("信貸每年還款總額 (本金+利息) (NT$)", value=200000, step=10000)
-    credit_annual_outflow = credit_annual_payment
-    st.sidebar.info(f"💡 信貸年現金流支出：**NT$ {credit_annual_outflow:,.0f}** (利率 {credit_rate}%)")
+    c_balance = st.sidebar.number_input("信貸剩餘本金 (NT$)", value=1500000, step=50000)
+    c_rate = st.sidebar.slider("信貸年利率 (%)", min_value=2.0, max_value=8.0, value=2.8, step=0.1) / 100.0
+    c_term = st.sidebar.slider("信貸總年限 (年)", min_value=3, max_value=7, value=7, step=1)
+    
+    c_months = c_term * 12
+    c_m_rate = c_rate / 12.0
+    c_monthly_pmt = c_balance * (c_m_rate * (1 + c_m_rate)**c_months) / ((1 + c_m_rate)**c_months - 1)
+    credit_annual_outflow = c_monthly_pmt * 12
+    st.sidebar.info(f"💡 信貸本息年支出：**NT$ {credit_annual_outflow:,.0f}**")
 
 # 動態自訂負債格子管理器
 st.sidebar.markdown("---")
@@ -215,9 +233,9 @@ exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 
 # ==================== 4. 戰情快報 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 24H 跨時區即時戰情快報 (2026/10 最新)】</b><br>
-    • 核心資產即時價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | 台指夜盤 <b>{tx_future_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b><br>
-    • 質押負債與利率連動：質押貸款 <b>NT$ {loan_amount:,.0f}</b> (年利率 <b>{interest_rate*100:.2f}%</b>) | 即時維持率 <b>{margin_ratio:.1f}%</b>
+    📡 <b>【Apex 24H 富人槓桿戰情快報 (2026/10 最新)】</b><br>
+    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | 台指夜盤 <b>{tx_future_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b><br>
+    • 永續負債架構：質押貸款 <b>NT$ {loan_amount:,.0f}</b> (利率 <b>{interest_rate*100:.2f}%</b> • 只付利息不還本) | 即時維持率 <b>{margin_ratio:.1f}%</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -243,9 +261,9 @@ with c1:
 with c2:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">質押負債 (手動/自動連動)</div>
+        <div class="card-title">永續借款負債 (只付利息)</div>
         <div class="card-value">NT$ {loan_amount:,.0f}</div>
-        <div class="card-subtitle text-gold">利率 {interest_rate*100:.2f}% • 只付利息</div>
+        <div class="card-subtitle text-gold">通膨稀釋中 • 本金永不還</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -274,17 +292,17 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 24H 高頻數據抓取與強韌備援引擎 ====================
+# ==================== 6. 完整歷史高頻數據庫與強韌備援引擎 (支援自由縮放) ====================
 @st.cache_data(ttl=30)
 def fetch_intraday_data_24h():
     tickers_to_fetch = ["^TWII", "TX=F", "^GSPC", "^IXIC", "^DJI", "2330.TW", "^VIX"]
     intraday_dict = {}
     now_taipei = pd.Timestamp.now(tz='Asia/Taipei')
-    time_index = pd.date_range(end=now_taipei, periods=140, freq='3min')
+    time_index = pd.date_range(end=now_taipei, periods=500, freq='15min')
 
     for t in tickers_to_fetch:
         try:
-            df_i = yf.download(t, period="2d", interval="2m", prepost=True, progress=False)
+            df_i = yf.download(t, period="5d", interval="5m", prepost=True, progress=False)
             if not df_i.empty:
                 if isinstance(df_i.columns, pd.MultiIndex):
                     df_i.columns = df_i.columns.get_level_values(0)
@@ -298,35 +316,33 @@ def fetch_intraday_data_24h():
         except:
             pass
 
-    # 強韌備援：確保 TX=F 與 ^TWII 絕不空白
     if "TX=F" not in intraday_dict or intraday_dict["TX=F"].empty:
-        intraday_dict["TX=F"] = pd.Series(np.linspace(tx_future_p - 120, tx_future_p + 80, 140) + np.random.normal(0, 15, 140), index=time_index)
+        intraday_dict["TX=F"] = pd.Series(np.linspace(tx_future_p - 300, tx_future_p + 150, 500) + np.random.normal(0, 20, 500), index=time_index)
     if "^TWII" not in intraday_dict or intraday_dict["^TWII"].empty:
-        intraday_dict["^TWII"] = pd.Series(np.linspace(taiwii_p - 80, taiwii_p + 50, 140) + np.random.normal(0, 10, 140), index=time_index)
+        intraday_dict["^TWII"] = pd.Series(np.linspace(taiwii_p - 250, taiwii_p + 150, 500) + np.random.normal(0, 15, 500), index=time_index)
     if "^GSPC" not in intraday_dict or intraday_dict["^GSPC"].empty:
-        intraday_dict["^GSPC"] = pd.Series(np.linspace(sp500_p - 30, sp500_p + 30, 140), index=time_index)
+        intraday_dict["^GSPC"] = pd.Series(np.linspace(sp500_p - 100, sp500_p + 100, 500), index=time_index)
     if "^IXIC" not in intraday_dict or intraday_dict["^IXIC"].empty:
-        intraday_dict["^IXIC"] = pd.Series(np.linspace(nasdaq_p - 100, nasdaq_p + 100, 140), index=time_index)
+        intraday_dict["^IXIC"] = pd.Series(np.linspace(nasdaq_p - 300, nasdaq_p + 300, 500), index=time_index)
     if "^DJI" not in intraday_dict or intraday_dict["^DJI"].empty:
-        intraday_dict["^DJI"] = pd.Series(np.linspace(43000, 43200, 140), index=time_index)
+        intraday_dict["^DJI"] = pd.Series(np.linspace(42500, 43500, 500), index=time_index)
     if "2330.TW" not in intraday_dict or intraday_dict["2330.TW"].empty:
-        intraday_dict["2330.TW"] = pd.Series(np.linspace(tsmc_p - 15, tsmc_p + 15, 140), index=time_index)
+        intraday_dict["2330.TW"] = pd.Series(np.linspace(tsmc_p - 50, tsmc_p + 50, 500), index=time_index)
     if "^VIX" not in intraday_dict or intraday_dict["^VIX"].empty:
-        intraday_dict["^VIX"] = pd.Series(np.full(140, cur_vix), index=time_index)
+        intraday_dict["^VIX"] = pd.Series(np.full(500, cur_vix), index=time_index)
 
     return pd.DataFrame(intraday_dict).ffill()
 
 df_intraday = fetch_intraday_data_24h()
 
-# ==================== 7. 【核心區】加權現貨 (固定盤) vs. 台指期貨 (日夜盤跳動標註) ====================
-st.markdown("### 📈 核心對照區：台灣加權現貨 (左:開收盤定盤) vs. 台指期貨日夜盤 (右:高頻跳動標註)")
-st.markdown("現貨固定顯示今日開收盤價；期貨完整串接日盤與夜盤動態，並實時在圖表上記錄「開盤點位」、「日盤收盤」與「最新夜盤點位」：")
+# ==================== 7. 【核心區】加權現貨 vs. 台指期貨 (全歷史數據 + 互動縮放滑桿 + 自動Y軸) ====================
+st.markdown("### 📈 核心對照區：台灣加權現貨 (左:定盤) vs. 台指期貨日夜盤 (右:24H全歷史與互動縮放)")
+st.markdown("支援下方範圍滑桿（Range Slider）自由縮放檢視完整歷史軌跡；Y 軸具備全自動動態縮放機制：")
 
 col_spot, col_fut = st.columns(2)
 
-# 左圖：台灣加權現貨
 with col_spot:
-    spot_series = df_intraday["^TWII"].dropna().tail(120)
+    spot_series = df_intraday["^TWII"].dropna()
     open_p = spot_series.iloc[0]
     close_p = spot_series.iloc[-1]
     pct_s = ((close_p - open_p) / open_p) * 100
@@ -336,7 +352,7 @@ with col_spot:
     
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-        <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">台灣加權指數 (現貨 • 13:30定盤)</div>
+        <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">台灣加權指數 (現貨 • 完整歷史多日軌跡)</div>
         <div style="display: flex; align-items: baseline; gap: 10px;">
             <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{close_p:,.2f}</span>
             <span style="font-size: 0.95rem; font-weight: 700; color: {col_s};">
@@ -349,31 +365,23 @@ with col_spot:
     fig_spot = go.Figure()
     fig_spot.add_trace(go.Scatter(
         x=spot_series.index, y=spot_series, mode='lines', name='加權現貨',
-        line=dict(color=col_s, width=2.5),
-        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)' if is_u_s else 'rgba(239, 68, 68, 0.12)',
-        hovertemplate='時間: %{x|%H:%M}<br>現貨點位: %{y:,.2f}<extra></extra>'
+        line=dict(color=col_s, width=2.2),
+        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.10)' if is_u_s else 'rgba(239, 68, 68, 0.10)',
+        hovertemplate='時間: %{x|%m/%d %H:%M}<br>現貨點位: %{y:,.2f}<extra></extra>'
     ))
-    fig_spot.add_hline(y=open_p, line_dash="dot", line_color="#8B949E", annotation_text=f"今日開盤價 {open_p:,.2f}", annotation_position="bottom right")
-    fig_spot.add_hline(y=close_p, line_dash="solid", line_color=col_s, annotation_text=f"今日收盤價 {close_p:,.2f}", annotation_position="top right")
-    
-    ymin, ymax = spot_series.min(), spot_series.max()
-    buf = (ymax - ymin) * 0.04 if ymax != ymax else ymin * 0.01
     fig_spot.update_layout(
         template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=10, b=10), height=380,
-        xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
-        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - buf, ymax + buf], title=''),
+        margin=dict(l=10, r=10, t=10, b=10), height=400,
+        xaxis=dict(showgrid=True, gridcolor='#232D3F', title='', rangeslider=dict(visible=True, thickness=0.08), type='date'),
+        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
         hovermode='x unified', showlegend=False
     )
     st.plotly_chart(fig_spot, use_container_width=True)
 
-# 右圖：台指期貨 (24H 日夜盤隨時間跳動並自動標註點位)
 with col_fut:
-    fut_series = df_intraday["TX=F"].dropna().tail(140)
+    fut_series = df_intraday["TX=F"].dropna()
     open_f = fut_series.iloc[0]
     curr_f = fut_series.iloc[-1]
-    min_f = fut_series.min()
-    max_f = fut_series.max()
     
     pct_f = ((curr_f - open_f) / open_f) * 100
     diff_f = curr_f - open_f
@@ -382,7 +390,7 @@ with col_fut:
     
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-        <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">台指期貨 (24H 日夜盤即時跳動 TX=F)</div>
+        <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">台指期貨 (24H 日夜盤完整歷史 • 具備縮放滑桿)</div>
         <div style="display: flex; align-items: baseline; gap: 10px;">
             <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{curr_f:,.0f}</span>
             <span style="font-size: 0.95rem; font-weight: 700; color: {col_f};">
@@ -395,101 +403,61 @@ with col_fut:
     fig_fut = go.Figure()
     fig_fut.add_trace(go.Scatter(
         x=fut_series.index, y=fut_series, mode='lines', name='台指期貨',
-        line=dict(color=col_f, width=2.5),
-        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)' if is_u_f else 'rgba(239, 68, 68, 0.12)',
+        line=dict(color=col_f, width=2.2),
+        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.10)' if is_u_f else 'rgba(239, 68, 68, 0.10)',
         hovertemplate='時間: %{x|%m/%d %H:%M}<br>期貨點位: %{y:,.0f}<extra></extra>'
     ))
     
-    fig_fut.add_annotation(
-        x=fut_series.index[0], y=open_f, text=f"日盤開盤: {open_f:,.0f}",
-        showarrow=True, arrowhead=2, ax=30, ay=-25,
-        bgcolor="#151A23", bordercolor="#3B82F6", font=dict(color="#F8FAFC", size=11)
-    )
-    fig_fut.add_annotation(
-        x=fut_series.index[-1], y=curr_f, text=f"即時夜盤: {curr_f:,.0f}",
-        showarrow=True, arrowhead=2, ax=-40, ay=-30,
-        bgcolor="#151A23", bordercolor=col_f, font=dict(color="#F8FAFC", size=12, family="Arial Black")
-    )
-    
-    buf_f = (max_f - min_f) * 0.05 if max_f != min_f else min_f * 0.01
     fig_fut.update_layout(
         template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=10, b=10), height=380,
-        xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
-        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[min_f - buf_f, max_f + buf_f], title=''),
+        margin=dict(l=10, r=10, t=10, b=10), height=400,
+        xaxis=dict(showgrid=True, gridcolor='#232D3F', title='', rangeslider=dict(visible=True, thickness=0.08), type='date'),
+        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
         hovermode='x unified', showlegend=False
     )
     st.plotly_chart(fig_fut, use_container_width=True)
 
 st.markdown("---")
 
-# ==================== 8. 【下方美股三大指數與全球指標獨立對照區】 ====================
-st.markdown("### 📊 美國三大指數與全球關鍵指標獨立對照區")
-st.markdown("下方預設顯示美國三大指數與全球關鍵指標，可自由切換進行多重對照分析：")
+# ==================== 8. 【富人思維專屬】AI 槓桿與通膨稀釋優化建議引擎 ====================
+st.markdown("### 💎 富人思維戰略分析與 AI 槓桿優化建議")
 
-us_preset_tickers = {
-    "^GSPC": "S&P 500 (美股標普 500 指數)",
-    "^IXIC": "NASDAQ (美股那斯達克指數)",
-    "^DJI": "Dow Jones (美股道瓊工業指數)",
-    "2330.TW": "台積電 (2330.TW 權值領航)",
-    "^VIX": "VIX 恐慌指數 (波動率追蹤)"
-}
+# AI 根據當前數據給出專業富人思維建議
+def generate_wealth_optimization_advice(loan_amt, total_coll, net_c, m_ratio):
+    advice_list = []
+    if net_c > 0:
+        advice_list.append("🟢 **Positive Carry（正向現金流）達成**：您的配息與收益完全能夠覆蓋所有負債利息。在富人思維中，這代表這筆負債是零成本的「印鈔機」，建議持續將多餘現金流滾入核心資產，讓通膨幫您吃掉債務實質本金。")
+    else:
+        advice_list.append("🟡 **Negative Carry（逆向現金流）警示**：目前利息與外部負債支出大於標的配息。若要維持『本金永不還』的富人架構，建議適度降低質押 LTV 或調配高息防禦標的，確保現金流安全邊際。")
+    
+    if m_ratio > 200:
+        advice_list.append("🚀 **槓桿空間極具潛力**：維持率高於 200%，資產安全邊際極高。富人思維在此階段會考慮適度『增貸/加碼』，在多頭趨勢中用通膨與資產擴張進一步稀釋負債佔比。")
+    elif m_ratio > 150:
+        advice_list.append("⚖️ **黃金平衡槓桿區**：維持率在 150%-200% 之間，既能享受到指數級的資產放大效益，又能兼顧波動防禦。")
+    else:
+        advice_list.append("⚠️ **高風險警戒區**：維持率逼近危險邊緣，務必預留現金緩衝，避免因短期黑天鵝觸及券商平倉線，破壞『永不還本、長期滾存』的富人複利計畫。")
+        
+    return advice_list
 
-selected_us_key = st.selectbox("選擇下方要獨立對照的美股/全球指標", list(us_preset_tickers.keys()), format_func=lambda x: us_preset_tickers[x])
-us_title = us_preset_tickers[selected_us_key]
-
-us_s = df_intraday[selected_us_key].dropna().tail(150)
-u_curr = us_s.iloc[-1]
-u_open = us_s.iloc[0]
-u_pct = ((u_curr - u_open) / u_open) * 100
-u_diff = u_curr - u_open
-is_u_us = u_diff >= 0
-col_u = '#10B981' if is_u_us else '#EF4444'
+wealth_tips = generate_wealth_optimization_advice(loan_amount, total_collateral, net_carry, margin_ratio)
 
 st.markdown(f"""
-<div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-    <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title}</div>
-    <div style="display: flex; align-items: baseline; gap: 10px;">
-        <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{u_curr:,.2f}</span>
-        <span style="font-size: 0.95rem; font-weight: 700; color: {col_u};">
-            {'+' if is_u_us else ''}{u_pct:.2f}% ({'+' if is_u_us else ''}{u_diff:,.2f})
-        </span>
-    </div>
+<div class="wealth-box">
+    <h4>👑 家族辦公室首席量化長 (CIO) 戰略洞察：</h4>
+    <ul>
+        {''.join([f"<li>{tip}</li>" for tip in wealth_tips])}
+        <li>💡 <b>核心教條</b>：永遠不要主動拿本金去清償低利負債。在長期通膨與貨幣貶值趨勢下，3.7% 的質押利率或 2.2% 的房貸利率是極度優質的長期融資成本，讓時間與資產成長率去戰勝它！</li>
+    </ul>
 </div>
 """, unsafe_allow_html=True)
 
-fig_us = go.Figure()
-fig_us.add_trace(go.Scatter(
-    x=us_s.index, y=us_s, mode='lines', name=us_title,
-    line=dict(color=col_u, width=2.2),
-    fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)' if is_u_us else 'rgba(239, 68, 68, 0.12)',
-    hovertemplate='時間: %{x|%m/%d %H:%M}<br>價格: %{y:,.2f}<extra></extra>'
-))
-
-fig_us.add_annotation(
-    x=us_s.index[-1], y=u_curr, text=f"即時: {u_curr:,.2f}",
-    showarrow=True, arrowhead=2, ax=-30, ay=-25,
-    bgcolor="#151A23", bordercolor=col_u, font=dict(color="#F8FAFC", size=11)
-)
-
-ymin_u, ymax_u = us_s.min(), us_s.max()
-buf_u = (ymax_u - ymin_u) * 0.04 if ymax_u != ymin_u else ymin_u * 0.01
-fig_us.update_layout(
-    template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
-    margin=dict(l=10, r=10, t=10, b=10), height=380,
-    xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
-    yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin_u - buf_u, ymax_u + buf_u], title=''),
-    hovermode='x unified', showlegend=False
-)
-st.plotly_chart(fig_us, use_container_width=True)
-
 st.markdown("---")
 
-# ==================== 9. 現金流自償性與獨立負債損益試算 ====================
-st.markdown("### 💵 現金流自償性與利息、配息、房貸、信貸與自訂負債損益試算面板")
+# ==================== 9. 現金流自償性與負債損益試算 ====================
+st.markdown("### 💵 現金流自償性與永續槓桿損益試算面板")
 lc, rc = st.columns(2)
 with lc:
-    st.metric("年度質押利息支出", f"-NT$ {annual_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}%")
+    st.metric("年度質押利息支出 (只付利息)", f"-NT$ {annual_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}%")
     st.metric(f"標的 2 預期年度配息收益", f"+NT$ {expected_div_2:,.0f}", f"質押再投入部位 95% × 殖利率 {div_yield_2*100:.1f}%")
     
     if enable_mortgage:
@@ -501,15 +469,15 @@ with lc:
         
     net_carry_color = "text-green" if net_carry > 0 else "text-red"
     st.markdown(f"""
-    <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #3B82F6; padding: 15px; border-radius: 8px; margin-top: 10px;">
+    <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-top: 10px;">
         <div style="color: #8B949E; font-size: 0.85rem; font-weight: 600;">整體淨現金流效益 (Net Carry / 年)</div>
         <div class="card-value {net_carry_color}">+NT$ {net_carry:,.0f}</div>
-        <div style="font-size: 0.8rem; color: #94A3B8; margin-top: 4px;">{'🟢 達成 Positive Carry：現金流正向自給自足！' if net_carry > 0 else '🔴 負現金流狀態：準備現金填補年度缺口。'}</div>
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px;">{'🟢 Positive Carry：資產收益完全覆蓋利息，完美實現富人永續槓桿！' if net_carry > 0 else '🔴 負現金流狀態：需以現金流或本金部分收益填補缺口。'}</div>
     </div>
     """, unsafe_allow_html=True)
 
 with rc:
-    st.markdown("##### 📈 多年度現金流累積滾存試算")
+    st.markdown("##### 📈 多年度現金流累積滾存試算 (複利效應)")
     comp_years = np.array([1, 3, 5, 10])
     compounded_values = [net_carry * (((1 + div_yield_2) ** y - 1) / div_yield_2) if net_carry > 0 else net_carry * y for y in comp_years]
     comp_df = pd.DataFrame({
@@ -775,4 +743,4 @@ if sim_margin_ratio > 160:
 elif sim_margin_ratio > 130:
     st.warning("🟡 維持率警示：維持率逼近平倉線。")
 else:
-    st.error("🔴 斷頭風險警報：維持率跌破 130% 平倉線！")
+    st.error("🔴 🔴 斷頭風險警報：維持率跌破 130% 平倉線！")
