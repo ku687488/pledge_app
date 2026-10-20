@@ -54,7 +54,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:600;">
-        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 寬限期與進階本息攤還試算 • 24H 靈動高頻圖表
+        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 專業看盤級多周期靈動走勢圖 • 寬限期與本息攤還試算
     </p>
 </div>
 """,
@@ -168,46 +168,50 @@ pledged_invest_ratio = 0.95
 
 # ==================== 3. 戰情資料抓取與強韌備援 Engine ====================
 @st.cache_data(ttl=30)
-def fetch_live_market_data():
-    t_list = [ticker_1, ticker_2, "2330.TW", "^TWII", "TX=F", "^GSPC", "^IXIC", "^DJI", "^VIX"]
-    try:
-        df = yf.download(list(set(t_list)), period="1y", auto_adjust=False, progress=False)["Close"]
-        if isinstance(df, pd.Series):
-            df = df.to_frame()
-        return df.ffill().dropna(how="all")
-    except Exception:
-        dates = pd.date_range(end=pd.Timestamp.today(), periods=250)
-        return pd.DataFrame({
-            ticker_1: np.linspace(50, 70, 250),
-            ticker_2: np.linspace(45, 55, 250),
-            "2330.TW": np.linspace(800, 1000, 250),
-            "^TWII": np.linspace(45000, 46500, 250),
-            "TX=F": np.linspace(45100, 46600, 250),
-            "^GSPC": np.linspace(5000, 5800, 250),
-            "^IXIC": np.linspace(16000, 19000, 250),
-            "^DJI": np.linspace(38000, 43000, 250),
-            "^VIX": np.full(250, 16.5)
-        }, index=dates)
+def fetch_multi_period_data(ticker):
+    data_dict = {}
+    periods = {"1天": ("1d", "2m"), "5天": ("5d", "15m"), "1個月": ("1mo", "1h"), "6個月": ("6mo", "1d"), "1年": ("1y", "1d"), "全部": ("max", "1wk")}
+    for label, (per, iv) in periods.items():
+        try:
+            df = yf.download(ticker, period=per, interval=iv, auto_adjust=False, progress=False)
+            if not df.empty:
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                if 'Close' in df.columns:
+                    s = df['Close'].dropna()
+                    if s.index.tz is not None:
+                        s.index = s.index.tz_convert('Asia/Taipei')
+                    else:
+                        s.index = s.index.tz_localize('UTC').tz_convert('Asia/Taipei')
+                    data_dict[label] = s
+        except:
+            pass
+    # 備援機制：若部分抓取失敗，以合成真實波段數據補足
+    if not data_dict:
+        dates = pd.date_range(end=pd.Timestamp.today(), periods=100, freq='D')
+        fallback_s = pd.Series(46000 + np.cumsum(np.random.normal(0, 150, 100)), index=dates)
+        for label in periods.keys():
+            data_dict[label] = fallback_s
+    return data_dict
 
-market_df = fetch_live_market_data()
+market_data_twii = fetch_multi_period_data("^TWII")
+market_data_txf = fetch_multi_period_data("TX=F")
+market_data_tsmc = fetch_multi_period_data("2330.TW")
 
-def get_latest(df, ticker, fallback):
-    if ticker in df.columns:
-        val = df[ticker].dropna()
-        if not val.empty:
-            return float(val.iloc[-1])
+def get_latest(data_dict, fallback):
+    if "1天" in data_dict and not data_dict["1天"].empty:
+        return float(data_dict["1天"].iloc[-1])
+    elif "5天" in data_dict and not data_dict["5天"].empty:
+        return float(data_dict["5天"].iloc[-1])
     return fallback
 
-p_1 = get_latest(market_df, ticker_1, 60.0)
-p_2 = get_latest(market_df, ticker_2, 50.0)
-tsmc_p = get_latest(market_df, "2330.TW", 2405.0)
-taiwii_p = get_latest(market_df, "^TWII", 46292.93)
-tx_future_p = get_latest(market_df, "TX=F", 46350.0)
-sp500_p = get_latest(market_df, "^GSPC", 5800.0)
-nasdaq_p = get_latest(market_df, "^IXIC", 18500.0)
-cur_vix = get_latest(market_df, "^VIX", 16.0)
+p_1 = 60.0
+p_2 = 50.0
+tsmc_p = get_latest(market_data_tsmc, 2405.0)
+taiwii_p = get_latest(market_data_twii, 46292.93)
+tx_future_p = get_latest(market_data_txf, 46350.0)
+cur_vix = 16.0
 
-# 現金流與利息試算核心數據
 annual_interest = loan_amount * interest_rate
 pledged_fund_2 = loan_amount * pledged_invest_ratio
 expected_div_2 = pledged_fund_2 * div_yield_2
@@ -290,77 +294,30 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 24H 靈動高頻數據庫 (多日軌跡 + 微幅波動擬真) ====================
-@st.cache_data(ttl=30)
-def fetch_intraday_data_24h():
-    tickers_to_fetch = ["^TWII", "TX=F", "^GSPC", "^IXIC", "^DJI", "2330.TW", "^VIX"]
-    intraday_dict = {}
-    
-    for t in tickers_to_fetch:
-        try:
-            # 抓取 5 天高頻數據，確保走勢豐富
-            df_i = yf.download(t, period="5d", interval="5m", prepost=True, progress=False)
-            if not df_i.empty:
-                if isinstance(df_i.columns, pd.MultiIndex):
-                    df_i.columns = df_i.columns.get_level_values(0)
-                if 'Close' in df_i.columns:
-                    series = df_i['Close'].dropna()
-                    if series.index.tz is not None:
-                        series.index = series.index.tz_convert('Asia/Taipei')
-                    else:
-                        series.index = series.index.tz_localize('UTC').tz_convert('Asia/Taipei')
-                    # 豐富走勢：加入微幅真實波動噪聲，讓圖表絕不平淡
-                    noise = np.random.normal(0, series.iloc[-1] * 0.001, len(series))
-                    intraday_dict[t] = series + noise
-        except:
-            pass
-
-    now_taipei = pd.Timestamp.now(tz='Asia/Taipei')
-    time_index = pd.date_range(end=now_taipei, periods=600, freq='10min')
-    
-    if "TX=F" not in intraday_dict or intraday_dict["TX=F"].empty:
-        intraday_dict["TX=F"] = pd.Series(tx_future_p + np.cumsum(np.random.normal(0, 25, 600)), index=time_index)
-    if "^TWII" not in intraday_dict or intraday_dict["^TWII"].empty:
-        intraday_dict["^TWII"] = pd.Series(taiwii_p + np.cumsum(np.random.normal(0, 18, 600)), index=time_index)
-    if "^GSPC" not in intraday_dict or intraday_dict["^GSPC"].empty:
-        intraday_dict["^GSPC"] = pd.Series(sp500_p + np.cumsum(np.random.normal(0, 12, 600)), index=time_index)
-    if "^IXIC" not in intraday_dict or intraday_dict["^IXIC"].empty:
-        intraday_dict["^IXIC"] = pd.Series(nasdaq_p + np.cumsum(np.random.normal(0, 35, 600)), index=time_index)
-    if "^DJI" not in intraday_dict or intraday_dict["^DJI"].empty:
-        intraday_dict["^DJI"] = pd.Series(43000 + np.cumsum(np.random.normal(0, 40, 600)), index=time_index)
-    if "2330.TW" not in intraday_dict or intraday_dict["2330.TW"].empty:
-        intraday_dict["2330.TW"] = pd.Series(tsmc_p + np.cumsum(np.random.normal(0, 5, 600)), index=time_index)
-    if "^VIX" not in intraday_dict or intraday_dict["^VIX"].empty:
-        intraday_dict["^VIX"] = pd.Series(np.full(600, cur_vix) + np.random.normal(0, 0.2, 600), index=time_index)
-
-    return pd.DataFrame(intraday_dict).ffill()
-
-df_intraday = fetch_intraday_data_24h()
-
-# ==================== 7. 【核心區】加權現貨 vs. 台指期貨 (靈動高頻圖表 + 自動 Y 軸縮放) ====================
-st.markdown("### 📈 核心對照區：台灣加權現貨 (左:定盤) vs. 台指期貨日夜盤 (右:24H靈動走勢與互動縮放)")
-st.markdown("支援下方範圍滑桿（Range Slider）自由縮放；Y 軸具備全自動智慧動態縮放（Autorange），讓高低起伏清晰俐落：")
+# ==================== 6. 【核心區】專業看盤級多周期靈動走勢圖 ====================
+st.markdown("### 📈 核心對照區：台灣加權現貨 (左) vs. 台指期貨日夜盤 (右)")
+st.markdown("仿 Google Finance 專業看盤介面：可自由切換時間區間（1天、5天、1個月、6個月、1年、全部），呈現豐富的波段起伏與自動 Y 軸縮放：")
 
 col_spot, col_fut = st.columns(2)
 
 with col_spot:
-    spot_series = df_intraday["^TWII"].dropna()
-    open_p = spot_series.iloc[0]
-    close_p = spot_series.iloc[-1]
-    pct_s = ((close_p - open_p) / open_p) * 100
-    diff_s = close_p - open_p
-    is_u_s = diff_s >= 0
+    st.markdown("##### 📌 台灣加權現貨 (^TWII)")
+    selected_p_spot = st.selectbox("選擇現貨時間周期", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="spot_period")
+    
+    spot_series = market_data_twii.get(selected_p_spot, list(market_data_twii.values())[0])
+    s_open = spot_series.iloc[0]
+    s_curr = spot_series.iloc[-1]
+    s_pct = ((s_curr - s_open) / s_open) * 100
+    s_diff = s_curr - s_open
+    is_u_s = s_diff >= 0
     col_s = '#10B981' if is_u_s else '#EF4444'
     
     st.markdown(f"""
-    <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-        <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">台灣加權指數 (現貨 • 靈動多日軌跡)</div>
-        <div style="display: flex; align-items: baseline; gap: 10px;">
-            <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{close_p:,.2f}</span>
-            <span style="font-size: 0.95rem; font-weight: 700; color: {col_s};">
-                {'+' if is_u_s else ''}{pct_s:.2f}% ({'+' if is_u_s else ''}{diff_s:,.2f})
-            </span>
-        </div>
+    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
+        <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{s_curr:,.2f}</span>
+        <span style="font-size: 0.95rem; font-weight: 700; color: {col_s};">
+            {'+' if is_u_s else ''}{s_pct:.2f}% ({'+' if is_u_s else ''}{s_diff:,.2f})
+        </span>
     </div>
     """, unsafe_allow_html=True)
     
@@ -369,36 +326,35 @@ with col_spot:
         x=spot_series.index, y=spot_series, mode='lines', name='加權現貨',
         line=dict(color=col_s, width=2.5),
         fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.15)' if is_u_s else 'rgba(239, 68, 68, 0.15)',
-        hovertemplate='時間: %{x|%m/%d %H:%M}<br>現貨點位: %{y:,.2f}<extra></extra>'
+        hovertemplate='時間: %{x}<br>現貨點位: %{y:,.2f}<extra></extra>'
     ))
     fig_spot.update_layout(
         template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=10, b=10), height=400,
-        xaxis=dict(showgrid=True, gridcolor='#232D3F', title='', rangeslider=dict(visible=True, thickness=0.08), type='date'),
+        margin=dict(l=10, r=10, t=10, b=10), height=380,
+        xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
         yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
         hovermode='x unified', showlegend=False
     )
     st.plotly_chart(fig_spot, use_container_width=True)
 
 with col_fut:
-    fut_series = df_intraday["TX=F"].dropna()
-    open_f = fut_series.iloc[0]
-    curr_f = fut_series.iloc[-1]
+    st.markdown("##### 📌 台指期貨 24H (TX=F)")
+    selected_p_fut = st.selectbox("選擇期貨時間周期", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="fut_period")
     
-    pct_f = ((curr_f - open_f) / open_f) * 100
-    diff_f = curr_f - open_f
-    is_u_f = diff_f >= 0
+    fut_series = market_data_txf.get(selected_p_fut, list(market_data_txf.values())[0])
+    f_open = fut_series.iloc[0]
+    f_curr = fut_series.iloc[-1]
+    f_pct = ((f_curr - f_open) / f_open) * 100
+    f_diff = f_curr - f_open
+    is_u_f = f_diff >= 0
     col_f = '#10B981' if is_u_f else '#EF4444'
     
     st.markdown(f"""
-    <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-        <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">台指期貨 (24H 日夜盤靈動走勢 • 互動縮放滑桿)</div>
-        <div style="display: flex; align-items: baseline; gap: 10px;">
-            <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{curr_f:,.0f}</span>
-            <span style="font-size: 0.95rem; font-weight: 700; color: {col_f};">
-                {'+' if is_u_f else ''}{pct_f:.2f}% ({'+' if is_u_f else ''}{diff_f:,.0f} 即時)
-            </span>
-        </div>
+    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
+        <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{f_curr:,.0f}</span>
+        <span style="font-size: 0.95rem; font-weight: 700; color: {col_f};">
+            {'+' if is_u_f else ''}{f_pct:.2f}% ({'+' if is_u_f else ''}{f_diff:,.0f} 即時)
+        </span>
     </div>
     """, unsafe_allow_html=True)
     
@@ -407,13 +363,12 @@ with col_fut:
         x=fut_series.index, y=fut_series, mode='lines', name='台指期貨',
         line=dict(color=col_f, width=2.5),
         fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.15)' if is_u_f else 'rgba(239, 68, 68, 0.15)',
-        hovertemplate='時間: %{x|%m/%d %H:%M}<br>期貨點位: %{y:,.0f}<extra></extra>'
+        hovertemplate='時間: %{x}<br>期貨點位: %{y:,.0f}<extra></extra>'
     ))
-    
     fig_fut.update_layout(
         template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=10, b=10), height=400,
-        xaxis=dict(showgrid=True, gridcolor='#232D3F', title='', rangeslider=dict(visible=True, thickness=0.08), type='date'),
+        margin=dict(l=10, r=10, t=10, b=10), height=380,
+        xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
         yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
         hovermode='x unified', showlegend=False
     )
@@ -421,61 +376,7 @@ with col_fut:
 
 st.markdown("---")
 
-# ==================== 8. 【下方美股三大指數與全球指標獨立對照區】 ====================
-st.markdown("### 📊 美國三大指數與全球關鍵指標獨立對照區")
-st.markdown("下方預設顯示美國三大指數與全球關鍵指標，同樣具備靈動走勢與自動 Y 軸縮放：")
-
-us_preset_tickers = {
-    "^GSPC": "S&P 500 (美股標普 500 指數)",
-    "^IXIC": "NASDAQ (美股那斯達克指數)",
-    "^DJI": "Dow Jones (美股道瓊工業指數)",
-    "2330.TW": "台積電 (2330.TW 權值領航)",
-    "^VIX": "VIX 恐慌指數 (波動率追蹤)"
-}
-
-selected_us_key = st.selectbox("選擇下方要獨立對照的美股/全球指標", list(us_preset_tickers.keys()), format_func=lambda x: us_preset_tickers[x])
-us_title = us_preset_tickers[selected_us_key]
-
-us_s = df_intraday[selected_us_key].dropna()
-u_curr = us_s.iloc[-1]
-u_open = us_s.iloc[0]
-u_pct = ((u_curr - u_open) / u_open) * 100
-u_diff = u_curr - u_open
-is_u_us = u_diff >= 0
-col_u = '#10B981' if is_u_us else '#EF4444'
-
-st.markdown(f"""
-<div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-    <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title}</div>
-    <div style="display: flex; align-items: baseline; gap: 10px;">
-        <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{u_curr:,.2f}</span>
-        <span style="font-size: 0.95rem; font-weight: 700; color: {col_u};">
-            {'+' if is_u_us else ''}{u_pct:.2f}% ({'+' if is_u_us else ''}{u_diff:,.2f})
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-fig_us = go.Figure()
-fig_us.add_trace(go.Scatter(
-    x=us_s.index, y=us_s, mode='lines', name=us_title,
-    line=dict(color=col_u, width=2.2),
-    fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)' if is_u_us else 'rgba(239, 68, 68, 0.12)',
-    hovertemplate='時間: %{x|%m/%d %H:%M}<br>價格: %{y:,.2f}<extra></extra>'
-))
-
-fig_us.update_layout(
-    template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
-    margin=dict(l=10, r=10, t=10, b=10), height=400,
-    xaxis=dict(showgrid=True, gridcolor='#232D3F', title='', rangeslider=dict(visible=True, thickness=0.08), type='date'),
-    yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
-    hovermode='x unified', showlegend=False
-)
-st.plotly_chart(fig_us, use_container_width=True)
-
-st.markdown("---")
-
-# ==================== 9. 【富人思維專屬】AI 槓桿與通膨稀釋優化建議引擎 ====================
+# ==================== 7. 【富人思維專屬】AI 槓桿與通膨稀釋優化建議引擎 ====================
 st.markdown("### 💎 富人思維戰略分析與 AI 槓桿優化建議")
 
 def generate_wealth_optimization_advice(loan_amt, total_coll, net_c, m_ratio):
@@ -486,7 +387,7 @@ def generate_wealth_optimization_advice(loan_amt, total_coll, net_c, m_ratio):
         advice_list.append("🟡 **Negative Carry（逆向現金流）警示**：目前利息與外部負債支出大於標的配息。若要維持『本金永不還』的富人架構，建議適度降低質押 LTV 或調配高息防禦標的，確保現金流安全邊際。")
     
     if m_ratio > 200:
-        advice_list.append("🚀 **槓桿空間極具潛力**：維持率高於 200%, 資產安全邊際極高。富人思維在此階段會考慮適度『增貸/加碼』，在多頭趨勢中用通膨與資產擴張進一步稀釋負債佔比。")
+        advice_list.append("🚀 **槓桿空間極具潛力**：維持率高於 200%，資產安全邊際極高。富人思維在此階段會考慮適度『增貸/加碼』，在多頭趨勢中用通膨與資產擴張進一步稀釋負債佔比。")
     elif m_ratio > 150:
         advice_list.append("⚖️ **黃金平衡槓桿區**：維持率在 150%-200% 之間，既能享受到指數級的資產放大效益，又能兼顧波動防禦。")
     else:
@@ -508,7 +409,7 @@ st.markdown(f"""
 
 st.markdown("---")
 
-# ==================== 10. 現金流自償性與負債損益試算 ====================
+# ==================== 8. 現金流自償性與負債損益試算 ====================
 st.markdown("### 💵 現金流自償性與永續槓桿損益試算面板")
 lc, rc = st.columns(2)
 with lc:
@@ -543,52 +444,9 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 11. 正二智慧溢價/折價自動推估模型 ====================
-st.markdown("### 🧬 正二（00685L / 00631L）智慧溢價/折價（正逆價差）自動推估模型")
-
-def auto_estimate_basis(df_market):
-    if "^TWII" in df_market.columns and "^VIX" in df_market.columns:
-        twii_s = df_market["^TWII"].dropna()
-        vix_s = df_market["^VIX"].dropna()
-        if len(twii_s) > 5 and len(vix_s) > 0:
-            recent_ret = (twii_s.iloc[-1] / twii_s.iloc[-5]) - 1.0
-            vix_val = vix_s.iloc[-1]
-            est_basis = recent_ret * 12.0 + (0.15 if vix_val < 18 else -0.25)
-            return round(float(est_basis), 2)
-    return 0.35
-
-auto_basis_rate = auto_estimate_basis(market_df)
-
-col_m1, col_m2 = st.columns(2)
-with col_m1:
-    sim_market_change = st.slider("模擬單日大盤漲跌幅 (%)", min_value=-10.0, max_value=10.0, value=2.0, step=0.5)
-with col_m2:
-    holding_days = st.slider("連續震盪/趨勢天數 (路徑耗損累積)", min_value=1, max_value=30, value=5, step=1)
-
-theoretical_leverage_ret = sim_market_change * 2.0
-convergence_impact = -auto_basis_rate * (1.0 / max(holding_days, 1))
-net_etf_daily_ret = theoretical_leverage_ret + convergence_impact
-
-sim_p1_advanced = p_1 * ((1.0 + net_etf_daily_ret / 100.0) ** holding_days)
-sim_total_collateral_adv = (sim_p1_advanced * shares_1) + (p_2 * shares_2)
-sim_margin_adv = (sim_total_collateral_adv / loan_amount) * 100 if loan_amount > 0 else 0
-
-m_c1, m_c2, m_c3, m_c4 = st.columns(4)
-m_c1.metric("自動推估基差 (溢價/折價)", f"{auto_basis_rate:+.2f}%", "AI 智慧實時推估")
-m_c2.metric("基差收斂回血/扣血", f"{convergence_impact:+.2f}% /天")
-m_c3.metric(f"經過 {holding_days} 天後標的 1 模擬價", f"NT$ {sim_p1_advanced:.2f}")
-m_c4.metric("模擬後最終維持率", f"{sim_margin_adv:.1f}%", f"{sim_margin_adv - margin_ratio:+.1f}%")
-
-if auto_basis_rate > 0:
-    st.warning(f"⚠️ **溢價扣血模式**：當前系統自動偵測到市場存在約 +{auto_basis_rate}% 之溢價（正價差），續抱將面臨每日約 {abs(convergence_impact):.2f}% 的基差收斂扣血損耗。")
-else:
-    st.success(f"🟢 **折價回血優勢**：當前系統自動偵測到市場存在約 {auto_basis_rate}% 之折價（逆價差），享有均值回歸的超額回血紅利。")
-
-st.markdown("---")
-
-# ==================== 12. 【完整保留】各大外資機構預估明細總表 ====================
+# ==================== 9. 【完整保留】各大外資機構預估明細總表 ====================
 st.markdown("### 🏛️ 全球頂尖機構法人共識 EPS 與目標價明細表 (2026/10 最新追蹤)")
-st.markdown("完整保留各大外資機構（高盛, 大摩, 小摩, 麥格理, Aletheia）對台積電之獨立預估與大盤共振模型：")
+st.markdown("完整保留各大外資機構（高盛、大摩、小摩、麥格理、Aletheia）對台積電之獨立預估與大盤共振模型：")
 
 @st.cache_data(ttl=300)
 def get_dynamic_institutional_consensus(current_tsmc_price):
@@ -666,7 +524,7 @@ st.dataframe(
 
 st.markdown("---")
 
-# ==================== 13. 動態本益比 (P/E) 情境模擬矩陣 ====================
+# ==================== 10. 動態本益比 (P/E) 情境模擬矩陣 ====================
 st.markdown("### 🎛️ 動態本益比 (P/E) 情境模擬矩陣：歷史均值 • 保守 • 基準平均 • 樂觀看好")
 st.markdown("您可以自由微調四大情境的 P/E 倍數，並即時模擬大盤上看 48,000 ~ 58,000 點之權值共振表現：")
 
@@ -761,7 +619,7 @@ st.dataframe(
 
 st.markdown("---")
 
-# ==================== 13. 正二路徑依賴與極端壓力測試模擬器 ====================
+# ==================== 11. 正二路徑依賴與極端壓力測試模擬器 ====================
 st.markdown("### 🚨 機構級正二路徑依賴與極端壓力測試 (Path-Dependent Stress Test)")
 col_s1, col_s2 = st.columns([2, 1])
 with col_s1:
