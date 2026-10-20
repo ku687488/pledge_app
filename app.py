@@ -53,7 +53,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#94A3B8; font-size:0.95rem;">
-        2026/10 終極完全體 | 動態彈性自訂負債格子 • TradingView 專業高頻圖表 (Y軸高張力自動縮放) • 權值共振超大波段聯動模型
+        2026/10 終極完全體 | 24H 跨時區即時追蹤 (含夜盤全時段) • 彈性自訂負債格子 • TradingView 高張力自動縮放圖表
     </p>
 </div>
 """,
@@ -98,7 +98,7 @@ if enable_credit_loan:
     credit_annual_outflow = credit_annual_payment
     st.sidebar.info(f"💡 信貸年現金流支出：**NT$ {credit_annual_outflow:,.0f}** (利率 {credit_rate}%)")
 
-# 動態自訂負債格子管理器 (極致靈活度)
+# 動態自訂負債格子管理器
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#F3F4F6;'>➕ 自訂彈性擴充負債格子</h4>", unsafe_allow_html=True)
 if 'custom_debts' not in st.session_state:
@@ -151,7 +151,7 @@ div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=
 pledged_invest_ratio = 0.95
 
 # ==================== 3. 即時資料抓取 Engine ====================
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=60)
 def fetch_live_market_data():
     t_list = [ticker_1, ticker_2, "2330.TW", "^TWII", "TX=F", "^GSPC", "^IXIC", "^DJI", "^VIX"]
     try:
@@ -274,43 +274,51 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. TradingView 頂級高頻互動圖表 (Y軸高張力自動縮放) ====================
-st.markdown("### 📈 TradingView 專業級黑卡互動分時走勢圖 (含台指期貨日夜盤 TX=F)")
-st.markdown("對標專業操盤介面，即時掌握 1 天高頻動態、夜盤與高張力波動起伏：")
+# ==================== 6. TradingView 24H 跨時區高頻互動圖表 (強制抓取夜盤與擴展時段) ====================
+st.markdown("### 📈 TradingView 24H 專業級黑卡互動分時走勢圖 (含台指期貨日夜盤 TX=F 全時段)")
+st.markdown("已全面解鎖 24 小時跨時區高頻數據流（含下午至清晨夜盤），並具備高張力自動縮放 Y 軸：")
 
-@st.cache_data(ttl=60)
-def fetch_intraday_data():
+@st.cache_data(ttl=30)
+def fetch_intraday_data_24h():
     tickers_to_fetch = ["^TWII", "TX=F", "^GSPC", "^IXIC", "^DJI", "2330.TW"]
     intraday_dict = {}
     for t in tickers_to_fetch:
         try:
-            df_i = yf.download(t, period="5d", interval="5m", progress=False)
+            # 關鍵修正：加入 prepost=True 抓取盤後與夜盤資料，period改為 2 天確保跨日連續性
+            df_i = yf.download(t, period="2d", interval="2m", prepost=True, progress=False)
             if not df_i.empty:
                 if isinstance(df_i.columns, pd.MultiIndex):
                     df_i.columns = df_i.columns.get_level_values(0)
                 if 'Close' in df_i.columns:
-                    intraday_dict[t] = df_i['Close'].dropna()
-        except:
+                    series = df_i['Close'].dropna()
+                    # 轉換為台灣時間 (Asia/Taipei)，確保夜盤時間軸完全正確
+                    if series.index.tz is not None:
+                        series.index = series.index.tz_convert('Asia/Taipei')
+                    else:
+                        series.index = series.index.tz_localize('UTC').tz_convert('Asia/Taipei')
+                    intraday_dict[t] = series
+        except Exception as e:
             pass
     return pd.DataFrame(intraday_dict).ffill()
 
-df_intraday = fetch_intraday_data()
+df_intraday = fetch_intraday_data_24h()
 
 if not df_intraday.empty:
     df_intraday_renamed = df_intraday.rename(columns={
         "^TWII": "台灣加權指數 (現貨)",
-        "TX=F": "台指期貨 (含日夜盤 TX=F)",
+        "TX=F": "台指期貨 (24H日夜盤 TX=F)",
         "^GSPC": "S&P 500 (美股標普)",
         "^IXIC": "NASDAQ (美股那指)",
         "^DJI": "Dow Jones (道瓊指數)",
         "2330.TW": "台積電 (2330)"
     })
     
-    selected_tv_target = st.selectbox("選擇 TradingView 互動高頻分時線圖標的", list(df_intraday_renamed.columns))
+    selected_tv_target = st.selectbox("選擇 TradingView 互動高頻分時線圖標的 (支援 24H 夜盤)", list(df_intraday_renamed.columns))
     
     target_series = df_intraday_renamed[selected_tv_target].dropna()
     if not target_series.empty:
-        recent_session_series = target_series.tail(120)
+        # 取最近完整高頻脈動
+        recent_session_series = target_series.tail(150)
         curr_val = recent_session_series.iloc[-1]
         prev_close = recent_session_series.iloc[0]
         pct_change = ((curr_val - prev_close) / prev_close) * 100
@@ -324,7 +332,7 @@ if not df_intraday.empty:
         <div style="display: flex; align-items: baseline; gap: 15px; margin-bottom: 10px;">
             <span style="font-size: 2.2rem; font-weight: 800; color: #F8FAFC;">{curr_val:,.2f}</span>
             <span style="font-size: 1.1rem; font-weight: 700; color: {color_theme}; background: {'rgba(16,185,129,0.15)' if is_up else 'rgba(239,68,68,0.15)'}; padding: 4px 10px; border-radius: 6px;">
-                {'+' if is_up else ''}{pct_change:.2f}% ({'+' if is_up else ''}{diff_val:,.2f} 今日)
+                {'+' if is_up else ''}{pct_change:.2f}% ({'+' if is_up else ''}{diff_val:,.2f} 即時)
             </span>
         </div>
         """, unsafe_allow_html=True)
@@ -338,7 +346,7 @@ if not df_intraday.empty:
             line=dict(color=color_theme, width=2.5),
             fill='tozeroy',
             fillcolor=fill_color_rgba,
-            hovertemplate='時間: %{x|%H:%M}<br>價格: %{y:,.2f}<extra></extra>'
+            hovertemplate='時間: %{x|%m/%d %H:%M}<br>價格: %{y:,.2f}<extra></extra>'
         ))
         
         fig.add_hline(
@@ -346,12 +354,12 @@ if not df_intraday.empty:
             line_dash="dot", 
             line_color="#8B949E", 
             line_width=1.5,
-            annotation_text=f"上次收盤價 {prev_close:,.2f}", 
+            annotation_text=f"基準收盤價 {prev_close:,.2f}", 
             annotation_position="bottom right",
             annotation_font_color="#8B949E"
         )
         
-        # 關鍵精進：計算高低價包絡範圍，確保 Y 軸緊密貼合波動、放大起伏張力，絕不平淡！
+        # Y軸動態緊密縮放，放大高低起伏震盪張力
         ymin = recent_session_series.min()
         ymax = recent_session_series.max()
         buffer = (ymax - ymin) * 0.03 if ymin != ymax else ymin * 0.01
@@ -370,7 +378,7 @@ if not df_intraday.empty:
         )
         st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("正在載入高頻分時數據或當前為非交易時段...")
+    st.info("正在連線 24H 高頻數據伺服器...")
 
 st.markdown("---")
 
