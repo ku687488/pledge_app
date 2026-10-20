@@ -54,7 +54,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:600;">
-        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • Google Finance 級多周期動態走勢圖 • 寬限期與本息攤還試算
+        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 專業看盤級靈動波段圖表 • 美股三大指數獨立對照
     </p>
 </div>
 """,
@@ -195,7 +195,6 @@ def fetch_real_multi_period_data(ticker):
             pass
             
     if not data_dict or "1天" not in data_dict:
-        # 使用現代 pandas 相容的 'h' (小時) 頻率
         dates = pd.date_range(end=pd.Timestamp.today(), periods=80, freq='h')
         fallback_s = pd.Series(46200 + np.cumsum(np.random.normal(0, 40, 80)), index=dates)
         for label in configs.keys():
@@ -206,6 +205,10 @@ def fetch_real_multi_period_data(ticker):
 market_data_twii = fetch_real_multi_period_data("^TWII")
 market_data_txf = fetch_real_multi_period_data("TX=F")
 market_data_tsmc = fetch_real_multi_period_data("2330.TW")
+market_data_gspc = fetch_real_multi_period_data("^GSPC")
+market_data_ixic = fetch_real_multi_period_data("^IXIC")
+market_data_dji = fetch_real_multi_period_data("^DJI")
+market_data_vix = fetch_real_multi_period_data("^VIX")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天", "5天", "1個月"]:
@@ -218,7 +221,10 @@ p_2 = 50.0
 tsmc_p = get_latest_price(market_data_tsmc, 2405.0)
 taiwii_p = get_latest_price(market_data_twii, 46292.93)
 tx_future_p = get_latest_price(market_data_txf, 46350.0)
-cur_vix = 16.0
+sp500_p = get_latest_price(market_data_gspc, 5800.0)
+nasdaq_p = get_latest_price(market_data_ixic, 18500.0)
+dji_p = get_latest_price(market_data_dji, 43000.0)
+cur_vix = get_latest_price(market_data_vix, 16.0)
 
 annual_interest = loan_amount * interest_rate
 pledged_fund_2 = loan_amount * pledged_invest_ratio
@@ -332,8 +338,8 @@ with col_spot:
     fig_spot = go.Figure()
     fig_spot.add_trace(go.Scatter(
         x=spot_series.index, y=spot_series, mode='lines', name='加權現貨',
-        line=dict(color=col_s, width=2.5),
-        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.15)' if is_u_s else 'rgba(239, 68, 68, 0.15)',
+        line=dict(color=col_s, width=2.8),
+        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.18)' if is_u_s else 'rgba(239, 68, 68, 0.18)',
         hovertemplate='時間: %{x}<br>現貨點位: %{y:,.2f}<extra></extra>'
     ))
     fig_spot.update_layout(
@@ -369,8 +375,8 @@ with col_fut:
     fig_fut = go.Figure()
     fig_fut.add_trace(go.Scatter(
         x=fut_series.index, y=fut_series, mode='lines', name='台指期貨',
-        line=dict(color=col_f, width=2.5),
-        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.15)' if is_u_f else 'rgba(239, 68, 68, 0.15)',
+        line=dict(color=col_f, width=2.8),
+        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.18)' if is_u_f else 'rgba(239, 68, 68, 0.18)',
         hovertemplate='時間: %{x}<br>期貨點位: %{y:,.0f}<extra></extra>'
     ))
     fig_fut.update_layout(
@@ -384,7 +390,66 @@ with col_fut:
 
 st.markdown("---")
 
-# ==================== 7. 【富人思維專屬】AI 槓桿與通膨稀釋優化建議引擎 ====================
+# ==================== 7. 【美股三大指數與全球指標獨立對照區】 ====================
+st.markdown("### 📊 美國三大指數與全球關鍵指標獨立對照區")
+st.markdown("完整恢復美股三大指數（S&P 500、NASDAQ、道瓊）與權值指標，同樣具備多周期動態切換與波段靈動視覺：")
+
+us_preset_tickers = {
+    "^GSPC": ("S&P 500 (美股標普 500 指數)", market_data_gspc),
+    "^IXIC": ("NASDAQ (美股那斯達克指數)", market_data_ixic),
+    "^DJI": ("Dow Jones (美股道瓊工業指數)", market_data_dji),
+    "2330.TW": ("台積電 (2330.TW 權值領航)", market_data_tsmc),
+    "^VIX": ("VIX 恐慌指數 (波動率追蹤)", market_data_vix)
+}
+
+col_us_sel, col_us_per = st.columns([2, 1])
+with col_us_sel:
+    selected_us_key = st.selectbox("選擇下方要獨立對照的美股/全球指標", list(us_preset_tickers.keys()), format_func=lambda x: us_preset_tickers[x][0])
+with col_us_per:
+    selected_us_period = st.selectbox("選擇美股指標時間區間", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="us_period_box")
+
+us_title, us_dict = us_preset_tickers[selected_us_key]
+us_series = us_dict.get(selected_us_period, list(us_dict.values())[0])
+
+u_curr = us_series.iloc[-1]
+u_open = us_series.iloc[0]
+u_pct = ((u_curr - u_open) / u_open) * 100
+u_diff = u_curr - u_open
+is_u_us = u_diff >= 0
+col_u = '#10B981' if is_u_us else '#EF4444'
+
+st.markdown(f"""
+<div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+    <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title}</div>
+    <div style="display: flex; align-items: baseline; gap: 10px;">
+        <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{u_curr:,.2f}</span>
+        <span style="font-size: 0.95rem; font-weight: 700; color: {col_u};">
+            {'+' if is_u_us else ''}{u_pct:.2f}% ({'+' if is_u_us else ''}{u_diff:,.2f})
+        </span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+fig_us = go.Figure()
+fig_us.add_trace(go.Scatter(
+    x=us_series.index, y=us_series, mode='lines', name=us_title,
+    line=dict(color=col_u, width=2.8),
+    fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.18)' if is_u_us else 'rgba(239, 68, 68, 0.18)',
+    hovertemplate='時間: %{x}<br>價格: %{y:,.2f}<extra></extra>'
+))
+
+fig_us.update_layout(
+    template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
+    margin=dict(l=10, r=10, t=10, b=10), height=380,
+    xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
+    yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
+    hovermode='x unified', showlegend=False
+)
+st.plotly_chart(fig_us, use_container_width=True)
+
+st.markdown("---")
+
+# ==================== 8. 【富人思維專屬】AI 槓桿與通膨稀釋優化建議引擎 ====================
 st.markdown("### 💎 富人思維戰略分析與 AI 槓桿優化建議")
 
 def generate_wealth_optimization_advice(loan_amt, total_coll, net_c, m_ratio):
@@ -417,7 +482,7 @@ st.markdown(f"""
 
 st.markdown("---")
 
-# ==================== 8. 現金流自償性與負債損益試算 ====================
+# ==================== 9. 現金流自償性與負債損益試算 ====================
 st.markdown("### 💵 現金流自償性與永續槓桿損益試算面板")
 lc, rc = st.columns(2)
 with lc:
@@ -452,7 +517,7 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 9. 【完整保留】各大外資機構預估明細總表 ====================
+# ==================== 10. 【完整保留】各大外資機構預估明細總表 ====================
 st.markdown("### 🏛️ 全球頂尖機構法人共識 EPS 與目標價明細表 (2026/10 最新追蹤)")
 st.markdown("完整保留各大外資機構（高盛、大摩、小摩、麥格理、Aletheia）對台積電之獨立預估與大盤共振模型：")
 
@@ -532,7 +597,7 @@ st.dataframe(
 
 st.markdown("---")
 
-# ==================== 10. 動態本益比 (P/E) 情境模擬矩陣 ====================
+# ==================== 11. 動態本益比 (P/E) 情境模擬矩陣 ====================
 st.markdown("### 🎛️ 動態本益比 (P/E) 情境模擬矩陣：歷史均值 • 保守 • 基準平均 • 樂觀看好")
 st.markdown("您可以自由微調四大情境的 P/E 倍數，並即時模擬大盤上看 48,000 ~ 58,000 點之權值共振表現：")
 
@@ -627,7 +692,7 @@ st.dataframe(
 
 st.markdown("---")
 
-# ==================== 11. 正二路徑依賴與極端壓力測試模擬器 ====================
+# ==================== 12. 正二路徑依賴與極端壓力測試模擬器 ====================
 st.markdown("### 🚨 機構級正二路徑依賴與極端壓力測試 (Path-Dependent Stress Test)")
 col_s1, col_s2 = st.columns([2, 1])
 with col_s1:
