@@ -22,40 +22,40 @@ st.markdown(
     section[data-testid="stSidebar"] { background-color: #151A23 !important; border-right: 1px solid #232D3F; }
     .metric-card {
         background: linear-gradient(135deg, rgba(25, 32, 45, 0.8) 0%, rgba(18, 24, 35, 0.9) 100%);
-        border: 1px solid #2A364F; border-radius: 12px; padding: 20px;
+        border: 1px solid #2A364F; border-radius: 12px; padding: 18px;
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); margin-bottom: 15px;
     }
-    .card-title { color: #8B949E; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-    .card-value { color: #F3F4F6; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }
-    .card-subtitle { font-size: 0.8rem; margin-top: 4px; }
+    .card-title { color: #8B949E; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .card-value { color: #F3F4F6; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+    .card-subtitle { font-size: 0.75rem; margin-top: 4px; }
     .text-gold { color: #F59E0B !important; }
     .text-green { color: #10B981 !important; }
     .text-blue { color: #3B82F6 !important; }
     .text-red { color: #EF4444 !important; }
     .hero-header {
         background: linear-gradient(90deg, #1E293B 0%, #0F172A 100%);
-        border-left: 4px solid #F59E0B; padding: 20px 24px; border-radius: 8px; margin-bottom: 20px;
+        border-left: 4px solid #F59E0B; padding: 18px 22px; border-radius: 8px; margin-bottom: 20px;
     }
     .web-push-ticker {
         background: rgba(30, 41, 59, 0.95); border: 1px solid #3B82F6; border-left: 6px solid #3B82F6;
-        padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
+        padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC; font-size: 0.9rem;
     }
     .wealth-box {
         background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(30, 41, 59, 0.8) 100%);
         border: 1px solid #F59E0B; border-left: 6px solid #F59E0B;
-        padding: 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
+        padding: 18px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
     }
     .ai-alert-box {
         background: rgba(239, 68, 68, 0.12); border: 1px solid #EF4444; border-left: 6px solid #EF4444;
-        padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
+        padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; color: #F8FAFC; font-size: 0.9rem;
     }
     .ai-success-box {
         background: rgba(16, 185, 129, 0.12); border: 1px solid #10B981; border-left: 6px solid #10B981;
-        padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC;
+        padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; color: #F8FAFC; font-size: 0.9rem;
     }
     .chart-container-box {
         background: rgba(18, 24, 36, 0.85); border: 1px solid #2A364F; border-radius: 12px;
-        padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 </style>
 """,
@@ -66,25 +66,27 @@ st.markdown(
     """
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
-    <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:600;">
-        💎 富人槓桿與現金流自償性戰略引擎 • 自由曝險與 AI 動態智慧偏離預警模型
+    <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.9rem; font-weight:600;">
+        💎 富人槓桿與現金流自償性戰略引擎 • 隨年紀降曝險至最低 150% 模型 • AI 動態偏離預警與 TSMC EPS 多情境試算
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. 側邊欄：生命週期/自由選擇模式、本金與負債模組 ====================
+# ==================== 2. 側邊欄：生命週期降曝險、資本與負債模組 ====================
 st.sidebar.markdown("<h3 style='color:#F3F4F6;'>👤 投資人戰略風格與槓桿模式</h3>", unsafe_allow_html=True)
 
-enable_lifecycle_deleveraging = st.sidebar.checkbox("啟用生命週期動態降槓桿 (隨年紀降至 ~150%)", value=False)
-user_age = st.sidebar.number_input("目前真實年紀 (歲 - 僅供參考)", min_value=20, max_value=90, value=25, step=1)
+enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (隨年紀收斂至最低 150% 曝險)", value=True)
+user_age = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=25, step=1)
 
-target_lifecycle_margin = min(max(135.0 + (user_age - 25) * 0.8, 135.0), 180.0)
-if enable_lifecycle_deleveraging:
-    st.sidebar.info(f"🎯 已啟用生命週期模型 ({user_age}歲)：目標維持率收斂至 ~{target_lifecycle_margin:.1f}%")
+# 隨年紀降曝險至最低 150% (例如 25歲設定為 280% 高曝險，隨年紀增長線性下降，但下限收斂至 150% 曝險)
+target_lifecycle_exposure = max(280.0 - (user_age - 25) * 3.5, 150.0)
+
+if enable_lifecycle_exposure:
+    st.sidebar.info(f"🎯 依據 {user_age} 歲生命週期模型：目標淨權益曝險率自動收斂至 **{target_lifecycle_exposure:.1f}%** (底線 150% 曝險)")
 else:
-    st.sidebar.info("🔓 目前為【完全自由曝險模式】：由您自行掌控槓桿與風險偏好，AI 僅負責動態試算與提醒。")
+    st.sidebar.info("🔓 【完全自由曝險模式】：由您自行掌控曝險倍數，AI 僅負責試算與即時偏離提醒。")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 資本結構與永續槓桿設定</h3>", unsafe_allow_html=True)
@@ -118,7 +120,7 @@ if enable_mortgage:
     m_interest_only = m_balance * m_rate
     if m_grace and m_grace_years > 0:
         mortgage_annual_outflow = m_interest_only
-        st.sidebar.info(f"💡 寬限期內年息支出：**NT$ {mortgage_annual_outflow:,.0f}** (富人思維：不還本金)")
+        st.sidebar.info(f"💡 寬限期內年息支出：**NT$ {mortgage_annual_outflow:,.0f}** (不還本金)")
     else:
         m_months = m_term * 12
         m_m_rate = m_rate / 12.0
@@ -274,43 +276,40 @@ exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 
 st.markdown(f"""
 <div class="web-push-ticker">
     📡 <b>【Apex 家族辦公室量化戰情快報 (AI 動態智慧監控模式)】</b><br>
-    • 戰略模式：{'<b>[生命週期收斂中]</b>' if enable_lifecycle_deleveraging else '<b>[完全自由曝險模式]</b>'} | 當前維持率：<b>{margin_ratio:.1f}%</b><br>
+    • 戰略模式：{'<b>[生命週期降曝險中 (底線 150% 曝險)]</b>' if enable_lifecycle_exposure else '<b>[完全自由曝險模式]</b>'} | 當前曝險率：<b>{exposure_vs_equity:.1f}%</b><br>
     • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | VIX <b>{cur_vix:.2f}</b>
 </div>
 """, unsafe_allow_html=True)
 
-def generate_ai_dynamic_alerts(m_ratio, t_margin, w_dev, net_c, is_lifecycle, age):
+def generate_ai_dynamic_alerts(exp_eq, t_exp, w_dev, net_c, is_lifecycle, age):
     alerts = []
     
-    # 1. 槓桿與模式檢核
     if is_lifecycle:
-        if m_ratio < t_margin - 15:
-            alerts.append(f"🚨 **[生命週期降槓桿警報]** 目前維持率 ({m_ratio:.1f}%) 低於您啟用之 {age} 歲生命週期目標 ({t_margin:.1f}%)。建議逐步調整曝險部位。")
-        elif m_ratio > t_margin + 40:
-            alerts.append(f"🚀 **[槓桿擴張空間]** 目前維持率 ({m_ratio:.1f}% ) 相當充裕，高於 {age} 歲階段的收斂目標，具備良好通膨稀釋空間。")
-    else:
-        if m_ratio < 150:
-            alerts.append(f"⚠️ **[自由模式風險提醒]** 當前維持率為 {m_ratio:.1f}%。由於您選擇自由曝險，請隨時留意大盤波動對維持率的衝擊，確保安全邊際。")
+        if exp_eq > t_exp + 15:
+            alerts.append(f"🚨 **[生命週期降曝險警報]** 目前淨權益曝險率 ({exp_eq:.1f}%) 高於您 {age} 歲設定的收斂目標 ({t_exp:.1f}%)。建議依計畫逐步降低曝險倍數，落實保守防禦。")
         else:
-            alerts.append(f"🟢 **[自由模式運作良好]** 維持率 {m_ratio:.1f}% 處於健康區間，您可以完全依照個人策略自由調配槓桿與曝險部位。")
+            alerts.append(f"🟢 **[生命週期合規]** 目前曝險率 ({exp_eq:.1f}%) 符合 {age} 歲階段的降曝險規劃（目標下限 150% 曝險）。")
+    else:
+        if exp_eq > 300:
+            alerts.append(f"⚠️ **[自由模式高曝險警示]** 當前曝險率為 {exp_eq:.1f}%，槓桿倍數較高，請留意市場極端震盪。")
+        else:
+            alerts.append(f"🟢 **[自由曝險運作正常]** 曝險率 {exp_eq:.1f}% 運作良好，完全由您自主掌控。")
         
-    # 2. 最佳權重偏移檢核
     if abs(w_dev) > 0.10:
         direction = "攻擊標的過重" if w_dev > 0 else "防禦標的過重"
-        alerts.append(f"⚖️ **[資產配置權重偏移警告]** 攻擊標的實際權重為 {current_weight_1*100:.1f}%，偏離目標設定超過 10% ({direction})。建議執行部位再平衡。")
+        alerts.append(f"⚖️ **[資產配置權重偏離警告]** 實際攻擊權重為 {current_weight_1*100:.1f}%，偏離目標超過 10% ({direction})，建議執行再平衡。")
         
-    # 3. 現金流檢核
     if net_c < 0:
-        alerts.append(f"⚠️ **[負現金流警報 (Negative Carry)]** 目前年度淨現金流為 -NT$ {abs(net_c):,.0f}。利息與外部負債支出大於配息收益，請留意流動性緩衝。")
+        alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於配息收益，請確保流動性現金緩衝。")
     else:
-        alerts.append(f"🟢 **[現金流自償達成]** 目前達成 Positive Carry (+NT$ {net_c:,.0f}/年)，負債利息完全由資產配息覆蓋，完美實現富人永續槓桿！")
+        alerts.append(f"🟢 **[現金流自償達成]** 達成 Positive Carry (+NT$ {net_c:,.0f}/年)，負債利息完全由配息覆蓋！")
         
     return alerts
 
-ai_insights = generate_ai_dynamic_alerts(margin_ratio, target_lifecycle_margin, weight_deviation, net_carry, enable_lifecycle_deleveraging, user_age)
+ai_insights = generate_ai_dynamic_alerts(exposure_vs_equity, target_lifecycle_exposure, weight_deviation, net_carry, enable_lifecycle_exposure, user_age)
 
 for insight in ai_insights:
-    if "警報" in insight or "警告" in insight or "提醒" in insight:
+    if "警報" in insight or "警告" in insight or "警示" in insight or "提醒" in insight:
         st.markdown(f'<div class="ai-alert-box">{insight}</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="ai-success-box">{insight}</div>', unsafe_allow_html=True)
@@ -342,16 +341,16 @@ with c3:
     <div class="metric-card">
         <div class="card-title">即時質押維持率</div>
         <div class="card-value {status_color}">{margin_ratio:.1f}%</div>
-        <div class="card-subtitle">{'生命週期目標: ~' + f'{target_lifecycle_margin:.1f}%' if enable_lifecycle_deleveraging else '自由曝險模式'}</div>
+        <div class="card-subtitle">券商平倉線: 130%</div>
     </div>
     """, unsafe_allow_html=True)
 
 with c4:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">權重配置狀態</div>
-        <div class="card-value text-blue">{current_weight_1*100:.1f}%</div>
-        <div class="card-subtitle">目標設定: {target_weight_1*100:.1f}%</div>
+        <div class="card-title">自有資金淨權益曝險</div>
+        <div class="card-value text-blue">{exposure_vs_equity:.1f}%</div>
+        <div class="card-subtitle">{'生命週期目標: ~' + f'{target_lifecycle_exposure:.1f}%' if enable_lifecycle_exposure else '自由曝險模式'}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -397,7 +396,7 @@ def create_square_card_chart(series, title_text):
     
     fig.update_layout(
         template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
-        margin=dict(l=5, r=5, t=5, b=5), height=280,
+        margin=dict(l=5, r=5, t=5, b=5), height=260,
         xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
         yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - y_padding, ymax + y_padding], autorange=False, title=''),
         yaxis2=dict(showgrid=False, side='right', title=''),
@@ -414,9 +413,9 @@ with box_col1:
     ser_1 = market_data_twii.get(p_sel_1, list(market_data_twii.values())[0] if market_data_twii else None)
     fig_1, curr_1, pct_1, diff_1, col_1 = create_square_card_chart(ser_1, "加權現貨")
     st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px;">
-        <span style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC;">{curr_1:,.2f}</span>
-        <span style="font-size: 0.85rem; font-weight: 700; color: {col_1};">{'+' if diff_1 >= 0 else ''}{pct_1:.2f}% ({'+' if diff_1 >= 0 else ''}{diff_1:,.2f})</span>
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
+        <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_1:,.2f}</span>
+        <span style="font-size: 0.8rem; font-weight: 700; color: {col_1};">{'+' if diff_1 >= 0 else ''}{pct_1:.2f}% ({'+' if diff_1 >= 0 else ''}{diff_1:,.2f})</span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_1, use_container_width=True)
@@ -429,9 +428,9 @@ with box_col2:
     ser_2 = market_data_gspc.get(p_sel_2, list(market_data_gspc.values())[0] if market_data_gspc else None)
     fig_2, curr_2, pct_2, diff_2, col_2 = create_square_card_chart(ser_2, "S&P 500")
     st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px;">
-        <span style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC;">{curr_2:,.2f}</span>
-        <span style="font-size: 0.85rem; font-weight: 700; color: {col_2};">{'+' if diff_2 >= 0 else ''}{pct_2:.2f}% ({'+' if diff_2 >= 0 else ''}{diff_2:,.2f})</span>
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
+        <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_2:,.2f}</span>
+        <span style="font-size: 0.8rem; font-weight: 700; color: {col_2};">{'+' if diff_2 >= 0 else ''}{pct_2:.2f}% ({'+' if diff_2 >= 0 else ''}{diff_2:,.2f})</span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_2, use_container_width=True)
@@ -446,9 +445,9 @@ with box_col3:
     ser_3 = market_data_ixic.get(p_sel_3, list(market_data_ixic.values())[0] if market_data_ixic else None)
     fig_3, curr_3, pct_3, diff_3, col_3 = create_square_card_chart(ser_3, "NASDAQ")
     st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px;">
-        <span style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC;">{curr_3:,.2f}</span>
-        <span style="font-size: 0.85rem; font-weight: 700; color: {col_3};">{'+' if diff_3 >= 0 else ''}{pct_3:.2f}% ({'+' if diff_3 >= 0 else ''}{diff_3:,.2f})</span>
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
+        <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_3:,.2f}</span>
+        <span style="font-size: 0.8rem; font-weight: 700; color: {col_3};">{'+' if diff_3 >= 0 else ''}{pct_3:.2f}% ({'+' if diff_3 >= 0 else ''}{diff_3:,.2f})</span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_3, use_container_width=True)
@@ -461,9 +460,9 @@ with box_col4:
     ser_4 = market_data_tsmc.get(p_sel_4, list(market_data_tsmc.values())[0] if market_data_tsmc else None)
     fig_4, curr_4, pct_4, diff_4, col_4 = create_square_card_chart(ser_4, "台積電")
     st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px;">
-        <span style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC;">NT$ {curr_4:,.1f}</span>
-        <span style="font-size: 0.85rem; font-weight: 700; color: {col_4};">{'+' if diff_4 >= 0 else ''}{pct_4:.2f}% ({'+' if diff_4 >= 0 else ''}{diff_4:,.1f})</span>
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
+        <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">NT$ {curr_4:,.1f}</span>
+        <span style="font-size: 0.8rem; font-weight: 700; color: {col_4};">{'+' if diff_4 >= 0 else ''}{pct_4:.2f}% ({'+' if diff_4 >= 0 else ''}{diff_4:,.1f})</span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_4, use_container_width=True)
@@ -473,8 +472,6 @@ st.markdown("---")
 
 # ==================== 7. 【核心重點】現金流自償性與永續槓桿損益試算面板 ====================
 st.markdown("### 💵 核心重點：現金流自償性與永續槓桿損益試算面板")
-st.markdown("家族辦公室核心戰略：不還本金、只付利息，透過配息收益完美覆蓋融資成本（Net Carry）模型：")
-
 lc, rc = st.columns(2)
 with lc:
     st.metric("年度質押利息支出 (只付利息)", f"-NT$ {annual_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}%")
@@ -489,10 +486,10 @@ with lc:
         
     net_carry_color = "text-green" if net_carry > 0 else "text-red"
     st.markdown(f"""
-    <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 18px; border-radius: 10px; margin-top: 15px;">
-        <div style="color: #8B949E; font-size: 0.9rem; font-weight: 600;">整體淨現金流效益 (Net Carry / 年)</div>
+    <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 15px; border-radius: 8px; margin-top: 10px;">
+        <div style="color: #8B949E; font-size: 0.85rem; font-weight: 600;">整體淨現金流效益 (Net Carry / 年)</div>
         <div class="card-value {net_carry_color}">+NT$ {net_carry:,.0f}</div>
-        <div style="font-size: 0.85rem; color: #F59E0B; margin-top: 6px;">{'🟢 Positive Carry：資產收益完全覆蓋所有利息支出，完美實現富人永續印鈔槓桿！' if net_carry > 0 else '🔴 負現金流狀態：需以額外現金流或收益填補缺口。'}</div>
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px;">{'🟢 Positive Carry：資產收益完全覆蓋所有利息支出！' if net_carry > 0 else '🔴 負現金流狀態：需以額外現金流填補缺口。'}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -508,8 +505,8 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 8. 外資機構預估與 P/E 情境模擬 ====================
-st.markdown("### 🏛️ 全球頂尖機構法人共識 EPS 與目標價明細表")
+# ==================== 8. 【TSMC 多情境 EPS 與機構共識精巧矩陣】 ====================
+st.markdown("### 🏛️ 台積電 (2330.TW) 保守 / 平均 / 樂觀 EPS 與機構共識矩陣")
 
 @st.cache_data(ttl=300)
 def get_dynamic_institutional_consensus(current_tsmc_price):
@@ -522,11 +519,9 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
         base_eps = max(145.0, current_tsmc_price / 22.5)
         
     institutions = [
-        {"機構名稱": "Aletheia Capital (超前極牛共識)", "pe": 29.0, "eps_multiplier": 1.22, "year": "2027/2028 F"},
-        {"機構名稱": "高盛證券 (Goldman Sachs)", "pe": 27.5, "eps_multiplier": 1.15, "year": "2026/2027 F"},
-        {"機構名稱": "摩根大通 (J.P. Morgan)", "pe": 27.0, "eps_multiplier": 1.10, "year": "2026/2027 F"},
-        {"機構名稱": "麥格理證券 (Macquarie)", "pe": 26.5, "eps_multiplier": 1.18, "year": "2026/2027 F"},
-        {"機構名稱": "摩根士丹利 (Morgan Stanley)", "pe": 26.0, "eps_multiplier": 1.08, "year": "2026 F"}
+        {"機構名稱": "🟡 保守情境 (Conservative)", "pe": 22.0, "eps_multiplier": 0.95, "year": "2026 F"},
+        {"機構名稱": "🔵 機構平均共識 (Consensus)", "pe": 26.5, "eps_multiplier": 1.12, "year": "2026/2027 F"},
+        {"機構名稱": "🟢 樂觀牛市 (Bull / Aletheia)", "pe": 29.5, "eps_multiplier": 1.25, "year": "2027/2028 F"}
     ]
     
     data = []
@@ -534,7 +529,7 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
         est_eps = round(base_eps * inst["eps_multiplier"], 1)
         target_price = round(est_eps * inst["pe"], 1)
         data.append({
-            "機構名稱": inst["機構名稱"],
+            "情境/機構": inst["機構名稱"],
             "預估年份": inst["year"],
             "預估EPS": est_eps,
             "合理PE": inst["pe"],
@@ -544,7 +539,7 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
 
 institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
 tsmc_resonance_weight = 0.92
-institutional_consensus["推估大盤與權值共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
+institutional_consensus["推估大盤共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
 institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
 
 st.dataframe(
@@ -552,7 +547,7 @@ st.dataframe(
         "預估EPS": "NT$ {:.1f}",
         "合理PE": "{:.1f}x",
         "台積電目標價 (NT$)": "NT$ {:,.1f}",
-        "推估大盤與權值共振點位": "{:,.0f} 點",
+        "推估大盤共振點位": "{:,.0f} 點",
         "潛在漲幅": "{:+.1f}%"
     }),
     use_container_width=True,
