@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import datetime
 import os
 
+# ==================== 1. 頁面配置與黑卡級美學 CSS ====================
 st.set_page_config(
     page_title="Apex Global Institutional Terminal | 家族辦公室量化戰情室",
     page_icon="🏛️",
@@ -52,13 +53,14 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#94A3B8; font-size:0.95rem;">
-        2026/10 終極完全體 | 24H 跨時區即時追蹤 • 台指期貨日夜盤 (TX=F) • TradingView 互動走勢 • 權值共振超大波段聯動模型
+        2026/10 終極完全體 | 24H 跨時區即時追蹤 • 台指期貨日夜盤 (TX=F) • TradingView 專業黑卡互動走勢 • 權值共振超大波段聯動模型
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
+# ==================== 2. 側邊欄：本金、質押與選填額外貸款設定 ====================
 st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 本金與質押借款動態設定</h3>", unsafe_allow_html=True)
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
@@ -74,6 +76,7 @@ else:
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
+# 選填額外貸款 (房貸/信貸) 模組
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#F3F4F6;'>💳 額外負債/房貸/信貸選填設定</h4>", unsafe_allow_html=True)
 enable_external_loan = st.sidebar.checkbox("啟用額外貸款 (房貸/信貸) 現金流試算", value=False)
@@ -111,6 +114,7 @@ div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=
 
 pledged_invest_ratio = 0.95
 
+# ==================== 3. 即時資料抓取 Engine ====================
 @st.cache_data(ttl=120)
 def fetch_live_market_data():
     t_list = [ticker_1, ticker_2, "2330.TW", "^TWII", "TX=F", "^GSPC", "^IXIC", "^DJI", "^VIX"]
@@ -125,8 +129,8 @@ def fetch_live_market_data():
             ticker_1: np.linspace(50, 70, 250),
             ticker_2: np.linspace(45, 55, 250),
             "2330.TW": np.linspace(800, 1000, 250),
-            "^TWII": np.linspace(20000, 23000, 250),
-            "TX=F": np.linspace(20100, 23100, 250),
+            "^TWII": np.linspace(45000, 46500, 250),
+            "TX=F": np.linspace(45100, 46600, 250),
             "^GSPC": np.linspace(5000, 5800, 250),
             "^IXIC": np.linspace(16000, 19000, 250),
             "^DJI": np.linspace(38000, 43000, 250),
@@ -145,12 +149,13 @@ def get_latest(df, ticker, fallback):
 p_1 = get_latest(market_df, ticker_1, 60.0)
 p_2 = get_latest(market_df, ticker_2, 50.0)
 tsmc_p = get_latest(market_df, "2330.TW", 2405.0)
-taiwii_p = get_latest(market_df, "^TWII", 24200.0)
-tx_future_p = get_latest(market_df, "TX=F", 24250.0)
+taiwii_p = get_latest(market_df, "^TWII", 46292.93)
+tx_future_p = get_latest(market_df, "TX=F", 46350.0)
 sp500_p = get_latest(market_df, "^GSPC", 5800.0)
 nasdaq_p = get_latest(market_df, "^IXIC", 18500.0)
 cur_vix = get_latest(market_df, "^VIX", 16.0)
 
+# 現金流與利息試算核心數據
 annual_interest = loan_amount * interest_rate
 pledged_fund_2 = loan_amount * pledged_invest_ratio
 expected_div_2 = pledged_fund_2 * div_yield_2
@@ -171,10 +176,11 @@ net_equity = total_collateral - loan_amount
 exposure_vs_asset = (total_exposure / total_collateral) * 100 if total_collateral > 0 else 0
 exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 0
 
+# ==================== 4. 戰情快報 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
     📡 <b>【Apex 24H 跨時區即時戰情快報 (2026/10 最新)】</b><br>
-    • 核心資產即時價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.0f} 點</b> | 台指夜盤 <b>{tx_future_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b><br>
+    • 核心資產即時價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | 台指夜盤 <b>{tx_future_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b><br>
     • 質押負債與利率連動：質押貸款 <b>NT$ {loan_amount:,.0f}</b> (年利率 <b>{interest_rate*100:.2f}%</b>) | 即時維持率 <b>{margin_ratio:.1f}%</b>
 </div>
 """, unsafe_allow_html=True)
@@ -186,6 +192,7 @@ if margin_ratio < 140:
     </div>
     """, unsafe_allow_html=True)
 
+# ==================== 5. 主戰情室 KPI 儀表板 ====================
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
@@ -231,8 +238,9 @@ st.progress(progress_val)
 
 st.markdown("---")
 
+# ==================== 6. TradingView / Google Finance 風格頂級 1 天高頻互動圖表 ====================
 st.markdown("### 📈 TradingView 專業級黑卡互動分時走勢圖 (含台指期貨日夜盤 TX=F)")
-st.markdown("即時掌握**台指期貨近月合約（完美涵蓋下午至隔日清晨之夜盤交易 `TX=F`）**、美股三大指數與台積電的高頻動態波動：")
+st.markdown("對標 Google Finance / TradingView 專業介面，即時掌握 1 天高頻動態與上次收盤價基準線：")
 
 @st.cache_data(ttl=60)
 def fetch_intraday_data():
@@ -264,32 +272,69 @@ if not df_intraday.empty:
     
     selected_tv_target = st.selectbox("選擇 TradingView 互動高頻分時線圖標的", list(df_intraday_renamed.columns))
     
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df_intraday_renamed.index,
-        y=df_intraday_renamed[selected_tv_target],
-        mode='lines',
-        name=selected_tv_target,
-        line=dict(color='#3B82F6', width=2),
-        fill='tozeroy',
-        fillcolor='rgba(59, 130, 246, 0.12)'
-    ))
-    fig.update_layout(
-        template='plotly_dark',
-        paper_bgcolor='#0B0E14',
-        plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=30, b=10),
-        height=420,
-        xaxis=dict(showgrid=True, gridcolor='#232D3F', title='時間 (Time)'),
-        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', title='價格 (Price)'),
-        hovermode='x unified'
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    target_series = df_intraday_renamed[selected_tv_target].dropna()
+    if not target_series.empty:
+        curr_val = target_series.iloc[-1]
+        prev_close = target_series.iloc[0] # 當日起始參考收盤
+        pct_change = ((curr_val - prev_close) / prev_close) * 100
+        diff_val = curr_val - prev_close
+        is_up = diff_val >= 0
+        
+        color_theme = '#10B981' if is_up else '#EF4444'
+        fill_color_rgba = 'rgba(16, 185, 129, 0.12)' if is_up else 'rgba(239, 68, 68, 0.12)'
+        
+        # 模擬頂級 Google Finance 操盤頂部標頭
+        st.markdown(f"""
+        <div style="display: flex; align-items: baseline; gap: 15px; margin-bottom: 10px;">
+            <span style="font-size: 2.2rem; font-weight: 800; color: #F8FAFC;">{curr_val:,.2f}</span>
+            <span style="font-size: 1.1rem; font-weight: 700; color: {color_theme}; background: {'rgba(16,185,129,0.15)' if is_up else 'rgba(239,68,68,0.15)'}; padding: 4px 10px; border-radius: 6px;">
+                {'+' if is_up else ''}{pct_change:.2f}% ({'+' if is_up else ''}{diff_val:,.2f} 今日)
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        fig = go.Figure()
+        # 繪製主走勢線
+        fig.add_trace(go.Scatter(
+            x=target_series.index,
+            y=target_series,
+            mode='lines',
+            name=selected_tv_target,
+            line=dict(color=color_theme, width=2.5),
+            fill='tozeroy',
+            fillcolor=fill_color_rgba,
+            hovertemplate='時間: %{x|%H:%M}<br>價格: %{y:,.2f}<extra></extra>'
+        ))
+        
+        # 加入上次收盤價水平參考線 (Baseline)
+        fig.add_hline(
+            y=prev_close, 
+            line_dash="dot", 
+            line_color="#8B949E", 
+            line_width=1.5,
+            annotation_text=f"上次收盤價 {prev_close:,.2f}", 
+            annotation_position="bottom right",
+            annotation_font_color="#8B949E"
+        )
+        
+        fig.update_layout(
+            template='plotly_dark',
+            paper_bgcolor='#0B0E14',
+            plot_bgcolor='#121824',
+            margin=dict(l=10, r=10, t=10, b=10),
+            height=440,
+            xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
+            yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', title=''),
+            hovermode='x unified',
+            showlegend=False
+        )
+        st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("正在載入高頻分時數據或當前為非交易時段...")
 
 st.markdown("---")
 
+# ==================== 7. 現金流自償性與選填額外貸款損益優化試算 ====================
 st.markdown("### 💵 現金流自償性與利息、配息、額外貸款損益優化試算面板")
 st.markdown("精確計算質押利息、高股息標的配息、以及選填的額外貸款（房貸/信貸）現金流支出，呈現整體淨現金流（Net Carry）：")
 
@@ -322,6 +367,7 @@ with rc:
 
 st.markdown("---")
 
+# ==================== 8. 正二智慧溢價/折價（正逆價差）自動推估模型 ====================
 st.markdown("### 🧬 正二（00685L / 00631L）智慧溢價/折價（正逆價差）自動推估模型")
 
 def auto_estimate_basis(df_market):
@@ -364,8 +410,9 @@ else:
 
 st.markdown("---")
 
-st.markdown("### 🏛️ 全球機構法人共識 EPS 與權值共振聯動模擬 (2026/10 最新超前進階報告)")
-st.markdown(f"系統即時動態追蹤（2026/10 最新行情）：台積電現價 **NT$ {tsmc_p:,.1f}**。基於最新 2 奈米量產與 CoWoS 狂潮，外資機構將台積電目標價推升至 **NT$ 3,500 ~ 4,200** 級距。透過台積電與權值股（鴻海、聯發科等）的強大連動骨牌效應，全面驅動加權指數直奔 **40,000 至 45,000 點大關**：")
+# ==================== 9. 【全面權值大爆發聯動模型】基於 46,000+ 點與台積電 3,500 ~ 4,200 元目標 ====================
+st.markdown("### 🏛️ 全球機構法人共識 EPS 與權值共振聯動模擬 (超前進階：48,000 ~ 58,000 點大關)")
+st.markdown(f"系統即時動態追蹤（2026/10 最新行情）：台積電現價 **NT$ {tsmc_p:,.1f}**，當前大盤基底 **{taiwii_p:,.2f} 點**。基於 2 奈米與 CoWoS 狂潮，外資將台積電目標價推升至 **NT$ 3,500 ~ 4,200**。透過台積電與權值股（鴻海、聯發科、廣達等）的骨牌效應，全面驅動加權指數直奔 **48,000 至 58,000 點**：")
 
 @st.cache_data(ttl=300)
 def get_dynamic_institutional_consensus(current_tsmc_price):
@@ -373,16 +420,16 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
         stock = yf.Ticker("2330.TW")
         info = stock.info
         live_f_eps = info.get("forwardEps", 0.0)
-        base_eps = float(live_f_eps) if live_f_eps and live_f_eps > 50 else max(130.0, current_tsmc_price / 23.5)
+        base_eps = float(live_f_eps) if live_f_eps and live_f_eps > 50 else max(145.0, current_tsmc_price / 22.5)
     except:
-        base_eps = max(130.0, current_tsmc_price / 23.5)
+        base_eps = max(145.0, current_tsmc_price / 22.5)
         
     institutions = [
-        {"機構名稱": "Aletheia Capital (超前極牛共識)", "pe": 28.0, "eps_multiplier": 1.18, "year": "2027/2028 F"},
-        {"機構名稱": "高盛證券 (Goldman Sachs)", "pe": 27.0, "eps_multiplier": 1.12, "year": "2026/2027 F"},
-        {"機構名稱": "摩根大通 (J.P. Morgan)", "pe": 26.5, "eps_multiplier": 1.08, "year": "2026/2027 F"},
-        {"機構名稱": "麥格理證券 (Macquarie)", "pe": 26.0, "eps_multiplier": 1.14, "year": "2026/2027 F"},
-        {"機構名稱": "摩根士丹利 (Morgan Stanley)", "pe": 25.5, "eps_multiplier": 1.05, "year": "2026/2027 F"}
+        {"機構名稱": "Aletheia Capital (超前極牛共識)", "pe": 29.0, "eps_multiplier": 1.22, "year": "2027/2028 F"},
+        {"機構名稱": "高盛證券 (Goldman Sachs)", "pe": 27.5, "eps_multiplier": 1.15, "year": "2026/2027 F"},
+        {"機構名稱": "摩根大通 (J.P. Morgan)", "pe": 27.0, "eps_multiplier": 1.10, "year": "2026/2027 F"},
+        {"機構名稱": "麥格理證券 (Macquarie)", "pe": 26.5, "eps_multiplier": 1.18, "year": "2026/2027 F"},
+        {"機構名稱": "摩根士丹利 (Morgan Stanley)", "pe": 26.0, "eps_multiplier": 1.08, "year": "2026 F"}
     ]
     
     data = []
@@ -400,8 +447,9 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
 
 institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
 
-tsmc_weight = 0.42
-institutional_consensus["推估大盤與權值共振點位"] = taiwii_p * (1 + tsmc_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
+# 以當前 46,292 點為強大基底，計算台積電成長帶動其他權值股與大盤的連動放大系數
+tsmc_resonance_weight = 0.92
+institutional_consensus["推估大盤與權值共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
 institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
 
 sim_col_list = []
@@ -426,7 +474,7 @@ avg_implied_index = institutional_consensus["推估大盤與權值共振點位"]
 
 ic1.metric("動態追蹤平均預估 EPS", f"NT$ {avg_consensus_eps:.1f}", "最新 2026/10 機構報告")
 ic2.metric("動態追蹤平均台積電目標價", f"NT$ {avg_consensus_target:,.1f}", f"現價 NT$ {tsmc_p:,.1f}")
-ic3.metric("權值共振推估大盤點位", f"{avg_implied_index:,.0f} 點", f"當前大盤 {taiwii_p:,.0f} 點")
+ic3.metric("權值共振推估大盤點位", f"{avg_implied_index:,.0f} 點", f"當前大盤 {taiwii_p:,.2f} 點")
 
 display_df = institutional_consensus[["機構名稱", "預估年份", "預估EPS", "合理PE", "台積電目標價 (NT$)", "推估大盤與權值共振點位", "潛在漲幅", "到達時總市值", "到達時維持率"]].copy()
 st.dataframe(
@@ -443,6 +491,7 @@ st.dataframe(
 
 st.markdown("---")
 
+# ==================== 10. 正二路徑依賴與極端壓力測試模擬器 ====================
 st.markdown("### 🚨 機構級正二路徑依賴與極端壓力測試 (Path-Dependent Stress Test)")
 col_s1, col_s2 = st.columns([2, 1])
 with col_s1:

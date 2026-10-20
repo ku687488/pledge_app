@@ -1,5 +1,6 @@
+Plaintext
 streamlit
-yfinance
 pandas
 numpy
-scipy
+yfinance
+plotly
