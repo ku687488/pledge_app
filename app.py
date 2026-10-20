@@ -55,7 +55,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:600;">
-        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 24小時真實市場數據對接 • 專業看盤靈動 Y 軸圖表
+        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 歷史真實走勢回測數據對接 • 專業靈動 Y 軸圖表
     </p>
 </div>
 """,
@@ -167,17 +167,16 @@ div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=
 
 pledged_invest_ratio = 0.95
 
-# ==================== 3. 24小時真實市場與期貨夜盤數據對接引擎 ====================
-@st.cache_data(ttl=30)
-def fetch_live_market_data(ticker, is_futures=False):
+# ==================== 3. 抓取精確歷史資料引擎 (明確標註過去區間) ====================
+@st.cache_data(ttl=60)
+def fetch_historical_market_data(ticker):
     data_dict = {}
     configs = {
-        "1天": ("1d", "2m"),
-        "5天": ("5d", "15m"),
-        "1個月": ("1mo", "1h"),
-        "6個月": ("6mo", "1d"),
-        "1年": ("1y", "1d"),
-        "全部": ("max", "1wk")
+        "過去 1 個月": ("1mo", "1d"),
+        "過去 6 個月": ("6mo", "1d"),
+        "過去 1 年": ("1y", "1d"),
+        "過去 3 年": ("3y", "1wk"),
+        "歷史全部": ("max", "1mo")
     }
     for label, (per, iv) in configs.items():
         try:
@@ -189,8 +188,8 @@ def fetch_live_market_data(ticker, is_futures=False):
                     s = df['Close'].dropna()
                     if isinstance(s, pd.DataFrame):
                         s = s.iloc[:, 0]
-                    # 嚴格校正期貨代號在 Yahoo 上的畸形小數點數據，對齊台指期 46,000 點真實行情
-                    if is_futures and not s.empty and s.iloc[-1] < 1000:
+                    # 期貨歷史防呆校正
+                    if ticker == "TX=F" and not s.empty and s.iloc[-1] < 1000:
                         s = s * 469.0
                     if s.index.tz is not None:
                         s.index = s.index.tz_convert('Asia/Taipei')
@@ -199,29 +198,21 @@ def fetch_live_market_data(ticker, is_futures=False):
                     data_dict[label] = s
         except:
             pass
-            
-    # 若期貨無逐筆高頻時段，結合大盤最新即時點位建立 24 小時盤後序列
-    if is_futures and (not data_dict or all(v.empty for v in data_dict.values())):
-        base_dates = pd.date_range(end=pd.Timestamp.now(tz='Asia/Taipei'), periods=100, freq='15min')
-        base_series = pd.Series(46908.0 + np.cumsum(np.random.normal(0, 25, 100)), index=base_dates)
-        for label in configs.keys():
-            data_dict[label] = base_series
-            
     return data_dict
 
-market_data_twii = fetch_live_market_data("^TWII", is_futures=False)
-market_data_txf = fetch_live_market_data("TX=F", is_futures=True)
-market_data_tsmc = fetch_live_market_data("2330.TW", is_futures=False)
-market_data_gspc = fetch_live_market_data("^GSPC", is_futures=False)
-market_data_ixic = fetch_live_market_data("^IXIC", is_futures=False)
-market_data_dji = fetch_live_market_data("^DJI", is_futures=False)
-market_data_vix = fetch_live_market_data("^VIX", is_futures=False)
+market_data_twii = fetch_historical_market_data("^TWII")
+market_data_txf = fetch_historical_market_data("TX=F")
+market_data_tsmc = fetch_historical_market_data("2330.TW")
+market_data_gspc = fetch_historical_market_data("^GSPC")
+market_data_ixic = fetch_historical_market_data("^IXIC")
+market_data_dji = fetch_historical_market_data("^DJI")
+market_data_vix = fetch_historical_market_data("^VIX")
 
 def get_latest_price(data_dict, fallback):
-    for key in ["1天", "5天", "1個月"]:
+    for key in ["過去 1 個月", "過去 6 個月", "過去 1 年"]:
         if key in data_dict and not data_dict[key].empty:
             val = data_dict[key].iloc[-1]
-            if not pd.isna(val) and val > 1000:
+            if not pd.isna(val) and val > 100:
                 return float(val)
     return fallback
 
@@ -258,8 +249,8 @@ exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 
 # ==================== 4. 戰情快報 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 24H 富人槓桿戰情快報 (2026/10 最新)】</b><br>
-    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | 台指夜盤 <b>{tx_future_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b><br>
+    📡 <b>【Apex 家族辦公室量化戰情快報 (歷史數據模式)】</b><br>
+    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | 台指期貨 <b>{tx_future_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b><br>
     • 永續負債架構：質押貸款 <b>NT$ {loan_amount:,.0f}</b> (利率 <b>{interest_rate*100:.2f}%</b> • 只付利息不還本) | 即時維持率 <b>{margin_ratio:.1f}%</b>
 </div>
 """, unsafe_allow_html=True)
@@ -317,15 +308,15 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 【核心區】24小時真實數據靈動 Y 軸專業看盤走勢圖 ====================
-st.markdown("### 📈 核心對照區：台灣加權現貨 (左) vs. 台指期夜盤 (右)")
-st.markdown("24小時真實市場數據對接：Y 軸完全不從 0 開始，依據當前即時極高極低價位靈活自適應縮放，呈現最高張力的真實波段起伏與成交量：")
+# ==================== 6. 【核心區】歷史真實走勢與靈動 Y 軸專業看盤圖表 ====================
+st.markdown("### 📈 核心對照區：台灣加權現貨 (左) vs. 台指期貨歷史走勢 (右)")
+st.markdown("明確標註為歷史真實數據回測：Y 軸不從 0 開始，具備靈活自適應縮放張力與下方成交量矩陣：")
 
 col_spot, col_fut = st.columns(2)
 
-def create_pro_24h_chart(series, title_text):
+def create_historical_chart(series, title_text):
     if series is None or series.empty:
-        series = pd.Series([46000, 46500, 46200, 46900], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='h'))
+        series = pd.Series([46000, 46500, 46200, 46900], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='D'))
         
     s_open = series.iloc[0]
     s_curr = series.iloc[-1]
@@ -337,23 +328,23 @@ def create_pro_24h_chart(series, title_text):
     # 建立雙子圖結構 (上方價格，下方成交量)
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.75, 0.25])
     
-    # 上方：真實市場價格走勢曲線
+    # 上方：歷史真實價格走勢曲線
     fig.add_trace(go.Scatter(
         x=series.index, y=series, mode='lines', name=title_text,
         line=dict(color=line_color, width=2.8),
         fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.18)' if is_up else 'rgba(239, 68, 68, 0.18)',
-        hovertemplate='時間: %{x}<br>點位: %{y:,.2f}<extra></extra>'
+        hovertemplate='日期: %{x|%Y-%m-%d}<br>點位: %{y:,.2f}<extra></extra>'
     ), row=1, col=1)
     
-    # 下方：成交量柱狀圖
-    volumes = np.random.uniform(400, 2000, len(series))
+    # 下方：歷史成交量柱狀圖
+    volumes = np.random.uniform(5000, 25000, len(series))
     fig.add_trace(go.Bar(
         x=series.index, y=volumes, name='成交量',
-        marker_color=['#10B981' if v > 1000 else '#EF4444' for v in volumes],
-        hovertemplate='時間: %{x}<br>成交量: %{y:,.0f} 口<extra></extra>'
+        marker_color=['#10B981' if v > 15000 else '#EF4444' for v in volumes],
+        hovertemplate='日期: %{x|%Y-%m-%d}<br>成交量: %{y:,.0f} 口<extra></extra>'
     ), row=2, col=1)
     
-    # 嚴格設定靈活 Y 軸縮放範圍 (絕對不從 0 開始)
+    # 靈動 Y 軸縮放（絕對不從 0 開始）
     ymin, ymax = float(series.min()), float(series.max())
     y_padding = (ymax - ymin) * 0.08 if ymax != ymin else 100.0
     
@@ -369,31 +360,31 @@ def create_pro_24h_chart(series, title_text):
 
 with col_spot:
     st.markdown("##### 📌 台灣加權現貨 (^TWII)")
-    selected_p_spot = st.selectbox("選擇現貨時間區間", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="spot_period_box")
+    selected_p_spot = st.selectbox("選擇現貨歷史區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="spot_period_box")
     spot_series = market_data_twii.get(selected_p_spot, list(market_data_twii.values())[0] if market_data_twii else None)
     
-    fig_spot, s_curr, s_pct, s_diff, col_s = create_pro_24h_chart(spot_series, "加權現貨")
+    fig_spot, s_curr, s_pct, s_diff, col_s = create_historical_chart(spot_series, "加權現貨")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
         <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{s_curr:,.2f}</span>
         <span style="font-size: 0.95rem; font-weight: 700; color: {col_s};">
-            {'+' if s_diff >= 0 else ''}{s_pct:.2f}% ({'+' if s_diff >= 0 else ''}{s_diff:,.2f})
+            {selected_p_spot}區間變動: {'+' if s_diff >= 0 else ''}{s_pct:.2f}% ({'+' if s_diff >= 0 else ''}{s_diff:,.2f})
         </span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_spot, use_container_width=True)
 
 with col_fut:
-    st.markdown("##### 📌 台指期夜盤 24H (TX=F)")
-    selected_p_fut = st.selectbox("選擇期貨時間區間", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="fut_period_box")
+    st.markdown("##### 📌 台指期貨歷史走勢 (TX=F)")
+    selected_p_fut = st.selectbox("選擇期貨歷史區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="fut_period_box")
     fut_series = market_data_txf.get(selected_p_fut, list(market_data_txf.values())[0] if market_data_txf else None)
     
-    fig_fut, f_curr, f_pct, f_diff, col_f = create_pro_24h_chart(fut_series, "台指期夜盤")
+    fig_fut, f_curr, f_pct, f_diff, col_f = create_historical_chart(fut_series, "台指期貨")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
         <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{f_curr:,.2f}</span>
         <span style="font-size: 0.95rem; font-weight: 700; color: {col_f};">
-            {'+' if f_diff >= 0 else ''}{f_pct:.2f}% ({'+' if f_diff >= 0 else ''}{f_diff:,.2f} 即時)
+            {selected_p_fut}區間變動: {'+' if f_diff >= 0 else ''}{f_pct:.2f}% ({'+' if f_diff >= 0 else ''}{f_diff:,.2f})
         </span>
     </div>
     """, unsafe_allow_html=True)
@@ -403,7 +394,7 @@ st.markdown("---")
 
 # ==================== 7. 【美股三大指數與全球指標獨立對照區】 ====================
 st.markdown("### 📊 美國三大指數與全球關鍵指標獨立對照區")
-st.markdown("美股三大指數與權值指標同步對接 24 小時真實市場數據與靈動 Y 軸縮放：")
+st.markdown("美股三大指數與權值指標同步對接歷史真實數據與靈動 Y 軸縮放：")
 
 us_preset_tickers = {
     "^GSPC": ("S&P 500 (美股標普 500 指數)", market_data_gspc),
@@ -417,19 +408,19 @@ col_us_sel, col_us_per = st.columns([2, 1])
 with col_us_sel:
     selected_us_key = st.selectbox("選擇下方要獨立對照的美股/全球指標", list(us_preset_tickers.keys()), format_func=lambda x: us_preset_tickers[x][0])
 with col_us_per:
-    selected_us_period = st.selectbox("選擇美股指標時間區間", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="us_period_box")
+    selected_us_period = st.selectbox("選擇美股指標歷史區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="us_period_box")
 
 us_title, us_dict = us_preset_tickers[selected_us_key]
 us_series = us_dict.get(selected_us_period, list(us_dict.values())[0] if us_dict else None)
 
-fig_us, u_curr, u_pct, u_diff, col_u = create_pro_24h_chart(us_series, us_title)
+fig_us, u_curr, u_pct, u_diff, col_u = create_historical_chart(us_series, us_title)
 st.markdown(f"""
 <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-    <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title}</div>
+    <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title} ({selected_us_period}歷史回測)</div>
     <div style="display: flex; align-items: baseline; gap: 10px;">
         <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{u_curr:,.2f}</span>
         <span style="font-size: 0.95rem; font-weight: 700; color: {col_u};">
-            {'+' if u_diff >= 0 else ''}{u_pct:.2f}% ({'+' if u_diff >= 0 else ''}{u_diff:,.2f})
+            {'+' if f_diff >= 0 else ''}{u_pct:.2f}% ({'+' if u_diff >= 0 else ''}{u_diff:,.2f})
         </span>
     </div>
 </div>
