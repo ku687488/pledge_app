@@ -170,7 +170,6 @@ pledged_invest_ratio = 0.95
 @st.cache_data(ttl=30)
 def fetch_real_multi_period_data(ticker):
     data_dict = {}
-    # 對應 Google Finance 的 6 大經典周期
     configs = {
         "1天": ("1d", "2m"),
         "5天": ("5d", "15m"),
@@ -195,9 +194,9 @@ def fetch_real_multi_period_data(ticker):
         except:
             pass
             
-    # 若部分周期為空，以基準數列進行擬真補足確保不崩潰
     if not data_dict or "1天" not in data_dict:
-        dates = pd.date_range(end=pd.Timestamp.today(), periods=80, freq='H')
+        # 使用現代 pandas 相容的 'h' (小時) 頻率
+        dates = pd.date_range(end=pd.Timestamp.today(), periods=80, freq='h')
         fallback_s = pd.Series(46200 + np.cumsum(np.random.normal(0, 40, 80)), index=dates)
         for label in configs.keys():
             data_dict[label] = fallback_s
