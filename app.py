@@ -53,7 +53,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#94A3B8; font-size:0.95rem;">
-        全球機構級量化戰情室 | 24H 智慧背景追蹤 • 法人共識 EPS 與分析師目標價矩陣 • 正二路徑模型
+        全球機構級量化戰情室 | 24H 智慧背景追蹤 • 機構目標點位資產聯動模擬 • 正二路徑模型
     </p>
 </div>
 """,
@@ -155,7 +155,6 @@ pledged_fund_2 = loan_amount * pledged_invest_ratio
 expected_div_2 = pledged_fund_2 * div_yield_2
 net_carry = expected_div_2 - annual_interest
 
-# 讀取背景排程紀錄
 global_log_status = "24H 全球背景排程運行中"
 if os.path.exists("global_market_consensus.csv"):
     try:
@@ -218,9 +217,9 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 5. 【核心主畫面】全球機構法人共識 EPS 與大盤推估引擎 ====================
-st.markdown("### 🏛️ 全球機構法人共識 EPS 與動態本益比聯動大盤戰情室")
-st.markdown("匯集各大外資與主流法人機構對台積電（2330.TW）與全球核心標的的 Forward EPS 共識預估，透過本益比矩陣直接換算台股大盤推估極限點位：")
+# ==================== 5. 【核心主畫面】機構 EPS 預估與目標點位到達時之資產動態模擬 ====================
+st.markdown("### 🏛️ 全球機構法人共識 EPS 與目標點位到達時之資產動態模擬")
+st.markdown("當大盤隨著各大機構預估點位上攻時，系統自動模擬計算你持有的標的市值變化及質押維持率表現：")
 
 institutional_consensus = pd.DataFrame([
     {"機構名稱": "外資平均共識 (Market Consensus)", "預估年份": "2026/2027 F", "預估EPS": 48.5, "合理PE": 22.0},
@@ -235,6 +234,22 @@ institutional_consensus["台積電目標價 (NT$)"] = institutional_consensus["�
 institutional_consensus["推估大盤點位"] = taiwii_p * (1 + tsmc_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
 institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
 
+# 計算到達各機構目標點位時的資產狀況
+sim_col_list = []
+sim_margin_list = []
+for _, row in institutional_consensus.iterrows():
+    target_idx = row["推估大盤點位"]
+    idx_ret = (target_idx - taiwii_p) / taiwii_p if taiwii_p > 0 else 0
+    s_p1 = max(p_1 * (1 + beta_1 * idx_ret), 0.01)
+    s_p2 = max(p_2 * (1 + beta_2 * idx_ret), 0.01)
+    s_col = shares_1 * s_p1 + shares_2 * s_p2
+    s_margin = (s_col / loan_amount) * 100 if loan_amount > 0 else 0
+    sim_col_list.append(f"NT$ {s_col:,.0f}")
+    sim_margin_list.append(f"{s_margin:.1f}%")
+
+institutional_consensus["到達時總市值"] = sim_col_list
+institutional_consensus["到達時維持率"] = sim_margin_list
+
 ic1, ic2, ic3 = st.columns(3)
 avg_consensus_eps = institutional_consensus["預估EPS"].mean()
 avg_consensus_target = institutional_consensus["台積電目標價 (NT$)"].mean()
@@ -244,7 +259,7 @@ ic1.metric("法人共識平均預估 EPS", f"NT$ {avg_consensus_eps:.1f}", "多�
 ic2.metric("法人共識平均台積電目標價", f"NT$ {avg_consensus_target:.1f}", f"現價 NT$ {tsmc_p:.1f}")
 ic3.metric("法人共識帶動大盤推估點位", f"{avg_implied_index:,.0f} 點", f"當前大盤 {taiwii_p:,.0f} 點")
 
-display_df = institutional_consensus[["機構名稱", "預估年份", "預估EPS", "合理PE", "台積電目標價 (NT$)", "推估大盤點位", "潛在漲幅"]].copy()
+display_df = institutional_consensus[["機構名稱", "預估年份", "預估EPS", "合理PE", "台積電目標價 (NT$)", "推估大盤點位", "潛在漲幅", "到達時總市值", "到達時維持率"]].copy()
 st.dataframe(
     display_df.style.format({
         "預估EPS": "NT$ {:.1f}",
@@ -256,17 +271,6 @@ st.dataframe(
     use_container_width=True,
     hide_index=True
 )
-
-# 若有背景資料庫，額外顯示全球即時標的清單
-if os.path.exists("global_market_consensus.csv"):
-    st.markdown("---")
-    st.markdown("### 🌐 背景排程記錄之全球即時標的最新行情總覽")
-    try:
-        g_df = pd.read_csv("global_market_consensus.csv")
-        latest_batch = g_df.tail(7) # 顯示最新一批追蹤清單
-        st.dataframe(latest_batch[["Timestamp", "Ticker", "Name", "Category", "Price", "Change_Pct"]], use_container_width=True, hide_index=True)
-    except:
-        pass
 
 st.markdown("---")
 
