@@ -53,7 +53,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#94A3B8; font-size:0.95rem;">
-        2026/10 終極完全體 | 現貨與期貨日夜盤獨立對照 • 多重自訂負債格子 • 美國三大指數聯動區
+        2026/10 終極完全體 | 歷史平均 vs 保守/平均/樂觀動態 PE 調控矩陣 • 現貨定盤 vs 期貨 24H 跳動標註
     </p>
 </div>
 """,
@@ -274,7 +274,7 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 專屬高頻數據引擎 (24H 跨時區) ====================
+# ==================== 6. 專屬 24H 高頻數據抓取引擎 ====================
 @st.cache_data(ttl=30)
 def fetch_intraday_data_24h():
     tickers_to_fetch = ["^TWII", "TX=F", "^GSPC", "^IXIC", "^DJI", "2330.TW", "^VIX"]
@@ -298,84 +298,174 @@ def fetch_intraday_data_24h():
 
 df_intraday = fetch_intraday_data_24h()
 
-# ==================== 7. 【核心區】加權現貨 vs. 期貨日夜盤獨立對照專區 ====================
-st.markdown("### 📈 台股核心對照區：加權現貨 (左) vs. 台指期貨日夜盤 TX=F (右)")
-st.markdown("將台股現貨與 24 小時期貨日夜盤獨立分開顯示，方便隨時進行價差與走勢對照：")
+# ==================== 7. 【核心區】加權現貨 (固定盤) vs. 台指期貨 (日夜盤跳動標註) ====================
+st.markdown("### 📈 核心對照區：台灣加權現貨 (左:開收盤定盤) vs. 台指期貨日夜盤 (右:高頻跳動標註)")
+st.markdown("現貨固定顯示今日開收盤價；期貨完整串接日盤與夜盤動態，並實時在圖表上記錄「開盤點位」、「日盤收盤」與「最新夜盤點位」：")
 
 col_spot, col_fut = st.columns(2)
 
-def render_independent_chart(df, ticker_key, title_name):
-    if ticker_key in df.columns:
-        s = df[ticker_key].dropna().tail(150)
-        if not s.empty:
-            curr = s.iloc[-1]
-            prev = s.iloc[0]
-            pct = ((curr - prev) / prev) * 100
-            diff = curr - prev
-            is_u = diff >= 0
-            col_t = '#10B981' if is_u else '#EF4444'
-            fill_c = 'rgba(16, 185, 129, 0.12)' if is_u else 'rgba(239, 68, 68, 0.12)'
+with col_spot:
+    if "^TWII" in df_intraday.columns:
+        spot_series = df_intraday["^TWII"].dropna().tail(120)
+        if not spot_series.empty:
+            open_p = spot_series.iloc[0]
+            close_p = spot_series.iloc[-1]
+            pct_s = ((close_p - open_p) / open_p) * 100
+            diff_s = close_p - open_p
+            is_u_s = diff_s >= 0
+            col_s = '#10B981' if is_u_s else '#EF4444'
             
             st.markdown(f"""
             <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-                <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{title_name}</div>
+                <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">台灣加權指數 (現貨 • 13:30定盤)</div>
                 <div style="display: flex; align-items: baseline; gap: 10px;">
-                    <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{curr:,.2f}</span>
-                    <span style="font-size: 0.95rem; font-weight: 700; color: {col_t};">
-                        {'+' if is_u else ''}{pct:.2f}% ({'+' if is_u else ''}{diff:,.2f})
+                    <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{close_p:,.2f}</span>
+                    <span style="font-size: 0.95rem; font-weight: 700; color: {col_s};">
+                        {'+' if is_u_s else ''}{pct_s:.2f}% ({'+' if is_u_s else ''}{diff_s:,.2f})
                     </span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
             
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=s.index, y=s, mode='lines', name=title_name,
-                line=dict(color=col_t, width=2.2),
-                fill='tozeroy', fillcolor=fill_c,
-                hovertemplate='時間: %{x|%m/%d %H:%M}<br>價格: %{y:,.2f}<extra></extra>'
+            fig_spot = go.Figure()
+            fig_spot.add_trace(go.Scatter(
+                x=spot_series.index, y=spot_series, mode='lines', name='加權現貨',
+                line=dict(color=col_s, width=2.5),
+                fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)' if is_u_s else 'rgba(239, 68, 68, 0.12)',
+                hovertemplate='時間: %{x|%H:%M}<br>現貨點位: %{y:,.2f}<extra></extra>'
             ))
-            fig.add_hline(y=prev, line_dash="dot", line_color="#8B949E", annotation_text=f"基準 {prev:,.2f}", annotation_position="bottom right")
+            fig_spot.add_hline(y=open_p, line_dash="dot", line_color="#8B949E", annotation_text=f"今日開盤價 {open_p:,.2f}", annotation_position="bottom right")
+            fig_spot.add_hline(y=close_p, line_dash="solid", line_color=col_s, annotation_text=f"今日收盤價 {close_p:,.2f}", annotation_position="top right")
             
-            ymin, ymax = s.min(), s.max()
-            buf = (ymax - ymin) * 0.03 if ymin != ymax else ymin * 0.01
-            fig.update_layout(
+            ymin, ymax = spot_series.min(), spot_series.max()
+            buf = (ymax - ymin) * 0.04 if ymin != ymax else ymin * 0.01
+            fig_spot.update_layout(
                 template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
                 margin=dict(l=10, r=10, t=10, b=10), height=380,
                 xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
                 yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - buf, ymax + buf], title=''),
                 hovermode='x unified', showlegend=False
             )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning(f"無法取得 {title_name} 數據")
-    else:
-        st.info(f"正在載入 {title_name}...")
-
-with col_spot:
-    render_independent_chart(df_intraday, "^TWII", "台灣加權指數 (現貨)")
+            st.plotly_chart(fig_spot, use_container_width=True)
 
 with col_fut:
-    render_independent_chart(df_intraday, "TX=F", "台指期貨 (24H 日夜盤 TX=F)")
+    if "TX=F" in df_intraday.columns:
+        fut_series = df_intraday["TX=F"].dropna().tail(180)
+        if not fut_series.empty:
+            open_f = fut_series.iloc[0]
+            curr_f = fut_series.iloc[-1]
+            min_f = fut_series.min()
+            max_f = fut_series.max()
+            
+            pct_f = ((curr_f - open_f) / open_f) * 100
+            diff_f = curr_f - open_f
+            is_u_f = diff_f >= 0
+            col_f = '#10B981' if is_u_f else '#EF4444'
+            
+            st.markdown(f"""
+            <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+                <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">台指期貨 (24H 日夜盤即時跳動 TX=F)</div>
+                <div style="display: flex; align-items: baseline; gap: 10px;">
+                    <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{curr_f:,.0f}</span>
+                    <span style="font-size: 0.95rem; font-weight: 700; color: {col_f};">
+                        {'+' if is_u_f else ''}{pct_f:.2f}% ({'+' if is_u_f else ''}{diff_f:,.0f} 即時)
+                    </span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            fig_fut = go.Figure()
+            fig_fut.add_trace(go.Scatter(
+                x=fut_series.index, y=fut_series, mode='lines', name='台指期貨',
+                line=dict(color=col_f, width=2.5),
+                fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)' if is_u_f else 'rgba(239, 68, 68, 0.12)',
+                hovertemplate='時間: %{x|%m/%d %H:%M}<br>期貨點位: %{y:,.0f}<extra></extra>'
+            ))
+            
+            fig_fut.add_annotation(
+                x=fut_series.index[0], y=open_f, text=f"日盤開盤: {open_f:,.0f}",
+                showarrow=True, arrowhead=2, ax=30, ay=-25,
+                bgcolor="#151A23", bordercolor="#3B82F6", font=dict(color="#F8FAFC", size=11)
+            )
+            fig_fut.add_annotation(
+                x=fut_series.index[-1], y=curr_f, text=f"即時夜盤: {curr_f:,.0f}",
+                showarrow=True, arrowhead=2, ax=-40, ay=-30,
+                bgcolor="#151A23", bordercolor=col_f, font=dict(color="#F8FAFC", size=12, family="Arial Black")
+            )
+            
+            buf_f = (max_f - min_f) * 0.05 if max_f != min_f else min_f * 0.01
+            fig_fut.update_layout(
+                template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
+                margin=dict(l=10, r=10, t=10, b=10), height=380,
+                xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
+                yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[min_f - buf_f, max_f + buf_f], title=''),
+                hovermode='x unified', showlegend=False
+            )
+            st.plotly_chart(fig_fut, use_container_width=True)
 
 st.markdown("---")
 
-# ==================== 8. 【下方擴充區】美股三大指數與全球自選標的對照區 ====================
-st.markdown("### 📊 下方擴充區：美股三大指數與全球機構標的即時對照")
-st.markdown("您可以自由選擇下方美股三大指數或台積電，在下方進行獨立對照檢視：")
+# ==================== 8. 【下方美股三大指數與全球指標獨立對照區】 ====================
+st.markdown("### 📊 美國三大指數與全球關鍵指標獨立對照區")
+st.markdown("下方預設顯示美國三大指數與全球關鍵指標，可自由切換進行多重對照分析：")
 
 us_preset_tickers = {
-    "^GSPC": "S&P 500 (美股標普指數)",
-    "^IXIC": "NASDAQ (美股那斯達克)",
-    "^DJI": "Dow Jones (美股道瓊指數)",
-    "2330.TW": "台積電 (2330.TW)",
-    "^VIX": "VIX 恐慌指數"
+    "^GSPC": "S&P 500 (美股標普 500 指數)",
+    "^IXIC": "NASDAQ (美股那斯達克指數)",
+    "^DJI": "Dow Jones (美股道瓊工業指數)",
+    "2330.TW": "台積電 (2330.TW 權值領航)",
+    "^VIX": "VIX 恐慌指數 (波動率追蹤)"
 }
 
-selected_extra_key = st.selectbox("選擇下方要額外對照的全球指標標的", list(us_preset_tickers.keys()), format_func=lambda x: us_preset_tickers[x])
-extra_title = us_preset_tickers[selected_extra_key]
+selected_us_key = st.selectbox("選擇下方要獨立對照的美股/全球指標", list(us_preset_tickers.keys()), format_func=lambda x: us_preset_tickers[x])
+us_title = us_preset_tickers[selected_us_key]
 
-render_independent_chart(df_intraday, selected_extra_key, extra_title)
+if selected_us_key in df_intraday.columns:
+    us_s = df_intraday[selected_us_key].dropna().tail(150)
+    if not us_s.empty:
+        u_curr = us_s.iloc[-1]
+        u_open = us_s.iloc[0]
+        u_pct = ((u_curr - u_open) / u_open) * 100
+        u_diff = u_curr - u_open
+        is_u_us = u_diff >= 0
+        col_u = '#10B981' if is_u_us else '#EF4444'
+        
+        st.markdown(f"""
+        <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+            <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title}</div>
+            <div style="display: flex; align-items: baseline; gap: 10px;">
+                <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{u_curr:,.2f}</span>
+                <span style="font-size: 0.95rem; font-weight: 700; color: {col_u};">
+                    {'+' if is_u_us else ''}{u_pct:.2f}% ({'+' if is_u_us else ''}{u_diff:,.2f})
+                </span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        fig_us = go.Figure()
+        fig_us.add_trace(go.Scatter(
+            x=us_s.index, y=us_s, mode='lines', name=us_title,
+            line=dict(color=col_u, width=2.2),
+            fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.12)' if is_u_us else 'rgba(239, 68, 68, 0.12)',
+            hovertemplate='時間: %{x|%m/%d %H:%M}<br>價格: %{y:,.2f}<extra></extra>'
+        ))
+        
+        fig_us.add_annotation(
+            x=us_s.index[-1], y=u_curr, text=f"即時: {u_curr:,.2f}",
+            showarrow=True, arrowhead=2, ax=-30, ay=-25,
+            bgcolor="#151A23", bordercolor=col_u, font=dict(color="#F8FAFC", size=11)
+        )
+        
+        ymin_u, ymax_u = us_s.min(), us_s.max()
+        buf_u = (ymax_u - ymin_u) * 0.04 if ymax_u != ymin_u else ymin_u * 0.01
+        fig_us.update_layout(
+            template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
+            margin=dict(l=10, r=10, t=10, b=10), height=380,
+            xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
+            yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin_u - buf_u, ymax_u + buf_u], title=''),
+            hovermode='x unified', showlegend=False
+        )
+        st.plotly_chart(fig_us, use_container_width=True)
 
 st.markdown("---")
 
@@ -457,79 +547,99 @@ else:
 
 st.markdown("---")
 
-# ==================== 11. 【全面權值大爆發聯動模型】基於 46,000+ 點與台積電 3,500 ~ 4,200 元目標 ====================
-st.markdown("### 🏛️ 全球機構法人共識 EPS 與權值共振聯動模擬 (超前進階：48,000 ~ 58,000 點大關)")
-st.markdown(f"系統即時動態追蹤（2026/10 最新行情）：台積電現價 **NT$ {tsmc_p:,.1f}**，當前大盤基底 **{taiwii_p:,.2f} 點**。基於 2 奈米與 CoWoS 狂潮，外資將台積電目標價推升至 **NT$ 3,500 ~ 4,200**。透過台積電與權值股的骨牌效應，全面驅動加權指數直奔 **48,000 至 58,000 點**：")
+# ==================== 11. 【全功能升級】動態本益比 (P/E) 情境模擬矩陣 (含歷史平均 P/E) ====================
+st.markdown("### 🏛️ 動態本益比 (P/E) 情境模擬矩陣：歷史平均 • 保守 • 基準 • 樂觀")
+st.markdown(f"系統即時動態追蹤（2026/10 最新行情）：台積電現價 **NT$ {tsmc_p:,.1f}**，當前大盤基底 **{taiwii_p:,.2f} 點**。您可以自由微調包含**過往歷史平均本益比**在內的四大情境 P/E 倍數：")
 
-@st.cache_data(ttl=300)
-def get_dynamic_institutional_consensus(current_tsmc_price):
-    try:
-        stock = yf.Ticker("2330.TW")
-        info = stock.info
-        live_f_eps = info.get("forwardEps", 0.0)
-        base_eps = float(live_f_eps) if live_f_eps and live_f_eps > 50 else max(145.0, current_tsmc_price / 22.5)
-    except:
-        base_eps = max(145.0, current_tsmc_price / 22.5)
-        
-    institutions = [
-        {"機構名稱": "Aletheia Capital (超前極牛共識)", "pe": 29.0, "eps_multiplier": 1.22, "year": "2027/2028 F"},
-        {"機構名稱": "高盛證券 (Goldman Sachs)", "pe": 27.5, "eps_multiplier": 1.15, "year": "2026/2027 F"},
-        {"機構名稱": "摩根大通 (J.P. Morgan)", "pe": 27.0, "eps_multiplier": 1.10, "year": "2026/2027 F"},
-        {"機構名稱": "麥格理證券 (Macquarie)", "pe": 26.5, "eps_multiplier": 1.18, "year": "2026/2027 F"},
-        {"機構名稱": "摩根士丹利 (Morgan Stanley)", "pe": 26.0, "eps_multiplier": 1.08, "year": "2026 F"}
-    ]
-    
-    data = []
-    for inst in institutions:
-        est_eps = round(base_eps * inst["eps_multiplier"], 1)
-        target_price = round(est_eps * inst["pe"], 1)
-        data.append({
-            "機構名稱": inst["機構名稱"],
-            "預估年份": inst["year"],
-            "預估EPS": est_eps,
-            "合理PE": inst["pe"],
-            "台積電目標價 (NT$)": target_price
-        })
-    return pd.DataFrame(data)
+# 初始化情境 P/E Session State
+if 'pe_historical' not in st.session_state:
+    st.session_state.pe_historical = 19.5
+if 'pe_conservative' not in st.session_state:
+    st.session_state.pe_conservative = 22.0
+if 'pe_base' not in st.session_state:
+    st.session_state.pe_base = 26.5
+if 'pe_bull' not in st.session_state:
+    st.session_state.pe_bull = 30.0
 
-institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
+col_reset, col_space = st.columns([1, 4])
+with col_reset:
+    if st.button("↺ 恢復機構與歷史預設", use_container_width=True):
+        st.session_state.pe_historical = 19.5
+        st.session_state.pe_conservative = 22.0
+        st.session_state.pe_base = 26.5
+        st.session_state.pe_bull = 30.0
+        st.rerun()
 
+p_col1, p_col2, p_col3, p_col4 = st.columns(4)
+with p_col1:
+    pe_hist = st.slider("🕰️ 歷史過往平均 P/E", min_value=12.0, max_value=22.0, value=st.session_state.pe_historical, step=0.5, key='pe_hist_slider')
+    st.session_state.pe_historical = pe_hist
+with p_col2:
+    pe_cons = st.slider("🟡 保守防禦 P/E", min_value=15.0, max_value=25.0, value=st.session_state.pe_conservative, step=0.5, key='pe_cons_slider')
+    st.session_state.pe_conservative = pe_cons
+with p_col3:
+    pe_avg = st.slider("🔵 基準平均 P/E", min_value=20.0, max_value=30.0, value=st.session_state.pe_base, step=0.5, key='pe_avg_slider')
+    st.session_state.pe_base = pe_avg
+with p_col4:
+    pe_bull = st.slider("🟢 樂觀牛市 P/E", min_value=25.0, max_value=38.0, value=st.session_state.pe_bull, step=0.5, key='pe_bull_slider')
+    st.session_state.pe_bull = pe_bull
+
+# 自動獲取即時/基準 EPS
+try:
+    stock = yf.Ticker("2330.TW")
+    info = stock.info
+    live_f_eps = info.get("forwardEps", 0.0)
+    base_eps = float(live_f_eps) if live_f_eps and live_f_eps > 50 else max(145.0, tsmc_p / 22.5)
+except:
+    base_eps = max(145.0, tsmc_p / 22.5)
+
+scenarios = [
+    {"情境名稱": "🕰️ 歷史過往平均 (歷史均值錨點)", "pe": pe_hist, "eps": round(base_eps * 1.0, 1), "note": "對標長年歷史平均 P/E"},
+    {"情境名稱": "🟡 保守情境 (升息/保守估值)", "pe": pe_cons, "eps": round(base_eps * 1.05, 1), "note": "市場情緒較謹慎"},
+    {"情境名稱": "🔵 基準平均 (機構法人工識)", "pe": pe_avg, "eps": round(base_eps * 1.15, 1), "note": "對標高盛/大摩共識"},
+    {"情境名稱": "🟢 樂觀看好 (2奈米/CoWoS狂潮)", "pe": pe_bull, "eps": round(base_eps * 1.25, 1), "note": "對標 Aletheia 超前牛市"}
+]
+
+scenario_data = []
 tsmc_resonance_weight = 0.92
-institutional_consensus["推估大盤與權值共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
-institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
 
-sim_col_list = []
-sim_margin_list = []
-for _, row in institutional_consensus.iterrows():
-    target_idx = row["推估大盤與權值共振點位"]
-    idx_ret = (target_idx - taiwii_p) / taiwii_p if taiwii_p > 0 else 0
+for sc in scenarios:
+    target_price = round(sc["eps"] * sc["pe"], 1)
+    implied_index = taiwii_p * (1 + tsmc_resonance_weight * ((target_price - tsmc_p) / tsmc_p))
+    potential_upside = ((target_price / tsmc_p) - 1) * 100
+    
+    idx_ret = (implied_index - taiwii_p) / taiwii_p if taiwii_p > 0 else 0
     s_p1 = max(p_1 * (1 + beta_1 * idx_ret), 0.01)
     s_p2 = max(p_2 * (1 + beta_2 * idx_ret), 0.01)
     s_col = shares_1 * s_p1 + shares_2 * s_p2
     s_margin = (s_col / loan_amount) * 100 if loan_amount > 0 else 0
-    sim_col_list.append(f"NT$ {s_col:,.0f}")
-    sim_margin_list.append(f"{s_margin:.1f}%")
+    
+    scenario_data.append({
+        "情境模型": sc["情境名稱"],
+        "預估 EPS": f"NT$ {sc['eps']:.1f}",
+        "設定 PE": f"{sc['pe']:.1f}x",
+        "台積電目標價 (NT$)": target_price,
+        "權值共振大盤點位": implied_index,
+        "潛在漲跌幅": potential_upside,
+        "到達時擔保品總市值": f"NT$ {s_col:,.0f}",
+        "到達時質押維持率": f"{s_margin:.1f}%",
+        "備註": sc["note"]
+    })
 
-institutional_consensus["到達時總市值"] = sim_col_list
-institutional_consensus["到達時維持率"] = sim_margin_list
+scenario_df = pd.DataFrame(scenario_data)
 
-ic1, ic2, ic3 = st.columns(3)
-avg_consensus_eps = institutional_consensus["預估EPS"].mean()
-avg_consensus_target = institutional_consensus["台積電目標價 (NT$)"].mean()
-avg_implied_index = institutional_consensus["推估大盤與權值共振點位"].mean()
+# 展示情境卡片
+s_c1, s_c2, s_c3, s_c4 = st.columns(4)
+s_c1.metric("🕰️ 歷史均值大盤", f"{scenario_data[0]['權值共振大盤點位']:,.0f} 點", f"台積電 NT$ {scenario_data[0]['台積電目標價 (NT$)']:,.1f}")
+s_c2.metric("🟡 保守推估大盤", f"{scenario_data[1]['權值共振大盤點位']:,.0f} 點", f"台積電 NT$ {scenario_data[1]['台積電目標價 (NT$)']:,.1f}")
+s_c3.metric("🔵 基準共識大盤", f"{scenario_data[2]['權值共振大盤點位']:,.0f} 點", f"台積電 NT$ {scenario_data[2]['台積電目標價 (NT$)']:,.1f}")
+s_c4.metric("🟢 樂觀看好大盤", f"{scenario_data[3]['權值共振大盤點位']:,.0f} 點", f"台積電 NT$ {scenario_data[3]['台積電目標價 (NT$)']:,.1f}")
 
-ic1.metric("動態追蹤平均預估 EPS", f"NT$ {avg_consensus_eps:.1f}", "最新 2026/10 機構報告")
-ic2.metric("動態追蹤平均台積電目標價", f"NT$ {avg_consensus_target:,.1f}", f"現價 NT$ {tsmc_p:,.1f}")
-ic3.metric("權值共振推估大盤點位", f"{avg_implied_index:,.0f} 點", f"當前大盤 {taiwii_p:,.2f} 點")
-
-display_df = institutional_consensus[["機構名稱", "預估年份", "預估EPS", "合理PE", "台積電目標價 (NT$)", "推估大盤與權值共振點位", "潛在漲幅", "到達時總市值", "到達時維持率"]].copy()
 st.dataframe(
-    display_df.style.format({
-        "預估EPS": "NT$ {:.1f}",
-        "合理PE": "{:.1f}x",
+    scenario_df.style.format({
         "台積電目標價 (NT$)": "NT$ {:,.1f}",
-        "推估大盤與權值共振點位": "{:,.0f} 點",
-        "潛在漲幅": "{:+.1f}%"
+        "權值共振大盤點位": "{:,.0f} 點",
+        "潛在漲跌幅": "{:+.1f}%"
     }),
     use_container_width=True,
     hide_index=True
