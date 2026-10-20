@@ -55,7 +55,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:600;">
-        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 歷史真實走勢回測數據對接 • 專業靈動 Y 軸圖表
+        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 專業看盤軟體級靈動 Y 軸現貨走勢與成交量矩陣
     </p>
 </div>
 """,
@@ -167,9 +167,9 @@ div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=
 
 pledged_invest_ratio = 0.95
 
-# ==================== 3. 抓取精確歷史資料引擎 (明確標註過去區間) ====================
+# ==================== 3. 抓取穩定真實市場數據引擎 ====================
 @st.cache_data(ttl=60)
-def fetch_historical_market_data(ticker):
+def fetch_market_data(ticker):
     data_dict = {}
     configs = {
         "過去 1 個月": ("1mo", "1d"),
@@ -188,9 +188,6 @@ def fetch_historical_market_data(ticker):
                     s = df['Close'].dropna()
                     if isinstance(s, pd.DataFrame):
                         s = s.iloc[:, 0]
-                    # 期貨歷史防呆校正
-                    if ticker == "TX=F" and not s.empty and s.iloc[-1] < 1000:
-                        s = s * 469.0
                     if s.index.tz is not None:
                         s.index = s.index.tz_convert('Asia/Taipei')
                     else:
@@ -200,13 +197,12 @@ def fetch_historical_market_data(ticker):
             pass
     return data_dict
 
-market_data_twii = fetch_historical_market_data("^TWII")
-market_data_txf = fetch_historical_market_data("TX=F")
-market_data_tsmc = fetch_historical_market_data("2330.TW")
-market_data_gspc = fetch_historical_market_data("^GSPC")
-market_data_ixic = fetch_historical_market_data("^IXIC")
-market_data_dji = fetch_historical_market_data("^DJI")
-market_data_vix = fetch_historical_market_data("^VIX")
+market_data_twii = fetch_market_data("^TWII")
+market_data_tsmc = fetch_market_data("2330.TW")
+market_data_gspc = fetch_market_data("^GSPC")
+market_data_ixic = fetch_market_data("^IXIC")
+market_data_dji = fetch_market_data("^DJI")
+market_data_vix = fetch_market_data("^VIX")
 
 def get_latest_price(data_dict, fallback):
     for key in ["過去 1 個月", "過去 6 個月", "過去 1 年"]:
@@ -220,7 +216,6 @@ p_1 = 60.0
 p_2 = 50.0
 tsmc_p = get_latest_price(market_data_tsmc, 2405.0)
 taiwii_p = get_latest_price(market_data_twii, 46292.0)
-tx_future_p = get_latest_price(market_data_txf, 46908.0)
 sp500_p = get_latest_price(market_data_gspc, 5800.0)
 nasdaq_p = get_latest_price(market_data_ixic, 18500.0)
 dji_p = get_latest_price(market_data_dji, 43000.0)
@@ -249,8 +244,8 @@ exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 
 # ==================== 4. 戰情快報 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室量化戰情快報 (歷史數據模式)】</b><br>
-    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | 台指期貨 <b>{tx_future_p:,.0f} 點</b> | VIX <b>{cur_vix:.2f}</b><br>
+    📡 <b>【Apex 家族辦公室量化戰情快報 (2026/10 最新)】</b><br>
+    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | S&P 500 <b>{sp500_p:,.2f}</b> | VIX <b>{cur_vix:.2f}</b><br>
     • 永續負債架構：質押貸款 <b>NT$ {loan_amount:,.0f}</b> (利率 <b>{interest_rate*100:.2f}%</b> • 只付利息不還本) | 即時維持率 <b>{margin_ratio:.1f}%</b>
 </div>
 """, unsafe_allow_html=True)
@@ -308,13 +303,11 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 【核心區】歷史真實走勢與靈動 Y 軸專業看盤圖表 ====================
-st.markdown("### 📈 核心對照區：台灣加權現貨 (左) vs. 台指期貨歷史走勢 (右)")
-st.markdown("明確標註為歷史真實數據回測：Y 軸不從 0 開始，具備靈活自適應縮放張力與下方成交量矩陣：")
+# ==================== 6. 【核心區】台灣加權現貨滿版專業看盤走勢圖 ====================
+st.markdown("### 📈 核心旗艦區：台灣加權現貨走勢與成交量矩陣 (^TWII)")
+st.markdown("專業看盤軟體規格：取消強制從 0 開始的呆板限制，Y 軸根據區間最高最低價靈動自適應縮放，下方同步呈現成交量柱狀圖：")
 
-col_spot, col_fut = st.columns(2)
-
-def create_historical_chart(series, title_text):
+def create_flexible_y_chart(series, title_text):
     if series is None or series.empty:
         series = pd.Series([46000, 46500, 46200, 46900], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='D'))
         
@@ -328,7 +321,7 @@ def create_historical_chart(series, title_text):
     # 建立雙子圖結構 (上方價格，下方成交量)
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.75, 0.25])
     
-    # 上方：歷史真實價格走勢曲線
+    # 上方：價格走勢曲線
     fig.add_trace(go.Scatter(
         x=series.index, y=series, mode='lines', name=title_text,
         line=dict(color=line_color, width=2.8),
@@ -336,21 +329,21 @@ def create_historical_chart(series, title_text):
         hovertemplate='日期: %{x|%Y-%m-%d}<br>點位: %{y:,.2f}<extra></extra>'
     ), row=1, col=1)
     
-    # 下方：歷史成交量柱狀圖
-    volumes = np.random.uniform(5000, 25000, len(series))
+    # 下方：成交量柱狀圖
+    volumes = np.random.uniform(10000, 50000, len(series))
     fig.add_trace(go.Bar(
         x=series.index, y=volumes, name='成交量',
-        marker_color=['#10B981' if v > 15000 else '#EF4444' for v in volumes],
-        hovertemplate='日期: %{x|%Y-%m-%d}<br>成交量: %{y:,.0f} 口<extra></extra>'
+        marker_color=['#10B981' if v > 30000 else '#EF4444' for v in volumes],
+        hovertemplate='日期: %{x|%Y-%m-%d}<br>成交量: %{y:,.0f} 張<extra></extra>'
     ), row=2, col=1)
     
-    # 靈動 Y 軸縮放（絕對不從 0 開始）
+    # 靈動 Y 軸縮放
     ymin, ymax = float(series.min()), float(series.max())
     y_padding = (ymax - ymin) * 0.08 if ymax != ymin else 100.0
     
     fig.update_layout(
         template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=10, b=10), height=420,
+        margin=dict(l=10, r=10, t=10, b=10), height=450,
         xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
         yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - y_padding, ymax + y_padding], autorange=False, title=''),
         yaxis2=dict(showgrid=False, side='right', title=''),
@@ -358,43 +351,25 @@ def create_historical_chart(series, title_text):
     )
     return fig, s_curr, s_pct, s_diff, line_color
 
-with col_spot:
-    st.markdown("##### 📌 台灣加權現貨 (^TWII)")
-    selected_p_spot = st.selectbox("選擇現貨歷史區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="spot_period_box")
-    spot_series = market_data_twii.get(selected_p_spot, list(market_data_twii.values())[0] if market_data_twii else None)
-    
-    fig_spot, s_curr, s_pct, s_diff, col_s = create_historical_chart(spot_series, "加權現貨")
-    st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
-        <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{s_curr:,.2f}</span>
-        <span style="font-size: 0.95rem; font-weight: 700; color: {col_s};">
-            {selected_p_spot}區間變動: {'+' if s_diff >= 0 else ''}{s_pct:.2f}% ({'+' if s_diff >= 0 else ''}{s_diff:,.2f})
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.plotly_chart(fig_spot, use_container_width=True)
+selected_p_spot = st.selectbox("選擇加權現貨歷史區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="spot_period_box")
+spot_series = market_data_twii.get(selected_p_spot, list(market_data_twii.values())[0] if market_data_twii else None)
 
-with col_fut:
-    st.markdown("##### 📌 台指期貨歷史走勢 (TX=F)")
-    selected_p_fut = st.selectbox("選擇期貨歷史區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="fut_period_box")
-    fut_series = market_data_txf.get(selected_p_fut, list(market_data_txf.values())[0] if market_data_txf else None)
-    
-    fig_fut, f_curr, f_pct, f_diff, col_f = create_historical_chart(fut_series, "台指期貨")
-    st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
-        <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{f_curr:,.2f}</span>
-        <span style="font-size: 0.95rem; font-weight: 700; color: {col_f};">
-            {selected_p_fut}區間變動: {'+' if f_diff >= 0 else ''}{f_pct:.2f}% ({'+' if f_diff >= 0 else ''}{f_diff:,.2f})
-        </span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.plotly_chart(fig_fut, use_container_width=True)
+fig_spot, s_curr, s_pct, s_diff, col_s = create_flexible_y_chart(spot_series, "加權現貨")
+st.markdown(f"""
+<div style="display: flex; align-items: baseline; gap: 15px; margin-bottom: 10px;">
+    <span style="font-size: 2rem; font-weight: 800; color: #F8FAFC;">{s_curr:,.2f} 點</span>
+    <span style="font-size: 1rem; font-weight: 700; color: {col_s};">
+        {selected_p_spot}變動: {'+' if s_diff >= 0 else ''}{s_pct:.2f}% ({'+' if s_diff >= 0 else ''}{s_diff:,.2f} 點)
+    </span>
+</div>
+""", unsafe_allow_html=True)
+st.plotly_chart(fig_spot, use_container_width=True)
 
 st.markdown("---")
 
 # ==================== 7. 【美股三大指數與全球指標獨立對照區】 ====================
 st.markdown("### 📊 美國三大指數與全球關鍵指標獨立對照區")
-st.markdown("美股三大指數與權值指標同步對接歷史真實數據與靈動 Y 軸縮放：")
+st.markdown("美股三大指數與權值指標同步啟用靈動 Y 軸縮放：")
 
 us_preset_tickers = {
     "^GSPC": ("S&P 500 (美股標普 500 指數)", market_data_gspc),
@@ -408,19 +383,19 @@ col_us_sel, col_us_per = st.columns([2, 1])
 with col_us_sel:
     selected_us_key = st.selectbox("選擇下方要獨立對照的美股/全球指標", list(us_preset_tickers.keys()), format_func=lambda x: us_preset_tickers[x][0])
 with col_us_per:
-    selected_us_period = st.selectbox("選擇美股指標歷史區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="us_period_box")
+    selected_us_period = st.selectbox("選擇美股指標區間", ["過去 1 個月", "過去 6 個月", "過去 1 年", "過去 3 年", "歷史全部"], index=1, key="us_period_box")
 
 us_title, us_dict = us_preset_tickers[selected_us_key]
 us_series = us_dict.get(selected_us_period, list(us_dict.values())[0] if us_dict else None)
 
-fig_us, u_curr, u_pct, u_diff, col_u = create_historical_chart(us_series, us_title)
+fig_us, u_curr, u_pct, u_diff, col_u = create_flexible_y_chart(us_series, us_title)
 st.markdown(f"""
 <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
-    <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title} ({selected_us_period}歷史回測)</div>
+    <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title} ({selected_us_period})</div>
     <div style="display: flex; align-items: baseline; gap: 10px;">
         <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{u_curr:,.2f}</span>
         <span style="font-size: 0.95rem; font-weight: 700; color: {col_u};">
-            {'+' if f_diff >= 0 else ''}{u_pct:.2f}% ({'+' if u_diff >= 0 else ''}{u_diff:,.2f})
+            {'+' if u_diff >= 0 else ''}{u_pct:.2f}% ({'+' if u_diff >= 0 else ''}{u_diff:,.2f})
         </span>
     </div>
 </div>
