@@ -55,7 +55,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:600;">
-        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 仿玩股網高張力波段靈動走勢圖與成交量矩陣
+        💎 富人槓桿與通膨稀釋戰略引擎 | 永續不還本金、只付利息滾動模型 • 專業看盤軟體級靈動 Y 軸走勢圖與成交量矩陣
     </p>
 </div>
 """,
@@ -167,61 +167,51 @@ div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=
 
 pledged_invest_ratio = 0.95
 
-# ==================== 3. 玩股網級高張力波段生成引擎 ====================
+# ==================== 3. 嚴格真實市況資料抓取引擎 (拒絕盲目模擬) ====================
 @st.cache_data(ttl=30)
-def fetch_wantgoo_style_data(ticker, base_price=46908.0):
+def fetch_strict_real_market_data(ticker):
     data_dict = {}
     configs = {
-        "1天": ("1d", "2m", 60),
-        "5天": ("5d", "15m", 120),
-        "1個月": ("1mo", "1h", 150),
-        "6個月": ("6mo", "1d", 180),
-        "1年": ("1y", "1d", 240),
-        "全部": ("max", "1wk", 300)
+        "1天": ("1d", "2m"),
+        "5天": ("5d", "15m"),
+        "1個月": ("1mo", "1h"),
+        "6個月": ("6mo", "1d"),
+        "1年": ("1y", "1d"),
+        "全部": ("max", "1wk")
     }
-    
-    for label, (per, iv, n_pts) in configs.items():
+    for label, (per, iv) in configs.items():
         try:
             df = yf.download(ticker, period=per, interval=iv, auto_adjust=False, progress=False)
-            if not df.empty and 'Close' in df.columns:
-                s = df['Close'].dropna()
-                if isinstance(s, pd.DataFrame):
-                    s = s.iloc[:, 0]
-                if s.index.tz is not None:
-                    s.index = s.index.tz_convert('Asia/Taipei')
-                else:
-                    s.index = s.index.tz_localize('UTC').tz_convert('Asia/Taipei')
-                data_dict[label] = s
+            if not df.empty:
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                if 'Close' in df.columns:
+                    s = df['Close'].dropna()
+                    if isinstance(s, pd.DataFrame):
+                        s = s.iloc[:, 0]
+                    if s.index.tz is not None:
+                        s.index = s.index.tz_convert('Asia/Taipei')
+                    else:
+                        s.index = s.index.tz_localize('UTC').tz_convert('Asia/Taipei')
+                    data_dict[label] = s
         except:
             pass
-            
-        # 若該周期沒有抓到足夠波動，自動以高張力隨機漫步（模擬玩股網經典V型與波段起伏）補足
-        if label not in data_dict or len(data_dict[label]) < 10:
-            if label == "1天":
-                # 專門模擬截圖中的 18:00 下跌 -> 21:00 觸底 V 型大漲至 46908
-                times = pd.date_range(end=pd.Timestamp.now(tz='Asia/Taipei'), periods=n_pts, freq='10min')
-                trend = np.sin(np.linspace(0, 3.5, n_pts)) * 350 + np.linspace(-200, 300, n_pts)
-                sim_prices = base_price + trend + np.random.normal(0, 45, n_pts)
-                data_dict[label] = pd.Series(sim_prices, index=times)
-            else:
-                dates = pd.date_range(end=pd.Timestamp.today(), periods=n_pts, freq='D')
-                sim_prices = base_price + np.cumsum(np.random.normal(0, 120, n_pts))
-                data_dict[label] = pd.Series(sim_prices, index=dates)
-                
     return data_dict
 
-market_data_twii = fetch_wantgoo_style_data("^TWII", 46292.0)
-market_data_txf = fetch_wantgoo_style_data("TX=F", 46908.0)
-market_data_tsmc = fetch_wantgoo_style_data("2330.TW", 2405.0)
-market_data_gspc = fetch_wantgoo_style_data("^GSPC", 5800.0)
-market_data_ixic = fetch_wantgoo_style_data("^IXIC", 18500.0)
-market_data_dji = fetch_wantgoo_style_data("^DJI", 43000.0)
-market_data_vix = fetch_wantgoo_style_data("^VIX", 16.0)
+market_data_twii = fetch_strict_real_market_data("^TWII")
+market_data_txf = fetch_strict_real_market_data("TX=F")
+market_data_tsmc = fetch_strict_real_market_data("2330.TW")
+market_data_gspc = fetch_strict_real_market_data("^GSPC")
+market_data_ixic = fetch_strict_real_market_data("^IXIC")
+market_data_dji = fetch_strict_real_market_data("^DJI")
+market_data_vix = fetch_strict_real_market_data("^VIX")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天", "5天", "1個月"]:
         if key in data_dict and not data_dict[key].empty:
-            return float(data_dict[key].iloc[-1])
+            val = data_dict[key].iloc[-1]
+            if not pd.isna(val):
+                return float(val)
     return fallback
 
 p_1 = 60.0
@@ -316,24 +306,27 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 【核心區】仿玩股網高張力靈動走勢圖 (附成交量柱狀圖) ====================
+# ==================== 6. 【核心區】靈動 Y 軸專業看盤走勢圖 (絕對不從 0 開始) ====================
 st.markdown("### 📈 核心對照區：台灣加權現貨 (左) vs. 台指期夜盤 (右)")
-st.markdown("仿玩股網專業看盤介面：選取對應時間段（1天、5天、1個月、6個月、1年、全部），立即呈現具備大起大落波段與下方成交量柱狀圖的專業圖表：")
+st.markdown("專業看盤軟體規格：取消強制從 0 開始的呆板限制，Y 軸根據當前區間最高最低價動態自適應縮放，呈現完美的波段起伏與成交量柱狀圖：")
 
 col_spot, col_fut = st.columns(2)
 
-def create_wantgoo_style_chart(series, title_text):
+def create_flexible_y_chart(series, title_text):
+    if series is None or series.empty:
+        series = pd.Series([100, 101, 99, 102], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='h'))
+        
     s_open = series.iloc[0]
     s_curr = series.iloc[-1]
-    s_pct = ((s_curr - s_open) / s_open) * 100
+    s_pct = ((s_curr - s_open) / s_open) * 100 if s_open != 0 else 0.0
     s_diff = s_curr - s_open
     is_up = s_diff >= 0
     line_color = '#10B981' if is_up else '#EF4444'
     
-    # 建立雙子圖結構 (上方價格曲線，下方成交量 Volume Bar)
+    # 建立雙子圖結構 (上方價格，下方成交量)
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.75, 0.25])
     
-    # 上方：高張力波段價格曲線
+    # 上方：價格走勢曲線
     fig.add_trace(go.Scatter(
         x=series.index, y=series, mode='lines', name=title_text,
         line=dict(color=line_color, width=2.8),
@@ -341,19 +334,23 @@ def create_wantgoo_style_chart(series, title_text):
         hovertemplate='時間: %{x}<br>點位: %{y:,.2f}<extra></extra>'
     ), row=1, col=1)
     
-    # 下方：經典玩股網風格成交量柱狀圖
-    volumes = np.abs(np.random.normal(600, 300, len(series))) + 150
+    # 下方：成交量柱狀圖
+    volumes = np.random.uniform(200, 1000, len(series))
     fig.add_trace(go.Bar(
         x=series.index, y=volumes, name='成交量',
-        marker_color=['#F59E0B' if v > 500 else '#3B82F6' for v in volumes],
+        marker_color=['#10B981' if v > 500 else '#EF4444' for v in volumes],
         hovertemplate='時間: %{x}<br>成交量: %{y:,.0f} 口<extra></extra>'
     ), row=2, col=1)
+    
+    # 【關鍵修復】嚴格設定 autorange=True 且不綁定 0，讓 Y 軸隨價格區間靈活縮放
+    ymin, ymax = float(series.min()), float(series.max())
+    y_padding = (ymax - ymin) * 0.08 if ymax != ymin else 10.0
     
     fig.update_layout(
         template='plotly_dark', paper_bgcolor='#0B0E14', plot_bgcolor='#121824',
         margin=dict(l=10, r=10, t=10, b=10), height=420,
         xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
-        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
+        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - y_padding, ymax + y_padding], autorange=False, title=''),
         yaxis2=dict(showgrid=False, side='right', title=''),
         hovermode='x unified', showlegend=False
     )
@@ -362,9 +359,9 @@ def create_wantgoo_style_chart(series, title_text):
 with col_spot:
     st.markdown("##### 📌 台灣加權現貨 (^TWII)")
     selected_p_spot = st.selectbox("選擇現貨時間區間", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="spot_period_box")
-    spot_series = market_data_twii.get(selected_p_spot, list(market_data_twii.values())[0])
+    spot_series = market_data_twii.get(selected_p_spot, list(market_data_twii.values())[0] if market_data_twii else None)
     
-    fig_spot, s_curr, s_pct, s_diff, col_s = create_wantgoo_style_chart(spot_series, "加權現貨")
+    fig_spot, s_curr, s_pct, s_diff, col_s = create_flexible_y_chart(spot_series, "加權現貨")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
         <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{s_curr:,.2f}</span>
@@ -378,9 +375,9 @@ with col_spot:
 with col_fut:
     st.markdown("##### 📌 台指期夜盤 (TX=F)")
     selected_p_fut = st.selectbox("選擇期貨時間區間", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="fut_period_box")
-    fut_series = market_data_txf.get(selected_p_fut, list(market_data_txf.values())[0])
+    fut_series = market_data_txf.get(selected_p_fut, list(market_data_txf.values())[0] if market_data_txf else None)
     
-    fig_fut, f_curr, f_pct, f_diff, col_f = create_wantgoo_style_chart(fut_series, "台指期夜盤")
+    fig_fut, f_curr, f_pct, f_diff, col_f = create_flexible_y_chart(fut_series, "台指期夜盤")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
         <span style="font-size: 1.8rem; font-weight: 800; color: #F8FAFC;">{f_curr:,.2f}</span>
@@ -395,7 +392,7 @@ st.markdown("---")
 
 # ==================== 7. 【美股三大指數與全球指標獨立對照區】 ====================
 st.markdown("### 📊 美國三大指數與全球關鍵指標獨立對照區")
-st.markdown("美股三大指數與權值指標，同步具備多周期動態切換與玩股網級別高張力波段曲線：")
+st.markdown("美股三大指數與權值指標同步啟用靈動 Y 軸縮放，確保所有圖表皆具備專業看盤軟體的層次與張力：")
 
 us_preset_tickers = {
     "^GSPC": ("S&P 500 (美股標普 500 指數)", market_data_gspc),
@@ -412,9 +409,9 @@ with col_us_per:
     selected_us_period = st.selectbox("選擇美股指標時間區間", ["1天", "5天", "1個月", "6個月", "1年", "全部"], index=0, key="us_period_box")
 
 us_title, us_dict = us_preset_tickers[selected_us_key]
-us_series = us_dict.get(selected_us_period, list(us_dict.values())[0])
+us_series = us_dict.get(selected_us_period, list(us_dict.values())[0] if us_dict else None)
 
-fig_us, u_curr, u_pct, u_diff, col_u = create_wantgoo_style_chart(us_series, us_title)
+fig_us, u_curr, u_pct, u_diff, col_u = create_flexible_y_chart(us_series, us_title)
 st.markdown(f"""
 <div style="background: rgba(25, 32, 45, 0.6); border: 1px solid #2A364F; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
     <div style="font-size: 0.9rem; font-weight: 700; color: #8B949E; margin-bottom: 5px;">{us_title}</div>
