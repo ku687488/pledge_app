@@ -238,9 +238,9 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. Google Finance / TradingView 頂級 1 天高頻互動圖表 ====================
+# ==================== 6. TradingView / Google Finance 頂級 1 天高頻互動圖表 (自動縮放 Y 軸) ====================
 st.markdown("### 📈 TradingView 專業級黑卡互動分時走勢圖 (含台指期貨日夜盤 TX=F)")
-st.markdown("對標專業操盤介面，即時掌握 1 天高頻動態與上次收盤價基準線：")
+st.markdown("對標專業操盤介面，即時掌握 1 天高頻動態、夜盤與自動縮放起伏：")
 
 @st.cache_data(ttl=60)
 def fetch_intraday_data():
@@ -248,7 +248,8 @@ def fetch_intraday_data():
     intraday_dict = {}
     for t in tickers_to_fetch:
         try:
-            df_i = yf.download(t, period="2d", interval="2m", progress=False)
+            # 抓取 5 天高頻數據以確保涵蓋日夜盤連續脈動
+            df_i = yf.download(t, period="5d", interval="5m", progress=False)
             if not df_i.empty:
                 if isinstance(df_i.columns, pd.MultiIndex):
                     df_i.columns = df_i.columns.get_level_values(0)
@@ -274,8 +275,10 @@ if not df_intraday.empty:
     
     target_series = df_intraday_renamed[selected_tv_target].dropna()
     if not target_series.empty:
-        curr_val = target_series.iloc[-1]
-        prev_close = target_series.iloc[0]
+        # 取最近一個交易日或最近 100 筆高頻脈動來做精細放大展示
+        recent_session_series = target_series.tail(120)
+        curr_val = recent_session_series.iloc[-1]
+        prev_close = recent_session_series.iloc[0]
         pct_change = ((curr_val - prev_close) / prev_close) * 100
         diff_val = curr_val - prev_close
         is_up = diff_val >= 0
@@ -294,8 +297,8 @@ if not df_intraday.empty:
         
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=target_series.index,
-            y=target_series,
+            x=recent_session_series.index,
+            y=recent_session_series,
             mode='lines',
             name=selected_tv_target,
             line=dict(color=color_theme, width=2.5),
@@ -314,6 +317,7 @@ if not df_intraday.empty:
             annotation_font_color="#8B949E"
         )
         
+        # 關鍵修正：啟用自動縮放 Y 軸 (autorange=True)，讓線圖隨高低起伏自動放大，絕不被壓扁
         fig.update_layout(
             template='plotly_dark',
             paper_bgcolor='#0B0E14',
@@ -321,7 +325,7 @@ if not df_intraday.empty:
             margin=dict(l=10, r=10, t=10, b=10),
             height=440,
             xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
-            yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', title=''),
+            yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', autorange=True, title=''),
             hovermode='x unified',
             showlegend=False
         )
@@ -444,7 +448,6 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
 
 institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
 
-# 以當前 46,292 點為基底，透過台積電潛在成長空間放大聯動係數，推估權值股與大盤
 tsmc_resonance_weight = 0.92
 institutional_consensus["推估大盤與權值共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
 institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
