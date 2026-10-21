@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 import datetime
 import uuid
 
-# ==================== 1. 頁面配置與華爾街黑卡級柔和美學 CSS ====================
+# ==================== 1. 頁面配置與華爾街黑卡級美學 CSS ====================
 st.set_page_config(
     page_title="Apex Global Institutional Terminal | 家族辦公室量化戰情室",
     page_icon="🏛️",
@@ -78,14 +78,14 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 家族辦公室量化戰情室 • 用戶端狀態持續保持 • 全市場極冷門標的多源抓價引擎
+        💎 富人思維槓桿戰情室 • 歷史殖利率動態智慧抓取 • 索提諾與蒙地卡羅動態重算模型
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. Session State 客戶端狀態持久化與初次初始化 ====================
+# ==================== 2. Session State 狀態持久化與初次初始化 ====================
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.owned_assets = []
@@ -99,7 +99,7 @@ if 'initialized' not in st.session_state:
     st.session_state.enable_life = True
     st.session_state.manual_override = False
 
-# 側邊欄：一鍵重置為初次使用空白狀態
+# 側邊欄：一鍵重置
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🛠️ 系統控制與重置</h3>", unsafe_allow_html=True)
 if st.sidebar.button("🔄 一鍵重置為初次使用空白狀態"):
     st.session_state.owned_assets = []
@@ -143,10 +143,10 @@ interest_rate = st.session_state.interest_rate_val / 100.0
 
 # ==================== 自有資金持倉管理 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (支援任意冷門股/ETF)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (任意冷門標的)</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增自有持倉標的"):
-    st.session_state.owned_assets.append({"id": str(uuid.uuid4()), "ticker": "", "shares": 0.0, "div_yield": 0.04})
+    st.session_state.owned_assets.append({"id": str(uuid.uuid4()), "ticker": "", "shares": 0.0, "div_yield_override": -1.0})
     st.rerun()
 
 for i, asset in enumerate(st.session_state.owned_assets):
@@ -155,9 +155,9 @@ for i, asset in enumerate(st.session_state.owned_assets):
     uid = asset["id"]
     
     st.sidebar.markdown(f"**📌 自有持倉 #{i+1}**")
-    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 00881 或任意冷門代號)", value=asset["ticker"], key=f"own_t_{uid}")
+    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 00685L, 2330)", value=asset["ticker"], key=f"own_t_{uid}")
     asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{uid}")
-    asset["div_yield"] = st.sidebar.slider(f"預期年化殖利率 #{i+1} (%)", min_value=0.0, max_value=15.0, value=float(asset["div_yield"] * 100), step=0.1, key=f"own_div_{uid}") / 100.0
+    asset["div_yield_override"] = st.sidebar.number_input(f"殖利率覆蓋 (-1代表自動抓歷史平均) #{i+1}", value=float(asset["div_yield_override"]), step=0.005, key=f"own_div_{uid}")
     if st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{uid}"):
         st.session_state.owned_assets.pop(i)
         st.rerun()
@@ -167,7 +167,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金再投入部位</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增質押再投入標的"):
-    st.session_state.reinvest_assets.append({"id": str(uuid.uuid4()), "ticker": "", "amount": 0.0, "div_yield": 0.05})
+    st.session_state.reinvest_assets.append({"id": str(uuid.uuid4()), "ticker": "", "amount": 0.0, "div_yield_override": -1.0})
     st.rerun()
 
 for j, rein in enumerate(st.session_state.reinvest_assets):
@@ -178,7 +178,7 @@ for j, rein in enumerate(st.session_state.reinvest_assets):
     st.sidebar.markdown(f"**📌 質押再投入 #{j+1}**")
     rein["ticker"] = st.sidebar.text_input(f"再投入台股代號 #{j+1}", value=rein["ticker"], key=f"rein_t_{ruid}")
     rein["amount"] = st.sidebar.number_input(f"投入金額 #{j+1} (NT$)", value=float(rein["amount"]), step=50000.0, key=f"rein_amt_{ruid}")
-    rein["div_yield"] = st.sidebar.slider(f"再投入預期殖利率 #{j+1} (%)", min_value=0.0, max_value=15.0, value=float(rein["div_yield"] * 100), step=0.1, key=f"rein_div_{ruid}") / 100.0
+    rein["div_yield_override"] = st.sidebar.number_input(f"殖利率覆蓋 (-1代表自動抓歷史平均) #{j+1}", value=float(rein["div_yield_override"]), step=0.005, key=f"rein_div_{ruid}")
     if st.sidebar.button(f"🗑️ 刪除再投入 #{j+1}", key=f"del_rein_{ruid}"):
         st.session_state.reinvest_assets.pop(j)
         st.rerun()
@@ -250,9 +250,9 @@ for i, debt in enumerate(st.session_state.custom_debts):
 
 total_external_outflow = mortgage_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
 
-# ==================== 3. 24小時實時全市場多源重試抓價引擎 ====================
-@st.cache_data(ttl=30)
-def fetch_live_market_data(ticker):
+# ==================== 3. 24小時即時多源重試與歷史殖利率自動計算引擎 ====================
+@st.cache_data(ttl=60)
+def fetch_live_market_data_and_dividends(ticker):
     data_dict = {}
     configs = {
         "1天 (即時高頻)": ("1d", "2m"),
@@ -278,15 +278,30 @@ def fetch_live_market_data(ticker):
                     data_dict[label] = {"series": s, "open_price": open_price}
         except:
             pass
-    return data_dict
 
-def resolve_ticker_prices(raw_input):
+    # 計算歷史平均殖利率
+    hist_yield = 0.0
+    try:
+        tk_obj = yf.Ticker(ticker)
+        divs = tk_obj.dividends
+        hist = tk_obj.history(period="1y")
+        if not divs.empty and not hist.empty:
+            total_annual_div = divs.tail(4).sum() if len(divs) >= 4 else divs.sum()
+            current_close = float(hist['Close'].iloc[-1])
+            if current_close > 0:
+                hist_yield = float(total_annual_div / current_close)
+    except:
+        hist_yield = 0.035 # 預設保底
+        
+    return data_dict, hist_yield
+
+def resolve_ticker_info(raw_input):
     clean_t = raw_input.strip().upper()
     if not clean_t:
-        return {}, 60.0
+        return {}, 60.0, 0.035
     if clean_t.startswith("^"):
-        res = fetch_live_market_data(clean_t)
-        return res, 1000.0
+        res, dy = fetch_live_market_data_and_dividends(clean_t)
+        return res, 1000.0, 0.0
         
     candidates = []
     if clean_t.endswith(".TW") or clean_t.endswith(".TWO"):
@@ -296,14 +311,14 @@ def resolve_ticker_prices(raw_input):
         candidates.append(clean_t + ".TWO")
         
     for cand in candidates:
-        res = fetch_live_market_data(cand)
+        res, dy = fetch_live_market_data_and_dividends(cand)
         if res:
             for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
                 if key in res and not res[key]["series"].empty:
                     val = float(res[key]["series"].iloc[-1])
                     if not pd.isna(val) and val > 0:
-                        return res, val
-    return {}, 50.0
+                        return res, val, dy
+    return {}, 50.0, 0.0
 
 all_tickers_to_fetch = set()
 for a in st.session_state.owned_assets:
@@ -314,17 +329,19 @@ for r in st.session_state.reinvest_assets:
         all_tickers_to_fetch.add(r["ticker"].strip().upper())
 
 price_cache = {}
+yield_cache = {}
 market_series_cache = {}
 for t in all_tickers_to_fetch:
-    res, latest_p = resolve_ticker_prices(t)
+    res, latest_p, hist_dy = resolve_ticker_info(t)
     price_cache[t] = latest_p
+    yield_cache[t] = hist_dy
     market_series_cache[t] = res
 
-market_data_twii = fetch_live_market_data("^TWII")
-market_data_tsmc = fetch_live_market_data("2330.TW")
-market_data_gspc = fetch_live_market_data("^GSPC")
-market_data_ixic = fetch_live_market_data("^IXIC")
-market_data_fx = fetch_live_market_data("TWD=X")
+market_data_twii, _, _ = fetch_live_market_data_and_dividends("^TWII")
+market_data_tsmc, _, _ = fetch_live_market_data_and_dividends("2330.TW")
+market_data_gspc, _, _ = fetch_live_market_data_and_dividends("^GSPC")
+market_data_ixic, _, _ = fetch_live_market_data_and_dividends("^IXIC")
+market_data_fx, _, _ = fetch_live_market_data_and_dividends("TWD=X")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
@@ -337,7 +354,7 @@ def get_latest_price(data_dict, fallback):
 taiwii_p = get_latest_price(market_data_twii, 46292.0)
 tsmc_p = get_latest_price(market_data_tsmc, 2405.0)
 
-# ==================== 4. 計算總市值、配息與曝險 ====================
+# ==================== 4. 計算總市值、動態殖利率與曝險 ====================
 base_val_total = 0.0
 expected_div_base = 0.0
 effective_exposure_base = 0.0
@@ -350,7 +367,10 @@ for a in st.session_state.owned_assets:
     beta = 2.0 if "2" in t_key or "L" in t_key else 1.0
     val = a["shares"] * p
     base_val_total += val
-    expected_div_base += val * a["div_yield"]
+    
+    # 決定殖利率：若使用者手動覆蓋則用覆蓋值，否則用自動抓取的歷史殖利率
+    dy = a["div_yield_override"] if a["div_yield_override"] >= 0 else yield_cache.get(t_key, 0.035)
+    expected_div_base += val * dy
     effective_exposure_base += val * beta
 
 reinvest_val_total = 0.0
@@ -365,7 +385,9 @@ for r in st.session_state.reinvest_assets:
     beta = 2.0 if "2" in t_key or "L" in t_key else 1.0
     amt = r["amount"]
     reinvest_val_total += amt
-    expected_div_rein += amt * r["div_yield"]
+    
+    dy = r["div_yield_override"] if r["div_yield_override"] >= 0 else yield_cache.get(t_key, 0.04)
+    expected_div_rein += amt * dy
     effective_exposure_rein += amt * beta
 
 total_collateral = base_val_total + reinvest_val_total
@@ -384,14 +406,16 @@ total_exposure = effective_exposure_base + effective_exposure_rein
 net_equity = total_collateral - loan_amount
 exposure_vs_equity = max((total_exposure / net_equity) * 100, 150.0) if net_equity > 0 else 150.0
 
-# ==================== 5. 華爾街量化模型：索提諾比率與蒙地卡羅 ====================
-ret_1, ret_2 = 0.18, 0.08
-vol_1, vol_2 = 0.25, 0.15
+# ==================== 5. 動態智慧重算模型：索提諾比率與蒙地卡羅 ====================
+# 依據使用者輸入的資產標的與數量，動態計算資產組合加權報酬與波動率
+portfolio_beta_avg = (effective_exposure_base + effective_exposure_rein) / total_collateral if total_collateral > 0 else 1.2
+ret_1, ret_2 = 0.12 * portfolio_beta_avg, 0.06
+vol_1, vol_2 = 0.22 * portfolio_beta_avg, 0.14
 corr_12 = 0.35
 
 np.random.seed(42)
 num_portfolios = 1500
-weights_1_arr = np.random.uniform(0.2, 0.9, num_portfolios)
+weights_1_arr = np.random.uniform(0.1, 0.95, num_portfolios)
 port_returns = weights_1_arr * ret_1 + (1 - weights_1_arr) * ret_2
 port_vols = np.sqrt(weights_1_arr**2 * vol_1**2 + (1 - weights_1_arr)**2 * vol_2**2 + 2 * weights_1_arr * (1 - weights_1_arr) * vol_1 * vol_2 * corr_12)
 risk_free_rate = 0.015
@@ -417,8 +441,8 @@ num_paths = 250
 dt = 1.0 / 252.0
 base_portfolio_val = max(total_collateral, 100000.0)
 
-regimes_drift = [0.22, -0.15, 0.05]
-regimes_vol = [0.18, 0.32, 0.12]
+regimes_drift = [0.18 * portfolio_beta_avg, -0.15, 0.05]
+regimes_vol = [0.18 * portfolio_beta_avg, 0.32, 0.12]
 
 sim_paths = np.zeros((num_sim_days, num_paths))
 sim_paths[0, :] = base_portfolio_val
@@ -441,7 +465,7 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (客戶端狀態持續保持模式)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (動態歷史殖利率與計量重算模式)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
     • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 攻擊下限) | 每月淨現金流：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f}/月</b>
 </div>
@@ -452,7 +476,7 @@ def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[用戶端狀態同步正常]** 即時動態維持率為 **{margin_r:.1f}%**，設定已自動儲存於目前工作階段！")
+        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，歷史殖利率與索提諾模型已全數自動重算完成！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於總配息收益。")
@@ -521,7 +545,7 @@ lc, rc = st.columns(2)
 with lc:
     st.markdown("##### 📅 每月現金流即時檢視 (Monthly Cash Flow)")
     st.metric("每月質押利息支出 (只付利息)", f"-NT$ {monthly_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}% / 12")
-    st.metric(f"總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}", f"涵蓋所有自有持倉與質押再投入標的")
+    st.metric(f"總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}", f"涵蓋所有自動抓取歷史殖利率之標的")
     
     if enable_mortgage or enable_credit_loan or st.session_state.custom_debts:
         st.metric(f"每月外部房貸/信貸本息或寬限期支出", f"-NT$ {monthly_external_outflow:,.0f}")
@@ -563,7 +587,7 @@ with rc:
 st.markdown("---")
 
 # ==================== 9. 【極致清晰圖表與大白話解析】索提諾比率與蒙地卡羅模擬 ====================
-st.markdown("### 📈 華爾街量化核心：極致清晰圖表與大白話學理解析")
+st.markdown("### 📈 華爾街量化核心：極致清晰圖表與大白話學理解析 (動態試算)")
 
 ef_col1, ef_col2 = st.columns(2)
 
@@ -748,7 +772,7 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
 institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
 tsmc_resonance_weight = 0.92
 institutional_consensus["推估大盤共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
-institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
+institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p) * 100
 
 st.dataframe(
     institutional_consensus.style.format({"預估EPS": "NT$ {:.1f}", "合理PE": "{:.1f}x", "台積電目標價 (NT$)": "NT$ {:,.1f}", "推估大盤共振點位": "{:,.0f} 點", "潛在漲幅": "{:+.1f}%"}),
