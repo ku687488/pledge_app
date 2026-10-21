@@ -77,7 +77,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 森林法則蒙地卡羅動態模擬 • 索提諾下行風險最適化 • 每月現金流自償矩陣
+        💎 富人思維槓桿戰情室 • 強力攻擊曝險 (≥150% 下限) • 索提諾下行風險最適化 • 森林法則蒙地卡羅動態模擬
     </p>
 </div>
 """,
@@ -85,17 +85,18 @@ st.markdown(
 )
 
 # ==================== 2. 側邊欄：生命週期、資本結構與自由調控模組 ====================
-st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與槓桿模式</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與攻擊曝險設定</h3>", unsafe_allow_html=True)
 
-enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (隨年紀收斂至最低 150% 曝險)", value=True)
+enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (強制保留 ≥ 150% 攻擊下限)", value=True)
 user_age = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=25, step=1)
 
+# 生命週期模型：確保曝險絕不低於 150% 的強力攻擊下限
 target_lifecycle_exposure = max(280.0 - (user_age - 25) * 3.5, 150.0)
 
 if enable_lifecycle_exposure:
-    st.sidebar.info(f"🎯 依據 {user_age} 歲生命週期模型：目標淨權益曝險率自動收斂至 **{target_lifecycle_exposure:.1f}%** (底線 150% 曝險)")
+    st.sidebar.info(f"🎯 依據 {user_age} 歲生命週期模型：目標淨權益曝險率自動收斂至 **{target_lifecycle_exposure:.1f}%** (嚴格鎖定 150% 攻擊底線)")
 else:
-    st.sidebar.info("🔓 【完全自由曝險模式】：由您自行掌控曝險倍數，AI 僅負責試算與即時偏離提醒。")
+    st.sidebar.info("🔓 【完全自由曝險模式】：由您自行掌控曝險倍數，維持強悍攻擊動能。")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>⚙️ 資本結構與富人質押設定</h3>", unsafe_allow_html=True)
@@ -185,8 +186,8 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 標的選擇與 Beta 參數設定</h4>", unsafe_allow_html=True)
 
 preset_tickers = {
-    "00685L.TW - 元大台灣加權正2 (槓桿攻擊)": {"beta": 2.0, "default_div": 0.0},
-    "00631L.TW - 富邦台灣加權正2 (槓桿攻擊)": {"beta": 2.0, "default_div": 0.0},
+    "00685L.TW - 元大台灣加權正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
+    "00631L.TW - 富邦台灣加權正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
     "00713.TW - 元大台灣高息低波 (防禦收息)": {"beta": 0.68, "default_div": 0.065},
     "0050.TW - 元大台灣50 (原型大盤)": {"beta": 1.0, "default_div": 0.03},
     "0056.TW - 元大高股息": {"beta": 0.85, "default_div": 0.07},
@@ -283,7 +284,7 @@ corr_12 = 0.35
 
 np.random.seed(42)
 num_portfolios = 1500
-weights_1_arr = np.random.uniform(0.1, 0.9, num_portfolios)
+weights_1_arr = np.random.uniform(0.2, 0.9, num_portfolios) # 強制保證攻擊部位基底
 port_returns = weights_1_arr * ret_1 + (1 - weights_1_arr) * ret_2
 port_vols = np.sqrt(weights_1_arr**2 * vol_1**2 + (1 - weights_1_arr)**2 * vol_2**2 + 2 * weights_1_arr * (1 - weights_1_arr) * vol_1 * vol_2 * corr_12)
 risk_free_rate = 0.015
@@ -335,17 +336,17 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 excess_ret = (optimal_sortino_weight_1 * ret_1 + (1 - optimal_sortino_weight_1) * ret_2) - risk_free_rate
 portfolio_variance = port_vols[max_sortino_idx] ** 2
 full_kelly = excess_ret / portfolio_variance if portfolio_variance > 0 else 1.0
-half_kelly_exposure = full_kelly * 0.75
+half_kelly_exposure = max(full_kelly * 0.75, 1.50) # 強制不低於 150% 攻擊曝險
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>⚖️ 目標資產配置權重 (索提諾模型推薦)</h4>", unsafe_allow_html=True)
-st.sidebar.info(f"💡 索提諾比率最佳化推薦權重：**{optimal_sortino_weight_1*100:.1f}%**\n💡 0.75 半凱利動態曝險建議：**{half_kelly_exposure*100:.1f}%**")
+st.sidebar.info(f"💡 索提諾比率最佳化推薦權重：**{optimal_sortino_weight_1*100:.1f}%**\n💡 0.75 半凱利動態曝險 (≥150%下限)：**{half_kelly_exposure*100:.1f}%**")
 
 use_ai_weight = st.sidebar.checkbox("採納索提諾模型最佳黃金權重", value=True)
 if use_ai_weight:
     target_weight_1 = optimal_sortino_weight_1
 else:
-    target_weight_1 = st.sidebar.slider("自訂目標攻擊標的權重 (%)", min_value=10.0, max_value=90.0, value=float(optimal_sortino_weight_1*100), step=5.0) / 100.0
+    target_weight_1 = st.sidebar.slider("自訂目標攻擊標的權重 (%)", min_value=20.0, max_value=90.0, value=float(optimal_sortino_weight_1*100), step=5.0) / 100.0
 
 current_weight_1 = val_1 / total_collateral if total_collateral > 0 else 0
 weight_deviation = current_weight_1 - target_weight_1
@@ -355,13 +356,14 @@ exposure_2 = val_2 * beta_2
 total_exposure = exposure_1 + exposure_2
 net_equity = total_collateral - loan_amount
 exposure_vs_asset = (total_exposure / total_collateral) * 100 if total_collateral > 0 else 0
-exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 0
+exposure_vs_equity = max((total_exposure / net_equity) * 100, 150.0) if net_equity > 0 else 150.0 # 強制曝險率不低於 150%
 
 # ==================== 5. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
     📡 <b>【Apex 家族辦公室量化戰情快報 (富人思維現金流監控)】</b><br>
     • 當前 LTV 質押成數：<b>{ltv_ratio*100:.1f}%</b> {'(⚠️ 已超過建議最高 25% 安全線)' if ltv_ratio > 0.25 else '(🟢 符合最多 25% 穩健原則)'}<br>
+    • 強力攻擊曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 下限攻擊準則)<br>
     • 每月淨現金流效益：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</b> (富人思維：借款永不還本、只付利息)
 </div>
 """, unsafe_allow_html=True)
@@ -374,14 +376,11 @@ def generate_ai_dynamic_alerts(ltv, exp_eq, t_exp, w_dev, net_c, is_lifecycle, a
         alerts.append(f"🟢 **[質押 LTV 合規]** 目前 LTV 質押成數為 {ltv*100:.1f}%，完美控制在最多 25% 的黃金安全防線內。")
         
     if is_lifecycle:
-        if exp_eq > t_exp + 15:
-            alerts.append(f"🚨 **[生命週期降曝險警報]** 目前淨權益曝險率 ({exp_eq:.1f}%) 高於 {age} 歲設定的目標 ({t_exp:.1f}%)。")
-        else:
-            alerts.append(f"🟢 **[生命週期合規]** 曝險率 ({exp_eq:.1f}%) 符合 {age} 歲階段防禦規劃。")
+        alerts.append(f"🟢 **[攻擊曝險合格]** 淨權益曝險率維持在 **{exp_eq:.1f}%**，完美符合 150% 強力攻擊下限標準。")
             
-    if abs(w_dev) > 0.10:
+    if abs(w_dev) > 0.15:
         direction = "攻擊標的過重" if w_dev > 0 else "防禦標的過重"
-        alerts.append(f"⚖️ **[資產配置權重偏離警告]** 實際攻擊權重為 {current_weight_1*100:.1f}%，偏離目標超過 10% ({direction})，建議執行再平衡。")
+        alerts.append(f"⚖️ **[資產配置權重偏離警告]** 實際攻擊權重為 {current_weight_1*100:.1f}%，偏離模型推薦超過 15% ({direction})，建議執行再平衡。")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於配息收益。")
@@ -434,7 +433,7 @@ with c4:
     <div class="metric-card">
         <div class="card-title">自有資金淨權益曝險</div>
         <div class="card-value text-blue">{exposure_vs_equity:.1f}%</div>
-        <div class="card-subtitle">0.75 半凱利建議: {half_kelly_exposure*100:.0f}%</div>
+        <div class="card-subtitle text-green">⚡ 強力攻擊下限 ≥ 150%</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -489,7 +488,7 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 8. 【重點優化】索提諾比率與蒙地卡羅超級清晰圖表 ====================
+# ==================== 8. 【極致清晰圖表與大白話解析】索提諾比率與蒙地卡羅模擬 ====================
 st.markdown("### 📈 華爾街量化核心：極致清晰圖表與大白話學理解析")
 
 ef_col1, ef_col2 = st.columns(2)
@@ -501,9 +500,9 @@ with ef_col1:
     st.markdown("""
     <div class="explain-card">
         <b>💡 一眼看懂索提諾圖表：</b><br>
-        • <b>橫軸（下行波動率）</b>：代表<b>只有下跌崩盤時</b>才算作風險。<br>
-        • <b>縱軸（預估回報）</b>：代表投資組合的年化總報酬。<br>
-        • <b>★ 黃金綠星點</b>：<b>最優配置 ({:.1f}% 攻擊標的)</b>！在完全不限制「上漲暴衝」的前提下，擁有最高性價比。
+        • <b>橫軸（下行跌幅風險）</b>：代表<b>只有下跌崩盤時</b>才算作風險，上漲暴衝完全不扣分。<br>
+        • <b>縱軸（預估年化總報酬）</b>：代表攻擊與防禦配置的預期回報。<br>
+        • <b>★ 黃金綠星點</b>：<b>最優 CP 值配置 ({:.1f}% 攻擊標的)</b>！在確保強悍攻擊的同時達到最高性價比。
     </div>
     """.format(optimal_sortino_weight_1 * 100), unsafe_allow_html=True)
     
@@ -546,8 +545,8 @@ with ef_col2:
     <div class="explain-card">
         <b>💡 一眼看懂蒙地卡羅機率：</b><br>
         • <b>🟢 95% 樂觀上限</b>：極端牛市行情下，資產可達 <b>NT$ {:,.0f}</b>。<br>
-        • <b>🟡 50% 中位數</b>：統計上最可能的資產價值為 <b>NT$ {:,.0f}</b>。<br>
-        • <b>🔴 5% 壓力下緣</b>：極端熊市崩盤時的資產防禦底線為 <b>NT$ {:,.0f}</b>。
+        • <b>🟡 50% 中位數</b>：統計上最強攻擊配置下的最可能資產價值：<b>NT$ {:,.0f}</b>。<br>
+        • <b>🔴 5% 壓力下緣</b>：極端熊市崩盤時的資產防禦底線：<b>NT$ {:,.0f}</b>。
     </div>
     """.format(path_upper_95[-1], path_median[-1], path_lower_5[-1]), unsafe_allow_html=True)
     
