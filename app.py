@@ -17,7 +17,6 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-    /* 全局柔和字體與抗鋸齒設定，全面採用粗體與高清晰度排版 */
     .stApp { 
         background-color: #0B0E14; 
         color: #F3F4F6; 
@@ -510,7 +509,6 @@ with ef_col1:
     
     fig_ef = go.Figure()
     
-    # 所有模擬氣泡
     fig_ef.add_trace(go.Scatter(
         x=downside_vols * 100, y=port_returns * 100, mode='markers',
         marker=dict(
@@ -521,7 +519,6 @@ with ef_col1:
         hovertemplate="下行風險: %{x:.2f}%<br>預期年化: %{y:.2f}%<extra></extra>"
     ))
     
-    # 最佳星號標註
     fig_ef.add_trace(go.Scatter(
         x=[downside_vols[max_sortino_idx] * 100], y=[port_returns[max_sortino_idx] * 100], mode='markers+text',
         marker=dict(size=18, color='#10B981', symbol='star', line=dict(width=2, color='#FFFFFF')),
@@ -533,8 +530,8 @@ with ef_col1:
     fig_ef.update_layout(
         template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
         margin=dict(l=10, r=10, t=10, b=10), height=300,
-        xaxis=dict(title='下行跌幅風險 (Downside Risk %)', gridcolor='#232D3F', titlefont=dict(size=12, color='#9CA3AF')),
-        yaxis=dict(title='預估年化總報酬 (%)', gridcolor='#232D3F', titlefont=dict(size=12, color='#9CA3AF')),
+        xaxis=dict(title='下行跌幅風險 (Downside Risk %)', gridcolor='#232D3F', title_font=dict(size=12, color='#9CA3AF')),
+        yaxis=dict(title='預估年化總報酬 (%)', gridcolor='#232D3F', title_font=dict(size=12, color='#9CA3AF')),
         showlegend=False,
         font=dict(family="sans-serif", size=12, color="#F3F4F6")
     )
@@ -557,7 +554,6 @@ with ef_col2:
     fig_mc = go.Figure()
     days_arr = np.arange(num_sim_days)
     
-    # 填充 5% 到 95% 之間的信心區間漸層帶
     fig_mc.add_trace(go.Scatter(
         x=days_arr, y=path_upper_95, mode='lines', line=dict(width=0),
         showlegend=False, hoverinfo='skip'
@@ -568,7 +564,6 @@ with ef_col2:
         showlegend=False, hoverinfo='skip'
     ))
     
-    # 畫出 5 條典型隨機路徑
     for p in range(5):
         fig_mc.add_trace(go.Scatter(
             x=days_arr, y=sim_paths[:, p], mode='lines',
@@ -576,7 +571,6 @@ with ef_col2:
             showlegend=False, hoverinfo='skip'
         ))
         
-    # 主線
     fig_mc.add_trace(go.Scatter(x=days_arr, y=path_upper_95, mode='lines', line=dict(width=2, color='#10B981', dash='dot'), name="95% 樂觀上限"))
     fig_mc.add_trace(go.Scatter(x=days_arr, y=path_median, mode='lines', line=dict(width=3, color='#F59E0B'), name="50% 中位數軌跡"))
     fig_mc.add_trace(go.Scatter(x=days_arr, y=path_lower_5, mode='lines', line=dict(width=2, color='#EF4444', dash='dot'), name="5% 壓力下緣"))
@@ -584,8 +578,8 @@ with ef_col2:
     fig_mc.update_layout(
         template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
         margin=dict(l=10, r=10, t=10, b=10), height=300,
-        xaxis=dict(title='未來交易日 (天)', gridcolor='#232D3F', titlefont=dict(size=12, color='#9CA3AF')),
-        yaxis=dict(title='擔保品總市值 (NT$)', gridcolor='#232D3F', titlefont=dict(size=12, color='#9CA3AF')),
+        xaxis=dict(title='未來交易日 (天)', gridcolor='#232D3F', title_font=dict(size=12, color='#9CA3AF')),
+        yaxis=dict(title='擔保品總市值 (NT$)', gridcolor='#232D3F', title_font=dict(size=12, color='#9CA3AF')),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
         font=dict(family="sans-serif", size=12, color="#F3F4F6")
     )
