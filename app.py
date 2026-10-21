@@ -77,7 +77,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 自有本金原始部位與質押額外再投入明確拆分 • 外部負債現金流自償聯動
+        💎 富人思維槓桿戰情室 • 自有本金與質押額外自由配置標的 • 24小時實時量化試算
     </p>
 </div>
 """,
@@ -115,7 +115,7 @@ interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0,
 
 # ==================== 標的選擇與部位明確拆分 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 標的選擇與部位明細（自有原始 vs 質押額外）</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細</h4>", unsafe_allow_html=True)
 
 preset_tickers = {
     "00685L.TW - 群益臺灣加權正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
@@ -127,26 +127,43 @@ preset_tickers = {
     "00919.TW - 群益台灣精選高息": {"beta": 0.9, "default_div": 0.10}
 }
 
-selected_label_1 = st.sidebar.selectbox("選擇攻擊/槓桿標的 (標的 1)", list(preset_tickers.keys()), index=0)
+selected_label_1 = st.sidebar.selectbox("自有持倉標的 1", list(preset_tickers.keys()), index=0)
 ticker_1 = selected_label_1.split(" - ")[0].strip()
-shares_1 = st.sidebar.number_input("標的 1：自有資金原始持有股數", value=30000, step=1000)
+shares_1 = st.sidebar.number_input("標的 1：自有資金原始持有股數", value=45400, step=1000)
 div_yield_1 = st.sidebar.slider("標的 1 預期年化殖利率 (%)", min_value=0.0, max_value=12.0, value=float(preset_tickers[selected_label_1]["default_div"] * 100), step=0.1) / 100.0
 
-selected_label_2 = st.sidebar.selectbox("選擇防禦/收息標的 (標的 2)", list(preset_tickers.keys()), index=2)
+selected_label_2 = st.sidebar.selectbox("自有持倉標的 2", list(preset_tickers.keys()), index=2)
 ticker_2 = selected_label_2.split(" - ")[0].strip()
-shares_2 = st.sidebar.number_input("標的 2：自有資金原始持有股數", value=10000, step=1000)
+shares_2 = st.sidebar.number_input("標的 2：自有資金原始持有股數", value=0, step=1000)
 div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=0.0, max_value=12.0, value=float(preset_tickers[selected_label_2]["default_div"] * 100), step=0.1) / 100.0
 
 beta_1 = preset_tickers.get(selected_label_1, {"beta": 2.0})["beta"]
 beta_2 = preset_tickers.get(selected_label_2, {"beta": 0.68})["beta"]
 
-st.sidebar.markdown("##### 🔀 質押借款額外資金再投入比例分配")
-reinvest_ratio_1 = st.sidebar.slider("質押借款額外投入【標的 1】比例 (%)", min_value=0, max_value=100, value=50, step=5) / 100.0
-reinvest_ratio_2 = st.sidebar.slider("質押借款額外投入【標的 2】比例 (%)", min_value=0, max_value=100, value=45, step=5) / 100.0
-reinvest_ratio_cash = max(0.0, 1.0 - reinvest_ratio_1 - reinvest_ratio_2)
-st.sidebar.info(f"💡 額外資金分配：標的1 ({reinvest_ratio_1*100:.0f}%) | 標的2 ({reinvest_ratio_2*100:.0f}%) | 現金保全 ({reinvest_ratio_cash*100:.0f}%)")
+# ==================== 質押額外資金自由選擇與分配模組 ====================
+st.sidebar.markdown("---")
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金自由分配模組</h4>", unsafe_allow_html=True)
 
-# 獨立房貸與信貸模組 (明確歸屬為自有資金本息攤還或寬限期支出)
+reinvest_target_choice = st.sidebar.selectbox(
+    "選擇質押額外資金投入目標", 
+    ["指定投入標的 1", "指定投入標的 2", "自訂多元混合分配 (標的1 + 標的2)"], 
+    index=1
+)
+
+if reinvest_target_choice == "指定投入標的 1":
+    reinvest_ratio_1 = 1.0
+    reinvest_ratio_2 = 0.0
+elif reinvest_target_choice == "指定投入標的 2":
+    reinvest_ratio_1 = 0.0
+    reinvest_ratio_2 = 1.0
+else:
+    reinvest_ratio_1 = st.sidebar.slider("質押額外資金投入【標的 1】比例 (%)", min_value=0, max_value=100, value=0, step=5) / 100.0
+    reinvest_ratio_2 = st.sidebar.slider("質押額外資金投入【標的 2】比例 (%)", min_value=0, max_value=100, value=100, step=5) / 100.0
+
+reinvest_ratio_cash = max(0.0, 1.0 - reinvest_ratio_1 - reinvest_ratio_2)
+st.sidebar.info(f"💡 額外資金配置：標的1 ({reinvest_ratio_1*100:.0f}%) | 標的2 ({reinvest_ratio_2*100:.0f}%) | 現金保全 ({reinvest_ratio_cash*100:.0f}%)")
+
+# 獨立房貸與信貸模組
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>💳 外部不動產/信貸負債模組 (自有資金本息負擔)</h4>", unsafe_allow_html=True)
 
@@ -268,19 +285,15 @@ usdtwd_p = get_latest_price(market_data_fx, 32.2)
 # ==================== 4. 現金流與部位拆分運算 ====================
 annual_interest = loan_amount * interest_rate
 
-# 質押借款額外投入兩個標的的金額
 loan_fund_1 = loan_amount * reinvest_ratio_1
 loan_fund_2 = loan_amount * reinvest_ratio_2
 
-# 自有本金原始持有部位市值
 base_val_1 = shares_1 * p_1
 base_val_2 = shares_2 * p_2
 
-# 總擔保品市值 = 自有原始部位市值 + 質押借款額外再投入市值
 total_collateral = base_val_1 + base_val_2 + loan_fund_1 + loan_fund_2
 margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
-# 配息與現金流計算 (自有原始部位 + 質押額外再投入部位的總配息)
 total_shares_1 = shares_1 + (loan_fund_1 / p_1 if p_1 > 0 else 0)
 total_shares_2 = shares_2 + (loan_fund_2 / p_2 if p_2 > 0 else 0)
 
@@ -288,7 +301,6 @@ expected_div_1 = (total_shares_1 * p_1) * div_yield_1
 expected_div_2 = (total_shares_2 * p_2) * div_yield_2
 total_expected_div = expected_div_1 + expected_div_2
 
-# 整體 Net Carry 淨現金流 (總配息 - 質押利息 - 外部房貸/信貸本息或寬限期支出)
 net_carry = total_expected_div - annual_interest - total_external_outflow
 
 monthly_interest = annual_interest / 12.0
@@ -327,7 +339,6 @@ downside_vols = np.array(downside_vols)
 max_sortino_idx = np.argmax(sortino_ratios)
 optimal_sortino_weight_1 = weights_1_arr[max_sortino_idx]
 
-# 森林法則隨機蒙地卡羅模擬
 num_sim_days = 252
 num_paths = 250
 dt = 1.0 / 252.0
@@ -356,7 +367,6 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 
 target_weight_1 = optimal_sortino_weight_1
 
-# 總曝險計算 (含自有原始部位與質押額外再投入部位的 Beta 加權)
 effective_exposure_1 = (base_val_1 + loan_fund_1) * beta_1
 effective_exposure_2 = (base_val_2 + loan_fund_2) * beta_2
 total_exposure = effective_exposure_1 + effective_exposure_2
@@ -609,7 +619,7 @@ with row1_col1:
     p_sel_1 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="twii_box_sel")
     data_obj_1 = market_data_twii.get(p_sel_1, {"series": pd.Series([46000]), "open_price": 46000})
     fig_1, curr_1, pct_1, diff_1, col_1 = create_square_card_chart(data_obj_1, "加權現貨")
-    st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_1:,.2f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_1};">{'+' if diff_1 >= 0 else ''}{pct_1:.2f}%</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_1:,.2f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_1};">{"+" if diff_1 >= 0 else ""}{pct_1:.2f}%</span></div>', unsafe_allow_html=True)
     st.plotly_chart(fig_1, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -619,7 +629,7 @@ with row1_col2:
     p_sel_2 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="sp500_box_sel")
     data_obj_2 = market_data_gspc.get(p_sel_2, {"series": pd.Series([5800]), "open_price": 5800})
     fig_2, curr_2, pct_2, diff_2, col_2 = create_square_card_chart(data_obj_2, "S&P 500")
-    st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_2:,.2f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_2};">{'+' if diff_2 >= 0 else ''}{pct_2:.2f}%</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_2:,.2f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_2};">{"+" if diff_2 >= 0 else ""}{pct_2:.2f}%</span></div>', unsafe_allow_html=True)
     st.plotly_chart(fig_2, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -630,7 +640,7 @@ with row2_col1:
     p_sel_3 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="nasdaq_box_sel")
     data_obj_3 = market_data_ixic.get(p_sel_3, {"series": pd.Series([18500]), "open_price": 18500})
     fig_3, curr_3, pct_3, diff_3, col_3 = create_square_card_chart(data_obj_3, "NASDAQ")
-    st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_3:,.2f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_3};">{'+' if diff_3 >= 0 else ''}{pct_3:.2f}%</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_3:,.2f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_3};">{"+" if diff_3 >= 0 else ""}{pct_3:.2f}%</span></div>', unsafe_allow_html=True)
     st.plotly_chart(fig_3, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -640,7 +650,7 @@ with row2_col2:
     p_sel_4 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="tsmc_box_sel")
     data_obj_4 = market_data_tsmc.get(p_sel_4, {"series": pd.Series([2405]), "open_price": 2405})
     fig_4, curr_4, pct_4, diff_4, col_4 = create_square_card_chart(data_obj_4, "台積電")
-    st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">NT$ {curr_4:,.1f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_4};">{'+' if diff_4 >= 0 else ''}{pct_4:.2f}%</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">NT$ {curr_4:,.1f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_4};">{"+" if diff_4 >= 0 else ""}{pct_4:.2f}%</span></div>', unsafe_allow_html=True)
     st.plotly_chart(fig_4, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
