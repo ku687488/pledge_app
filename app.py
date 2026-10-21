@@ -78,14 +78,14 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 最佳資產配置明確指引 • 多筆房貸矩陣與智慧殖利率
+        💎 富人思維槓桿戰情室 • 最新動態生命週期連續收斂模型 (240% → 100%) • 具體標的微調指引
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. Session State 客戶端狀態持久化初始化 (杜絕 KeyError) ====================
+# ==================== 2. Session State 客戶端狀態持久化初始化 ====================
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.owned_assets = []
@@ -125,12 +125,26 @@ if st.sidebar.button("🔄 一鍵重置為初次使用空白狀態"):
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與攻擊曝險設定</h3>", unsafe_allow_html=True)
 
-st.session_state.enable_life = st.sidebar.checkbox("啟用生命週期動態降曝險 (強制保留 ≥ 150% 攻擊下限)", value=st.session_state.enable_life)
-st.session_state.user_age_val = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=int(st.session_state.user_age_val), step=1)
-target_lifecycle_exposure = max(280.0 - (st.session_state.user_age_val - 25) * 3.5, 150.0)
+st.session_state.enable_life = st.sidebar.checkbox("啟用生命週期動態平滑降曝險 (240% → 100% 最新模型)", value=st.session_state.enable_life)
+st.session_state.user_age_val = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=95, value=int(st.session_state.user_age_val), step=1)
+
+# 最新智慧數學模型：從 25 歲的 240% 隨年齡平滑下降，70歲約 130%，80歲收斂至 100%
+age = st.session_state.user_age_val
+if age <= 25:
+    target_lifecycle_exposure = 240.0
+elif age <= 35:
+    target_lifecycle_exposure = 240.0 - (age - 25) * 2.0  # 25-35歲: 240% -> 220%
+elif age <= 50:
+    target_lifecycle_exposure = 220.0 - (age - 35) * 2.67 # 35-50歲: 220% -> 180%
+elif age <= 65:
+    target_lifecycle_exposure = 180.0 - (age - 50) * 2.0  # 50-65歲: 180% -> 150%
+elif age <= 80:
+    target_lifecycle_exposure = 150.0 - (age - 65) * 3.33 # 65-80歲: 150% -> 100% (70歲約133%)
+else:
+    target_lifecycle_exposure = 100.0                     # 80歲以上完全去除槓桿
 
 if st.session_state.enable_life:
-    st.sidebar.info(f"🎯 依據 {st.session_state.user_age_val} 歲生命週期模型：目標淨權益曝險率自動收斂至 **{target_lifecycle_exposure:.1f}%** (嚴格鎖定 150% 攻擊底線)")
+    st.sidebar.info(f"🎯 依據 {age} 歲最新生命週期平滑模型：目標淨權益曝險率智慧收斂至 **{target_lifecycle_exposure:.1f}%**")
 else:
     st.sidebar.info("🔓 【完全自由曝險模式】：由您自行掌控曝險倍數，維持強悍攻擊動能。")
 
@@ -522,7 +536,7 @@ monthly_net_carry = net_carry / 12.0
 
 total_exposure = effective_exposure_base + effective_exposure_rein
 net_equity = total_collateral - loan_amount
-exposure_vs_equity = max((total_exposure / net_equity) * 100, 150.0) if net_equity > 0 else 150.0
+exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 100.0
 
 # ==================== 5. 動態智慧重算模型：索提諾比率與蒙地卡羅 ====================
 portfolio_beta_avg = (effective_exposure_base + effective_exposure_rein) / total_collateral if total_collateral > 0 else 1.2
@@ -582,18 +596,23 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (最佳資產配置明確指引)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (生命週期動態 240%→100% 收斂模式)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
-    • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (目標收斂至 {target_lifecycle_exposure:.1f}% | 攻擊下限 ≥150%)
+    • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (目前 {st.session_state.user_age_val} 歲目標收斂至 <b>{target_lifecycle_exposure:.1f}%</b>)
 </div>
 """, unsafe_allow_html=True)
 
-def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
+def generate_ai_dynamic_alerts(ltv, margin_r, net_c, cur_exp, target_exp):
     alerts = []
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，最佳配置與索提諾模型已全數自動重算！")
+        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，索提諾與資產配置模型已全數自動重算！")
+        
+    if st.session_state.enable_life and abs(cur_exp - target_exp) > 20.0:
+        alerts.append(f"⚠️ **[曝險偏離警告]** 目前實際曝險率 ({cur_exp:.1f}%) 與 {st.session_state.user_age_val} 歲目標 ({target_exp:.1f}%) 偏離較大，請參考下方具體標的操作指引進行調倉。")
+    elif st.session_state.enable_life:
+        alerts.append(f"🟢 **[生命週期完美契合]** 目前曝險率 ({cur_exp:.1f}%) 與 {st.session_state.user_age_val} 歲目標 ({target_exp:.1f}%) 完美匹配！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息與房貸支出大於總配息收益。")
@@ -602,7 +621,7 @@ def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
         
     return alerts
 
-ai_insights = generate_ai_dynamic_alerts(st.session_state.ltv_ratio_val, margin_ratio, net_carry)
+ai_insights = generate_ai_dynamic_alerts(st.session_state.ltv_ratio_val, margin_ratio, net_carry, exposure_vs_equity, target_lifecycle_exposure)
 for insight in ai_insights:
     if "警報" in insight or "警告" in insight or "提醒" in insight:
         st.markdown(f'<div class="ai-alert-box">{insight}</div>', unsafe_allow_html=True)
@@ -645,7 +664,7 @@ with c4:
     <div class="metric-card">
         <div class="card-title">自有資金淨權益曝險</div>
         <div class="card-value text-blue">{exposure_vs_equity:.1f}%</div>
-        <div class="card-subtitle text-green">⚡ 目標收斂: {target_lifecycle_exposure:.1f}%</div>
+        <div class="card-subtitle text-green">⚡ 年齡目標: {target_lifecycle_exposure:.1f}%</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -703,29 +722,48 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 9. 【極致清晰圖表與明確資產配置建議】索提諾比率與生命週期權重指引 ====================
-st.markdown("### 📈 華爾街量化核心：最佳資產配置明確指引與索提諾解析")
+# ==================== 9. 【極致清晰圖表與最明確標的操作指引】 ====================
+st.markdown("### 📈 華爾街量化核心：最清楚標的操作指令與索提諾解讀")
 
 ef_col1, ef_col2 = st.columns(2)
 
 with ef_col1:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📊 1. 索提諾高效能前緣與明確資產配置建議")
+    st.markdown("##### 📊 1. 索提諾高效能前緣與標的調倉指令")
     
-    # 根據生命週期模型給出最明確的配置建議文字
+    # 根據目標曝險率計算最直觀的「正二標的 (00631L) vs 高股息/原型標的 (00713/0050)」金額比率
+    curr_equity = max(net_equity, 100000.0)
+    target_exp_val = target_lifecycle_exposure / 100.0
+    
+    # 計算達成目標曝險需要的 00631L (Beta=2.0) 與 00713 (Beta=1.0) 具體比例
+    # 假設總部位曝險 = Beta_1 * Amt_1 + Beta_2 * Amt_2
+    opt_atk_percent = min(max((target_exp_val - 1.0) * 100.0, 0.0), 100.0)
+    opt_def_percent = 100.0 - opt_atk_percent
+    
+    opt_atk_amt = curr_equity * (opt_atk_percent / 100.0)
+    opt_def_amt = curr_equity * (opt_def_percent / 100.0)
+    
     if st.session_state.enable_life:
-        rec_attack_pct = min(max((target_lifecycle_exposure - 100) / 100.0 * 60, 20.0), 90.0)
-        rec_defend_pct = 100.0 - rec_attack_pct
-        guidance_text = f"🎯 <b>【生命週期明確配置建議 ({st.session_state.user_age_val} 歲)】</b>：<br>• 目標淨權益曝險率應收斂至 <b>{target_lifecycle_exposure:.1f}%</b>。<br>• <b>最佳配置方案</b>：建議將 <b>{rec_attack_pct:.1f}%</b> 資金配置於高攻擊性正二標的（如 00631L），其餘 <b>{rec_defend_pct:.1f}%</b> 配置於高股息防禦標的（如 00713、0050）。"
+        guidance_action = f"""
+        🎯 <b>【{st.session_state.user_age_val} 歲生命週期最新模型（目標曝險 {target_lifecycle_exposure:.1f}%）】</b><br>
+        <b>👉 最清楚標的調倉指令（直接依金額或比例調整）：</b><br>
+        • <b>正二攻擊標的 (00631L / Beta=2.0)</b>：建議配置 <b>{opt_atk_percent:.1f}%</b>（約 <b>NT$ {opt_atk_amt:,.0f}</b>）。<br>
+        • <b>防禦高股息標的 (00713 / 0050 / Beta=1.0)</b>：建議配置 <b>{opt_def_percent:.1f}%</b>（約 <b>NT$ {opt_def_amt:,.0f}</b>）。<br>
+        • <b>年齡收斂說明</b>：隨著年齡增長至 70 歲（目標 130%）或 80 歲（目標 100%），系統會自動指引您將 00631L 的資金平滑轉移至 00713，達成無痛資產保值與現金流自償！
+        """
     else:
-        guidance_text = "🔓 <b>【自由曝險模式配置建議】</b>：已關閉生命週期降曝險。建議參考下方 ★ 黃金綠星點，配置約 <b>70% 攻擊標的</b> 與 <b>30% 防禦標的</b> 以維持最佳夏普與索提諾動能。"
+        guidance_action = f"""
+        🔓 <b>【自由曝險參考模式（目標參考星點 {optimal_sortino_weight_1 * 100:.1f}% 攻擊比）】</b><br>
+        <b>👉 最佳索提諾 CP 值標的配置（供您隨時參考）：</b><br>
+        • <b>正二攻擊標的 (00631L)</b>：建議配置約 <b>70.0%</b>（約 <b>NT$ {curr_equity*0.7:,.0f}</b>）。<br>
+        • <b>防禦高股息標的 (00713 / 0050)</b>：建議配置約 <b>30.0%</b>（約 <b>NT$ {curr_equity*0.3:,.0f}</b>）。
+        """
 
     st.markdown(f"""
     <div class="explain-card">
-        {guidance_text}<br><br>
+        {guidance_action}<br><br>
         <b>💡 索提諾圖表解讀：</b><br>
-        • <b>★ 黃金綠星點</b>：數學計算出的最佳 CP 值組合（權重 <b>{optimal_sortino_weight_1 * 100:.1f}%</b>）。<br>
-        • 無論是否開啟生命週期，星點皆可作為您隨時檢視投組效率的完美錨點！
+        • <b>★ 黃金綠星點</b>：量化演算出的最高 CP 值最佳組合（<b>{optimal_sortino_weight_1 * 100:.1f}% 00631L + {(1-optimal_sortino_weight_1) * 100:.1f}% 00713</b>）。
     </div>
     """, unsafe_allow_html=True)
     
