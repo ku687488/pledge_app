@@ -141,9 +141,9 @@ else:
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.interest_rate_val), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
 
-# ==================== 自有資金持倉管理 (具備防錯與自動補全) ====================
+# ==================== 自有資金持倉管理 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (任意冷門標的)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (-1代表自動抓歷史殖利率)</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增自有持倉標的"):
     st.session_state.owned_assets.append({
@@ -174,7 +174,7 @@ for i, asset in enumerate(st.session_state.owned_assets):
         st.session_state.owned_assets.pop(i)
         st.rerun()
 
-# ==================== 質押額外資金管理 (具備防錯與自動補全) ====================
+# ==================== 質押額外資金管理 ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金再投入部位</h4>", unsafe_allow_html=True)
 
@@ -360,11 +360,11 @@ for t in all_tickers_to_fetch:
     yield_cache[t] = hist_dy
     market_series_cache[t] = res
 
-market_data_twii, _, _ = fetch_live_market_data_and_dividends("^TWII")
-market_data_tsmc, _, _ = fetch_live_market_data_and_dividends("2330.TW")
-market_data_gspc, _, _ = fetch_live_market_data_and_dividends("^GSPC")
-market_data_ixic, _, _ = fetch_live_market_data_and_dividends("^IXIC")
-market_data_fx, _, _ = fetch_live_market_data_and_dividends("TWD=X")
+market_data_twii, _ = fetch_live_market_data_and_dividends("^TWII")
+market_data_tsmc, _ = fetch_live_market_data_and_dividends("2330.TW")
+market_data_gspc, _ = fetch_live_market_data_and_dividends("^GSPC")
+market_data_ixic, _ = fetch_live_market_data_and_dividends("^IXIC")
+market_data_fx, _ = fetch_live_market_data_and_dividends("TWD=X")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
@@ -795,7 +795,7 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
 institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
 tsmc_resonance_weight = 0.92
 institutional_consensus["推估大盤共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
-institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
+institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p) * 100
 
 st.dataframe(
     institutional_consensus.style.format({"預估EPS": "NT$ {:.1f}", "合理PE": "{:.1f}x", "台積電目標價 (NT$)": "NT$ {:,.1f}", "推估大盤共振點位": "{:,.0f} 點", "潛在漲幅": "{:+.1f}%"}),
