@@ -141,17 +141,29 @@ else:
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.interest_rate_val), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
 
-# ==================== 自有資金持倉管理 ====================
+# ==================== 自有資金持倉管理 (具備防錯與自動補全) ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (任意冷門標的)</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增自有持倉標的"):
-    st.session_state.owned_assets.append({"id": str(uuid.uuid4()), "ticker": "", "shares": 0.0, "div_yield_override": -1.0})
+    st.session_state.owned_assets.append({
+        "id": str(uuid.uuid4()), 
+        "ticker": "", 
+        "shares": 0.0, 
+        "div_yield_override": -1.0
+    })
     st.rerun()
 
 for i, asset in enumerate(st.session_state.owned_assets):
     if "id" not in asset:
         asset["id"] = str(uuid.uuid4())
+    if "ticker" not in asset:
+        asset["ticker"] = ""
+    if "shares" not in asset:
+        asset["shares"] = 0.0
+    if "div_yield_override" not in asset:
+        asset["div_yield_override"] = -1.0
+        
     uid = asset["id"]
     
     st.sidebar.markdown(f"**📌 自有持倉 #{i+1}**")
@@ -162,17 +174,29 @@ for i, asset in enumerate(st.session_state.owned_assets):
         st.session_state.owned_assets.pop(i)
         st.rerun()
 
-# ==================== 質押額外資金管理 ====================
+# ==================== 質押額外資金管理 (具備防錯與自動補全) ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金再投入部位</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增質押再投入標的"):
-    st.session_state.reinvest_assets.append({"id": str(uuid.uuid4()), "ticker": "", "amount": 0.0, "div_yield_override": -1.0})
+    st.session_state.reinvest_assets.append({
+        "id": str(uuid.uuid4()), 
+        "ticker": "", 
+        "amount": 0.0, 
+        "div_yield_override": -1.0
+    })
     st.rerun()
 
 for j, rein in enumerate(st.session_state.reinvest_assets):
     if "id" not in rein:
         rein["id"] = str(uuid.uuid4())
+    if "ticker" not in rein:
+        rein["ticker"] = ""
+    if "amount" not in rein:
+        rein["amount"] = 0.0
+    if "div_yield_override" not in rein:
+        rein["div_yield_override"] = -1.0
+        
     ruid = rein["id"]
     
     st.sidebar.markdown(f"**📌 質押再投入 #{j+1}**")
@@ -279,7 +303,6 @@ def fetch_live_market_data_and_dividends(ticker):
         except:
             pass
 
-    # 計算歷史平均殖利率
     hist_yield = 0.0
     try:
         tk_obj = yf.Ticker(ticker)
@@ -291,7 +314,7 @@ def fetch_live_market_data_and_dividends(ticker):
             if current_close > 0:
                 hist_yield = float(total_annual_div / current_close)
     except:
-        hist_yield = 0.035 # 預設保底
+        hist_yield = 0.035
         
     return data_dict, hist_yield
 
@@ -322,10 +345,10 @@ def resolve_ticker_info(raw_input):
 
 all_tickers_to_fetch = set()
 for a in st.session_state.owned_assets:
-    if a["ticker"].strip():
+    if a.get("ticker", "").strip():
         all_tickers_to_fetch.add(a["ticker"].strip().upper())
 for r in st.session_state.reinvest_assets:
-    if r["ticker"].strip():
+    if r.get("ticker", "").strip():
         all_tickers_to_fetch.add(r["ticker"].strip().upper())
 
 price_cache = {}
@@ -360,16 +383,16 @@ expected_div_base = 0.0
 effective_exposure_base = 0.0
 
 for a in st.session_state.owned_assets:
-    t_key = a["ticker"].strip().upper()
+    t_key = a.get("ticker", "").strip().upper()
     if not t_key:
         continue
     p = price_cache.get(t_key, 50.0)
     beta = 2.0 if "2" in t_key or "L" in t_key else 1.0
-    val = a["shares"] * p
+    val = a.get("shares", 0.0) * p
     base_val_total += val
     
-    # 決定殖利率：若使用者手動覆蓋則用覆蓋值，否則用自動抓取的歷史殖利率
-    dy = a["div_yield_override"] if a["div_yield_override"] >= 0 else yield_cache.get(t_key, 0.035)
+    override_dy = a.get("div_yield_override", -1.0)
+    dy = override_dy if override_dy >= 0 else yield_cache.get(t_key, 0.035)
     expected_div_base += val * dy
     effective_exposure_base += val * beta
 
@@ -378,15 +401,16 @@ expected_div_rein = 0.0
 effective_exposure_rein = 0.0
 
 for r in st.session_state.reinvest_assets:
-    t_key = r["ticker"].strip().upper()
+    t_key = r.get("ticker", "").strip().upper()
     if not t_key:
         continue
     p = price_cache.get(t_key, 50.0)
     beta = 2.0 if "2" in t_key or "L" in t_key else 1.0
-    amt = r["amount"]
+    amt = r.get("amount", 0.0)
     reinvest_val_total += amt
     
-    dy = r["div_yield_override"] if r["div_yield_override"] >= 0 else yield_cache.get(t_key, 0.04)
+    override_dy = r.get("div_yield_override", -1.0)
+    dy = override_dy if override_dy >= 0 else yield_cache.get(t_key, 0.04)
     expected_div_rein += amt * dy
     effective_exposure_rein += amt * beta
 
@@ -407,7 +431,6 @@ net_equity = total_collateral - loan_amount
 exposure_vs_equity = max((total_exposure / net_equity) * 100, 150.0) if net_equity > 0 else 150.0
 
 # ==================== 5. 動態智慧重算模型：索提諾比率與蒙地卡羅 ====================
-# 依據使用者輸入的資產標的與數量，動態計算資產組合加權報酬與波動率
 portfolio_beta_avg = (effective_exposure_base + effective_exposure_rein) / total_collateral if total_collateral > 0 else 1.2
 ret_1, ret_2 = 0.12 * portfolio_beta_avg, 0.06
 vol_1, vol_2 = 0.22 * portfolio_beta_avg, 0.14
@@ -772,7 +795,7 @@ def get_dynamic_institutional_consensus(current_tsmc_price):
 institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
 tsmc_resonance_weight = 0.92
 institutional_consensus["推估大盤共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
-institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p) * 100
+institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] / tsmc_p) - 1) * 100
 
 st.dataframe(
     institutional_consensus.style.format({"預估EPS": "NT$ {:.1f}", "合理PE": "{:.1f}x", "台積電目標價 (NT$)": "NT$ {:,.1f}", "推估大盤共振點位": "{:,.0f} 點", "潛在漲幅": "{:+.1f}%"}),
