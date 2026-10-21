@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 import datetime
 import os
 
-# ==================== 1. 頁面配置與黑卡級美學 CSS ====================
+# ==================== 1. 頁面配置與華爾街黑卡級美學 CSS ====================
 st.set_page_config(
     page_title="Apex Global Institutional Terminal | 家族辦公室量化戰情室",
     page_icon="🏛️",
@@ -62,7 +62,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.9rem; font-weight:600;">
-        💎 富人槓桿與現金流自償性戰略引擎 • 自由調控 LTV (預警 25%) 與質押資金投入比 • AI 動態偏離預警
+        💎 華爾街家族辦公室富人槓桿與現金流戰略引擎 • 隨年紀收斂至最低 150% 曝險 • AI 動態智慧偏離預警
     </p>
 </div>
 """,
@@ -75,6 +75,7 @@ st.sidebar.markdown("<h3 style='color:#F3F4F6;'>👤 投資人戰略風格與槓
 enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (隨年紀收斂至最低 150% 曝險)", value=True)
 user_age = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=25, step=1)
 
+# 隨年紀降曝險至最低 150% (下限收斂至 150% 曝險)
 target_lifecycle_exposure = max(280.0 - (user_age - 25) * 3.5, 150.0)
 
 if enable_lifecycle_exposure:
@@ -87,7 +88,7 @@ st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 資本結構與自由質�
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
 
-# 質押成數 LTV 自由調整，並以 25% 為基準提示
+# 質押成數 LTV 自由調整，建議最多 25%
 ltv_ratio = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
 
 auto_loan_amount = int(total_equity_cost * ltv_ratio)
@@ -100,7 +101,7 @@ else:
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
-# 質押資金再投入比例自由調整 (不再強制固定 95%)
+# 質押資金再投入比例自由調整 (0% ~ 100%)
 pledged_invest_ratio = st.sidebar.slider("4. 質押借出資金再投入比例 (%)", min_value=0.0, max_value=100.0, value=95.0, step=1.0) / 100.0
 st.sidebar.info(f"💡 質押資金投入部位：**{pledged_invest_ratio*100:.1f}%** | 留存現金流部位：**{(1-pledged_invest_ratio)*100:.1f}%**")
 
@@ -282,20 +283,17 @@ st.markdown(f"""
 def generate_ai_dynamic_alerts(ltv, exp_eq, t_exp, w_dev, net_c, is_lifecycle, age):
     alerts = []
     
-    # 1. LTV 超過 25% 提醒
     if ltv > 0.25:
-        alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過您設定的最多 25% 穩健防禦上限。雖然可以自由調整，但請務必留意波動風險！")
+        alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過您設定的最多 25% 穩健防禦上限。請留意波動風險！")
     else:
         alerts.append(f"🟢 **[質押 LTV 合規]** 目前 LTV 質押成數為 {ltv*100:.1f}%，完美控制在最多 25% 的黃金安全防線內。")
         
-    # 2. 生命週期降曝險檢核
     if is_lifecycle:
         if exp_eq > t_exp + 15:
             alerts.append(f"🚨 **[生命週期降曝險警報]** 目前淨權益曝險率 ({exp_eq:.1f}%) 高於 {age} 歲設定的目標 ({t_exp:.1f}%)。")
         else:
             alerts.append(f"🟢 **[生命週期合規]** 曝險率 ({exp_eq:.1f}%) 符合 {age} 歲階段防禦規劃。")
             
-    # 3. 權重與現金流檢核
     if abs(w_dev) > 0.10:
         direction = "攻擊標的過重" if w_dev > 0 else "防禦標的過重"
         alerts.append(f"⚖️ **[資產配置權重偏離警告]** 實際攻擊權重為 {current_weight_1*100:.1f}%，偏離目標超過 10% ({direction})，建議執行再平衡。")
