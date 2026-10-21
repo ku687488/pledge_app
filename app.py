@@ -77,7 +77,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 標的無限動態擴充 • 一鍵恢復平均殖利率 • 24小時量化自償試算
+        💎 富人思維槓桿戰情室 • 初始完全空白自定義 • 智慧動態量化試算
     </p>
 </div>
 """,
@@ -95,32 +95,14 @@ preset_tickers = {
     "00919.TW - 群益台灣精選高息": {"beta": 0.9, "default_div": 0.10}
 }
 
-# 初始化 Session State (支援動態擴充與一鍵重置)
-if 'reset_trigger' not in st.session_state:
-    st.session_state.reset_trigger = 0
+# 初始化 Session State (預設完全空白 / 零部位，由使用者自行新增填入)
+if 'owned_assets' not in st.session_state:
+    st.session_state.owned_assets = []
 
-if 'owned_assets' not in st.session_state or st.session_state.reset_trigger:
-    st.session_state.owned_assets = [
-        {"label": list(preset_tickers.keys())[0], "shares": 45400.0, "div_yield": 0.0}
-    ]
-
-if 'reinvest_assets' not in st.session_state or st.session_state.reset_trigger:
-    st.session_state.reinvest_assets = [
-        {"label": list(preset_tickers.keys())[2], "amount": 0.0, "div_yield": 0.065},
-        {"label": list(preset_tickers.keys())[4], "amount": 1500000.0, "div_yield": 0.07}
-    ]
-
-if st.session_state.reset_trigger:
-    st.session_state.reset_trigger = 0
-
-# ==================== 側邊欄：一鍵重置按鈕 ====================
-st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🛠️ 參數快速控制</h3>", unsafe_allow_html=True)
-if st.sidebar.button("🔄 一鍵恢復市場預設平均年化與殖利率"):
-    st.session_state.reset_trigger = 1
-    st.rerun()
+if 'reinvest_assets' not in st.session_state:
+    st.session_state.reinvest_assets = []
 
 # ==================== 側邊欄：生命週期、資本結構與攻擊曝險 ====================
-st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與攻擊曝險設定</h3>", unsafe_allow_html=True)
 
 enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (強制保留 ≥ 150% 攻擊下限)", value=True)
@@ -135,25 +117,25 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>⚙️ 資本結構與富人質押設定</h3>", unsafe_allow_html=True)
 
-total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
-ltv_ratio = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
+total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=0, step=100000)
+ltv_ratio = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=0.0, max_value=60.0, value=0.0, step=1.0) / 100.0
 
 auto_loan_amount = int(total_equity_cost * ltv_ratio)
 manual_loan_override = st.sidebar.checkbox("手動自訂質押借款金額 (永久不還本金)", value=False)
 if manual_loan_override:
-    loan_amount = st.sidebar.number_input("自訂質押借款金額 (NT$)", value=auto_loan_amount, step=10000)
+    loan_amount = st.sidebar.number_input("自訂質押借款金額 (NT$)", value=0, step=10000)
 else:
     loan_amount = auto_loan_amount
     st.sidebar.info(f"💡 自動連動質押借款額：**NT$ {loan_amount:,.0f}** (富人思維：只付利息不還本金)")
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
-# ==================== 自有資金持倉：無限動態擴充管理器 ====================
+# ==================== 自有資金持倉：動態擴充管理器 (初始空白) ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (可無限增加標的)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (請自行新增標的)</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增自有持倉標的"):
-    st.session_state.owned_assets.append({"label": list(preset_tickers.keys())[2], "shares": 1000.0, "div_yield": 0.065})
+    st.session_state.owned_assets.append({"label": list(preset_tickers.keys())[0], "shares": 0.0, "div_yield": 0.0})
     st.rerun()
 
 for i, asset in enumerate(st.session_state.owned_assets):
@@ -162,17 +144,16 @@ for i, asset in enumerate(st.session_state.owned_assets):
     asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{i}")
     def_div = preset_tickers[asset["label"]]["default_div"] * 100
     asset["div_yield"] = st.sidebar.slider(f"預期年化殖利率 #{i+1} (%)", min_value=0.0, max_value=12.0, value=float(asset["div_yield"] * 100 if asset["div_yield"] > 0 else def_div), step=0.1, key=f"own_div_{i}") / 100.0
-    if len(st.session_state.owned_assets) > 1 and st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{i}"):
+    if st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{i}"):
         st.session_state.owned_assets.pop(i)
         st.rerun()
 
-# ==================== 質押額外資金：無限動態擴充管理器 ====================
+# ==================== 質押額外資金：動態擴充管理器 (初始空白) ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金再投入部位 (可無限增加標的/生活費)</h4>", unsafe_allow_html=True)
-st.sidebar.info("💡 提示：若部分或全部借款作為生活費或保留現金，只需將對應標的金額設為 0 或不新增即可！")
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金再投入部位 (可自由增加或留空作生活費)</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增質押再投入標的"):
-    st.session_state.reinvest_assets.append({"label": list(preset_tickers.keys())[3], "amount": 0.0, "div_yield": 0.03})
+    st.session_state.reinvest_assets.append({"label": list(preset_tickers.keys())[2], "amount": 0.0, "div_yield": 0.065})
     st.rerun()
 
 for j, rein in enumerate(st.session_state.reinvest_assets):
@@ -181,7 +162,7 @@ for j, rein in enumerate(st.session_state.reinvest_assets):
     rein["amount"] = st.sidebar.number_input(f"投入金額 #{j+1} (NT$)", value=float(rein["amount"]), step=50000.0, key=f"rein_amt_{j}")
     def_div_rein = preset_tickers[rein["label"]]["default_div"] * 100
     rein["div_yield"] = st.sidebar.slider(f"再投入預期殖利率 #{j+1} (%)", min_value=0.0, max_value=12.0, value=float(rein["div_yield"] * 100 if rein["div_yield"] > 0 else def_div_rein), step=0.1, key=f"rein_div_{j}") / 100.0
-    if len(st.session_state.reinvest_assets) > 1 and st.sidebar.button(f"🗑️ 刪除再投入 #{j+1}", key=f"del_rein_{j}"):
+    if st.sidebar.button(f"🗑️ 刪除再投入 #{j+1}", key=f"del_rein_{j}"):
         st.session_state.reinvest_assets.pop(j)
         st.rerun()
 
@@ -192,7 +173,7 @@ st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>💳 外部不�
 enable_mortgage = st.sidebar.checkbox("啟用房貸現金流試算", value=False)
 mortgage_annual_outflow = 0.0
 if enable_mortgage:
-    m_balance = st.sidebar.number_input("房貸剩餘本金 (NT$)", value=8000000, step=100000)
+    m_balance = st.sidebar.number_input("房貸剩餘本金 (NT$)", value=0, step=100000)
     m_rate = st.sidebar.slider("房貸年利率 (%)", min_value=1.5, max_value=5.0, value=2.2, step=0.1) / 100.0
     m_term = st.sidebar.slider("房貸總年限 (年)", min_value=10, max_value=40, value=30, step=5)
     m_grace = st.sidebar.checkbox("房貸享有寬限期 (只付利息)", value=True)
@@ -212,7 +193,7 @@ if enable_mortgage:
 enable_credit_loan = st.sidebar.checkbox("啟用信貸現金流試算", value=False)
 credit_annual_outflow = 0.0
 if enable_credit_loan:
-    c_balance = st.sidebar.number_input("信貸剩餘本金 (NT$)", value=1500000, step=50000)
+    c_balance = st.sidebar.number_input("信貸剩餘本金 (NT$)", value=0, step=50000)
     c_rate = st.sidebar.slider("信貸年利率 (%)", min_value=2.0, max_value=8.0, value=2.8, step=0.1) / 100.0
     c_term = st.sidebar.slider("信貸總年限 (年)", min_value=3, max_value=7, value=7, step=1)
     
@@ -231,9 +212,9 @@ if 'custom_debts' not in st.session_state:
 if st.sidebar.button("➕ 新增自訂負債項目"):
     st.session_state.custom_debts.append({
         "name": f"自訂負債 {len(st.session_state.custom_debts)+1}",
-        "balance": 500000.0,
+        "balance": 0.0,
         "rate": 3.0,
-        "outflow": 50000.0
+        "outflow": 0.0
     })
 
 custom_debts_total_outflow = 0.0
@@ -280,7 +261,6 @@ def fetch_live_market_data(ticker):
             pass
     return data_dict
 
-# 收集所有需要抓價的標的代號
 all_tickers_to_fetch = set()
 for a in st.session_state.owned_assets:
     t_code = a["label"].split(" - ")[0].strip()
@@ -392,7 +372,7 @@ optimal_sortino_weight_1 = weights_1_arr[max_sortino_idx]
 num_sim_days = 252
 num_paths = 250
 dt = 1.0 / 252.0
-base_portfolio_val = total_collateral
+base_portfolio_val = max(total_collateral, 100000.0)
 
 regimes_drift = [0.22, -0.15, 0.05]
 regimes_vol = [0.18, 0.32, 0.12]
@@ -418,7 +398,7 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (動態擴充選股模式)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (空白自定義模式)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
     • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 攻擊下限) | 每月淨現金流：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f}/月</b>
 </div>
@@ -429,7 +409,7 @@ def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[多標的動態配置合規]** 即時動態維持率為 **{margin_r:.1f}%**，防禦緩衝極佳！")
+        alerts.append(f"🟢 **[自定義配置狀態正常]** 即時動態維持率為 **{margin_r:.1f}%**，請隨時自訂您的部位與槓桿！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於總配息收益。")
@@ -467,7 +447,7 @@ with c2:
     """, unsafe_allow_html=True)
 
 with c3:
-    status_color = "text-green" if margin_ratio > 200 else ("text-gold" if margin_ratio > 160 else "text-red")
+    status_color = "text-green" if margin_ratio > 200 or loan_amount == 0 else ("text-gold" if margin_ratio > 160 else "text-red")
     st.markdown(f"""
     <div class="metric-card">
         <div class="card-title">即時動態質押維持率</div>
@@ -485,7 +465,7 @@ with c4:
     </div>
     """, unsafe_allow_html=True)
 
-progress_val = min(max((margin_ratio - 130) / (300 - 130), 0.0), 1.0)
+progress_val = min(max((margin_ratio - 130) / (300 - 130), 0.0), 1.0) if loan_amount > 0 else 0.0
 st.markdown("**🛡️ 質押維持率安全緩衝條 (Margin Safety Buffer)**")
 st.progress(progress_val)
 
@@ -742,9 +722,8 @@ with col_s1:
 with col_s2:
     crash_days = st.slider("跌落天數 (模擬路徑耗損)", min_value=1, max_value=10, value=3, step=1)
 
-daily_market_drop_factor = (1 - drop_pct / 100.0) ** (1.0 / crash_days)
-sim_total_collateral = total_collateral * ((1 - drop_pct/100.0) ** 1.5) # 動態保守壓力折減
-sim_margin_ratio = (sim_total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
+sim_total_collateral = total_collateral * ((1 - drop_pct/100.0) ** 1.5) if total_collateral > 0 else 0.0
+sim_margin_ratio = (sim_total_collateral / loan_amount) * 100 if loan_amount > 0 else 0.0
 
 required_collateral_130 = loan_amount * 1.30
 critical_drop_pct = max(((total_collateral - required_collateral_130) / total_collateral) * 100, 0.0) if total_collateral > 0 else 0.0
@@ -752,10 +731,12 @@ critical_drop_pct = max(((total_collateral - required_collateral_130) / total_co
 s1, s2, s3, s4 = st.columns(4)
 s1.metric("模擬大盤累積跌幅", f"-{drop_pct}% ({crash_days}天)")
 s2.metric("崩盤後擔保品總市值", f"NT$ {sim_total_collateral:,.0f}")
-s3.metric("壓力測試後維持率", f"{sim_margin_ratio:.1f}%")
-s4.metric("💥 斷頭 130% 臨界大盤跌幅", f"-{critical_drop_pct:.1f}%")
+s3.metric("壓力測試後維持率", f"{sim_margin_ratio:.1f}%" if loan_amount > 0 else "N/A (無負債)")
+s4.metric("💥 斷頭 130% 臨界大盤跌幅", f"-{critical_drop_pct:.1f}%" if loan_amount > 0 else "N/A (無負債)")
 
-if sim_margin_ratio > 160:
+if loan_amount == 0:
+    st.info("💡 目前未設定質押借款負債，壓力測試維持率與斷頭防線保持安全。")
+elif sim_margin_ratio > 160:
     st.success("🟢 壓力測試通過：大盤重挫時維持率仍高於 160% 安全線。")
 elif sim_margin_ratio > 130:
     st.warning("🟡 維持率警示：維持率逼近平倉線。")
