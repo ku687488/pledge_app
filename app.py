@@ -5,6 +5,7 @@ import yfinance as yf
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
+import uuid
 
 # ==================== 1. 頁面配置與華爾街黑卡級柔和美學 CSS ====================
 st.set_page_config(
@@ -77,19 +78,22 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 全台股上市櫃股票與 ETF 任意代號直接輸入 • 智慧量化試算
+        💎 富人思維槓桿戰情室 • 全台股上市櫃任意代號自由輸入 (含創意、世界等) • 量化動態試算
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# 初始化 Session State
+# 初始化 Session State (導入 id 確保 Key 絕對不重複)
 if 'owned_assets' not in st.session_state:
     st.session_state.owned_assets = []
 
 if 'reinvest_assets' not in st.session_state:
     st.session_state.reinvest_assets = []
+
+if 'custom_debts' not in st.session_state:
+    st.session_state.custom_debts = []
 
 # ==================== 側邊欄：生命週期、資本結構與攻擊曝險 ====================
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與攻擊曝險設定</h3>", unsafe_allow_html=True)
@@ -119,38 +123,46 @@ else:
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
-# ==================== 自有資金持倉：自由輸入任意台股代號 ====================
+# ==================== 自有資金持倉：使用唯一 UUID 避開 KeyError ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細</h4>", unsafe_allow_html=True)
-st.sidebar.info("💡 提示：可直接輸入任意台股代號（例如 00881、00929、2330、00631L 等）")
+st.sidebar.info("💡 提示：可直接輸入任意代號，如 3443 (創意)、5347 (世界)、2330、0050 等")
 
-if st.sidebar.button("➕ 新增自有持倉標"):
-    st.session_state.owned_assets.append({"ticker": "00881", "shares": 0.0, "div_yield": 0.05})
+if st.sidebar.button("➕ 新增自有持倉標的"):
+    st.session_state.owned_assets.append({"id": str(uuid.uuid4()), "ticker": "3443", "shares": 0.0, "div_yield": 0.03})
     st.rerun()
 
 for i, asset in enumerate(st.session_state.owned_assets):
+    if "id" not in asset:
+        asset["id"] = str(uuid.uuid4())
+    uid = asset["id"]
+    
     st.sidebar.markdown(f"**📌 自有持倉 #{i+1}**")
-    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 00881, 2330)", value=asset["ticker"], key=f"own_t_{i}")
-    asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{i}")
-    asset["div_yield"] = st.sidebar.slider(f"預期年化殖利率 #{i+1} (%)", min_value=0.0, max_value=15.0, value=float(asset["div_yield"] * 100), step=0.1, key=f"own_div_{i}") / 100.0
-    if st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{i}"):
+    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 3443, 5347)", value=asset["ticker"], key=f"own_t_{uid}")
+    asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{uid}")
+    asset["div_yield"] = st.sidebar.slider(f"預期年化殖利率 #{i+1} (%)", min_value=0.0, max_value=15.0, value=float(asset["div_yield"] * 100), step=0.1, key=f"own_div_{uid}") / 100.0
+    if st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{uid}"):
         st.session_state.owned_assets.pop(i)
         st.rerun()
 
-# ==================== 質押額外資金：自由輸入任意台股代號 ====================
+# ==================== 質押額外資金：使用唯一 UUID 避開 KeyError ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金再投入部位</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增質押再投入標的"):
-    st.session_state.reinvest_assets.append({"ticker": "0050", "amount": 0.0, "div_yield": 0.03})
+    st.session_state.reinvest_assets.append({"id": str(uuid.uuid4()), "ticker": "5347", "amount": 0.0, "div_yield": 0.04})
     st.rerun()
 
 for j, rein in enumerate(st.session_state.reinvest_assets):
+    if "id" not in rein:
+        rein["id"] = str(uuid.uuid4())
+    ruid = rein["id"]
+    
     st.sidebar.markdown(f"**📌 質押再投入 #{j+1}**")
-    rein["ticker"] = st.sidebar.text_input(f"再投入台股代號 #{j+1} (如 00713, 2317)", value=rein["ticker"], key=f"rein_t_{j}")
-    rein["amount"] = st.sidebar.number_input(f"投入金額 #{j+1} (NT$)", value=float(rein["amount"]), step=50000.0, key=f"rein_amt_{j}")
-    rein["div_yield"] = st.sidebar.slider(f"再投入預期殖利率 #{j+1} (%)", min_value=0.0, max_value=15.0, value=float(rein["div_yield"] * 100), step=0.1, key=f"rein_div_{j}") / 100.0
-    if st.sidebar.button(f"🗑️ 刪除再投入 #{j+1}", key=f"del_rein_{j}"):
+    rein["ticker"] = st.sidebar.text_input(f"再投入台股代號 #{j+1} (如 5347, 00713)", value=rein["ticker"], key=f"rein_t_{ruid}")
+    rein["amount"] = st.sidebar.number_input(f"投入金額 #{j+1} (NT$)", value=float(rein["amount"]), step=50000.0, key=f"rein_amt_{ruid}")
+    rein["div_yield"] = st.sidebar.slider(f"再投入預期殖利率 #{j+1} (%)", min_value=0.0, max_value=15.0, value=float(rein["div_yield"] * 100), step=0.1, key=f"rein_div_{ruid}") / 100.0
+    if st.sidebar.button(f"🗑️ 刪除再投入 #{j+1}", key=f"del_rein_{ruid}"):
         st.session_state.reinvest_assets.pop(j)
         st.rerun()
 
@@ -194,11 +206,9 @@ if enable_credit_loan:
 # 動態自訂負債格子管理器
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>➕ 自訂彈性擴充負債格子</h4>", unsafe_allow_html=True)
-if 'custom_debts' not in st.session_state:
-    st.session_state.custom_debts = []
-
 if st.sidebar.button("➕ 新增自訂負債項目"):
     st.session_state.custom_debts.append({
+        "id": str(uuid.uuid4()),
         "name": f"自訂負債 {len(st.session_state.custom_debts)+1}",
         "balance": 0.0,
         "rate": 3.0,
@@ -207,13 +217,17 @@ if st.sidebar.button("➕ 新增自訂負債項目"):
 
 custom_debts_total_outflow = 0.0
 for i, debt in enumerate(st.session_state.custom_debts):
+    if "id" not in debt:
+        debt["id"] = str(uuid.uuid4())
+    duid = debt["id"]
+    
     st.sidebar.markdown(f"**📌 項目 #{i+1}**")
-    debt["name"] = st.sidebar.text_input(f"負債名稱 #{i+1}", value=debt["name"], key=f"c_name_{i}")
-    debt["balance"] = st.sidebar.number_input(f"剩餘本金 #{i+1} (NT$)", value=debt["balance"], step=50000, key=f"c_bal_{i}")
-    debt["rate"] = st.sidebar.slider(f"年利率 #{i+1} (%)", min_value=1.0, max_value=10.0, value=debt["rate"], step=0.1, key=f"c_rate_{i}")
-    debt["outflow"] = st.sidebar.number_input(f"每年還款總額 #{i+1} (NT$)", value=debt["outflow"], step=10000, key=f"c_out_{i}")
+    debt["name"] = st.sidebar.text_input(f"負債名稱 #{i+1}", value=debt["name"], key=f"c_name_{duid}")
+    debt["balance"] = st.sidebar.number_input(f"剩餘本金 #{i+1} (NT$)", value=debt["balance"], step=50000, key=f"c_bal_{duid}")
+    debt["rate"] = st.sidebar.slider(f"年利率 #{i+1} (%)", min_value=1.0, max_value=10.0, value=debt["rate"], step=0.1, key=f"c_rate_{duid}")
+    debt["outflow"] = st.sidebar.number_input(f"每年還款總額 #{i+1} (NT$)", value=debt["outflow"], step=10000, key=f"c_out_{duid}")
     custom_debts_total_outflow += debt["outflow"]
-    if st.sidebar.button(f"🗑️ 刪除此項 #{i+1}", key=f"del_c_{i}"):
+    if st.sidebar.button(f"🗑️ 刪除此項 #{i+1}", key=f"del_c_{duid}"):
         st.session_state.custom_debts.pop(i)
         st.rerun()
 
@@ -253,7 +267,9 @@ def format_ticker_symbol(raw_input):
     clean_t = raw_input.strip().upper()
     if not clean_t:
         return "0050.TW"
-    if not clean_t.endswith(".TW") and not clean_t.endswith(".TWO") and not clean_t.startswith("^"):
+    if clean_t.startswith("^"):
+        return clean_t
+    if not clean_t.endswith(".TW") and not clean_t.endswith(".TWO"):
         clean_t += ".TW"
     return clean_t
 
@@ -266,6 +282,11 @@ for r in st.session_state.reinvest_assets:
 price_cache = {}
 for t in all_tickers_to_fetch:
     res = fetch_live_market_data(t)
+    if not res and t.endswith(".TW"):
+        t_two = t.replace(".TW", ".TWO")
+        res = fetch_live_market_data(t_two)
+        t = t_two
+        
     def get_latest(d, fb):
         for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
             if key in d and not d[key]["series"].empty:
@@ -299,7 +320,11 @@ effective_exposure_base = 0.0
 
 for a in st.session_state.owned_assets:
     t_code = format_ticker_symbol(a["ticker"])
-    p = price_cache.get(t_code, 60.0)
+    if t_code not in price_cache and t_code.endswith(".TW"):
+        t_code_two = t_code.replace(".TW", ".TWO")
+        if t_code_two in price_cache:
+            t_code = t_code_two
+    p = price_cache.get(t_code, price_cache.get(t_code.replace(".TW", ".TWO"), 60.0))
     beta = 2.0 if "2" in t_code or "L" in t_code else 1.0
     val = a["shares"] * p
     base_val_total += val
@@ -312,7 +337,11 @@ effective_exposure_rein = 0.0
 
 for r in st.session_state.reinvest_assets:
     t_code = format_ticker_symbol(r["ticker"])
-    p = price_cache.get(t_code, 60.0)
+    if t_code not in price_cache and t_code.endswith(".TW"):
+        t_code_two = t_code.replace(".TW", ".TWO")
+        if t_code_two in price_cache:
+            t_code = t_code_two
+    p = price_cache.get(t_code, price_cache.get(t_code.replace(".TW", ".TWO"), 60.0))
     beta = 2.0 if "2" in t_code or "L" in t_code else 1.0
     amt = r["amount"]
     reinvest_val_total += amt
@@ -392,7 +421,7 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (全台股代號自由輸入模式)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (UUID 獨立鍵值防護模式)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
     • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 攻擊下限) | 每月淨現金流：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f}/月</b>
 </div>
@@ -403,7 +432,7 @@ def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[全台股自定義配置狀態正常]** 即時動態維持率為 **{margin_r:.1f}%**，請隨時自訂您的部位與槓桿！")
+        alerts.append(f"🟢 **[配置狀態正常]** 即時動態維持率為 **{margin_r:.1f}%**，請隨時自訂您的部位與槓桿！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於總配息收益。")
