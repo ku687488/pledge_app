@@ -62,9 +62,10 @@ st.markdown(
         background: rgba(18, 24, 36, 0.9); border: 1px solid #2A364F; border-radius: 12px;
         padding: 16px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .explain-card {
-        background: rgba(30, 41, 59, 0.6); border: 1px solid #334155; border-radius: 8px;
-        padding: 14px 16px; margin-bottom: 12px; font-size: 0.9rem; line-height: 1.6;
+    .action-box {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+        border: 1px solid #3B82F6; border-left: 6px solid #3B82F6;
+        border-radius: 10px; padding: 16px; margin-bottom: 12px; font-size: 0.92rem; line-height: 1.6;
     }
     p, span, div, label, .stMarkdown { font-weight: 600 !important; }
     h1, h2, h3, h4, h5, h6 { font-weight: 800 !important; }
@@ -78,7 +79,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 半凱利動態數學模型 • 索提諾與生命週期連續收斂引擎
+        💎 富人思維槓桿戰情室 • 半凱利動態數學模型 • 直覺化無腦下單執行指引
     </p>
 </div>
 """,
@@ -734,7 +735,6 @@ with ef_col1:
     curr_equity = max(net_equity, 100000.0)
     target_exp_val = target_lifecycle_exposure / 100.0
     
-    # 半凱利與曝險分配計算
     opt_atk_percent = min(max((target_exp_val - 1.0) * 100.0, 0.0), 100.0)
     opt_def_percent = 100.0 - opt_atk_percent
     
@@ -742,28 +742,26 @@ with ef_col1:
     opt_def_amt = curr_equity * (opt_def_percent / 100.0)
     
     if st.session_state.enable_life:
-        guidance_action = f"""
-        <b>🎯 【{st.session_state.user_age_val} 歲半凱利生命週期動態模型（目標曝險 {target_lifecycle_exposure:.1f}%）】</b><br><br>
-        <b>👉 實際該怎麼做配置（半凱利動態調整法）：</b><br>
-        • <b>正二攻擊標的 (00631L / Beta=2.0)</b>：實際配置 <b>{opt_atk_percent:.1f}%</b>（約 <b>NT$ {opt_atk_amt:,.0f}</b>）。<br>
-        • <b>防禦高股息標的 (00713 / 0050 / Beta=1.0)</b>：實際配置 <b>{opt_def_percent:.1f}%</b>（約 <b>NT$ {opt_def_amt:,.0f}</b>）。<br>
-        • <b>數學模型說明</b>：半凱利模型自動替您在追求最大化複利成長與控制下行風險間取得黃金平衡。隨著年齡增加，系統會自動遞減正二比例，無痛轉入高股息防禦標的。
+        action_html = f"""
+        <div class="action-box">
+            🎯 <b>方案 A：依據 {st.session_state.user_age_val} 歲半凱利生命週期模型（目標曝險 {target_lifecycle_exposure:.1f}%）</b><br><br>
+            <b>👉 實際下單調倉指令：</b><br>
+            • <b>正二攻擊標的 (00631L)</b>：實際買進配置 <b>{opt_atk_percent:.1f}%</b>（約 <b>NT$ {opt_atk_amt:,.0f}</b>）。<br>
+            • <b>防禦高股息標的 (00713 / 0050)</b>：實際買進配置 <b>{opt_def_percent:.1f}%</b>（約 <b>NT$ {opt_def_amt:,.0f}</b>）。<br>
+            • <b>執行邏輯</b>：半凱利模型自動在長線複利與抗震間取得平衡。隨著年齡增加，系統會自動遞減正二比例，無痛轉入防禦標的。
+        </div>
         """
     else:
-        guidance_action = f"""
-        <b>🔓 【自由曝險半凱利參考模式（黃金綠星點最佳配置）】</b><br><br>
-        <b>👉 實際該怎麼做配置：</b><br>
-        • <b>正二攻擊標的 (00631L)</b>：建議配置 <b>{optimal_sortino_weight_1 * 100:.1f}%</b>（約 <b>NT$ {curr_equity * optimal_sortino_weight_1:,.0f}</b>）。<br>
-        • <b>防禦高股息標的 (00713)</b>：建議配置 <b>{(1 - optimal_sortino_weight_1) * 100:.1f}%</b>（約 <b>NT$ {curr_equity * (1 - optimal_sortino_weight_1):,.0f}</b>）。
+        action_html = f"""
+        <div class="action-box">
+            🔓 <b>方案 B：依據自由曝險「★ 黃金綠星點」最佳化配置</b><br><br>
+            <b>👉 實際下單調倉指令：</b><br>
+            • <b>正二攻擊標的 (00631L)</b>：實際買進配置 <b>{optimal_sortino_weight_1 * 100:.1f}%</b>（約 <b>NT$ {curr_equity * optimal_sortino_weight_1:,.0f}</b>）。<br>
+            • <b>防禦高股息標的 (00713)</b>：實際買進配置 <b>{(1 - optimal_sortino_weight_1) * 100:.1f}%</b>（約 <b>NT$ {curr_equity * (1 - optimal_sortino_weight_1):,.0f}</b>）。
+        </div>
         """
 
-    st.markdown(f"""
-    <div class="explain-card">
-        {guidance_action}<br><br>
-        <b>💡 索提諾圖表解讀：</b><br>
-        • <b>★ 黃金綠星點</b>：量化演算出的最高 CP 值最佳組合（<b>{optimal_sortino_weight_1 * 100:.1f}% 00631L + {(1-optimal_sortino_weight_1) * 100:.1f}% 00713</b>）。
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(action_html, unsafe_allow_html=True)
     
     fig_ef = go.Figure()
     fig_ef.add_trace(go.Scatter(
