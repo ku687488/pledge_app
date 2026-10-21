@@ -60,7 +60,11 @@ st.markdown(
     }
     .chart-container-box {
         background: rgba(18, 24, 36, 0.9); border: 1px solid #2A364F; border-radius: 12px;
-        padding: 14px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        padding: 16px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .explain-card {
+        background: rgba(30, 41, 59, 0.6); border: 1px solid #334155; border-radius: 8px;
+        padding: 12px 16px; margin-bottom: 12px; font-size: 0.88rem; line-height: 1.5;
     }
     p, span, div, label, .stMarkdown { font-weight: 600 !important; }
     h1, h2, h3, h4, h5, h6 { font-weight: 800 !important; }
@@ -286,14 +290,18 @@ port_vols = np.sqrt(weights_1_arr**2 * vol_1**2 + (1 - weights_1_arr)**2 * vol_2
 risk_free_rate = 0.015
 
 sortino_ratios = []
+downside_vols = []
 for r, v in zip(port_returns, port_vols):
     sim_returns = np.random.normal(r / 252, v / np.sqrt(252), 252)
     negative_diffs = np.minimum(0, sim_returns - (risk_free_rate / 252))
-    downside_vol = np.sqrt(np.mean(negative_diffs ** 2)) * np.sqrt(252)
-    downside_vol = max(downside_vol, 0.001)
-    sortino = (r - risk_free_rate) / downside_vol
+    d_vol = np.sqrt(np.mean(negative_diffs ** 2)) * np.sqrt(252)
+    d_vol = max(d_vol, 0.001)
+    downside_vols.append(d_vol)
+    sortino = (r - risk_free_rate) / d_vol
     sortino_ratios.append(sortino)
+
 sortino_ratios = np.array(sortino_ratios)
+downside_vols = np.array(downside_vols)
 
 max_sortino_idx = np.argmax(sortino_ratios)
 optimal_sortino_weight_1 = weights_1_arr[max_sortino_idx]
@@ -482,65 +490,107 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 8. 華爾街量化模型圖表：索提諾高效能前緣與森林法則蒙地卡羅模擬 ====================
-st.markdown("### 📈 華爾街計量模型圖表：索提諾優化與森林法則蒙地卡羅模擬")
-st.markdown("""
-💡 **【計量模型清晰解析】**
-* **左圖（索提諾高效能前緣）**：採用索提諾比率（Sortino Ratio），**拒絕懲罰上漲暴衝，只懲罰下行風險**。★星號標示為模型推薦的黃金資產配置比重。
-* **右圖（森林法則隨機蒙地卡羅模擬）**：模擬決策樹狀態機（牛市、熊市、盤整），透過 252 個交易日隨機漫步，直觀展現資產價值的 **95% 樂觀區間、50% 中位數軌跡與 5% 壓力下緣**。
-""")
+# ==================== 8. 【重點優化】索提諾比率與蒙地卡羅超級清晰圖表 ====================
+st.markdown("### 📈 華爾街量化核心：極致清晰圖表與大白話學理解析")
 
 ef_col1, ef_col2 = st.columns(2)
 
 with ef_col1:
-    st.markdown("##### 🌐 索提諾比率優化前緣圖")
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📊 1. 索提諾高效能前緣 (僅懲罰下行風險)")
+    
+    st.markdown("""
+    <div class="explain-card">
+        <b>💡 一眼看懂索提諾圖表：</b><br>
+        • <b>橫軸（下行波動率）</b>：代表<b>只有下跌崩盤時</b>才算作風險。<br>
+        • <b>縱軸（預估回報）</b>：代表投資組合的年化總報酬。<br>
+        • <b>★ 黃金綠星點</b>：<b>最優配置 ({:.1f}% 攻擊標的)</b>！在完全不限制「上漲暴衝」的前提下，擁有最高性價比。
+    </div>
+    """.format(optimal_sortino_weight_1 * 100), unsafe_allow_html=True)
+    
     fig_ef = go.Figure()
+    
+    # 所有模擬氣泡
     fig_ef.add_trace(go.Scatter(
-        x=port_vols * 100, y=port_returns * 100, mode='markers',
-        marker=dict(size=6, color=sortino_ratios, colorscale='Plasma', showscale=True, colorbar=dict(title="索提諾比率")),
-        name="模擬組合"
+        x=downside_vols * 100, y=port_returns * 100, mode='markers',
+        marker=dict(
+            size=7, color=sortino_ratios, colorscale='Viridis', showscale=True,
+            colorbar=dict(title="索提諾<br>比率", tickfont=dict(color='#F3F4F6'))
+        ),
+        name="組合軌跡",
+        hovertemplate="下行風險: %{x:.2f}%<br>預期年化: %{y:.2f}%<extra></extra>"
     ))
+    
+    # 最佳星號標註
     fig_ef.add_trace(go.Scatter(
-        x=[port_vols[max_sortino_idx] * 100], y=[port_returns[max_sortino_idx] * 100], mode='markers+text',
-        marker=dict(size=14, color='#10B981', symbol='star'),
-        text=["★ 最大索提諾組合"], textposition="top center",
-        name="最佳配置"
+        x=[downside_vols[max_sortino_idx] * 100], y=[port_returns[max_sortino_idx] * 100], mode='markers+text',
+        marker=dict(size=18, color='#10B981', symbol='star', line=dict(width=2, color='#FFFFFF')),
+        text=["★ 最佳索提諾組合"], textposition="top center",
+        textfont=dict(color='#10B981', size=13, family="sans-serif"),
+        name="最佳黃金配置"
     ))
+    
     fig_ef.update_layout(
         template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=10, b=10), height=280,
-        xaxis=dict(title='預估年化波動率 (%)', gridcolor='#232D3F'),
-        yaxis=dict(title='預估年化報酬率 (%)', gridcolor='#232D3F'),
+        margin=dict(l=10, r=10, t=10, b=10), height=300,
+        xaxis=dict(title='下行跌幅風險 (Downside Risk %)', gridcolor='#232D3F', titlefont=dict(size=12, color='#9CA3AF')),
+        yaxis=dict(title='預估年化總報酬 (%)', gridcolor='#232D3F', titlefont=dict(size=12, color='#9CA3AF')),
         showlegend=False,
         font=dict(family="sans-serif", size=12, color="#F3F4F6")
     )
     st.plotly_chart(fig_ef, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with ef_col2:
-    st.markdown("##### 🌲 森林法則蒙地卡羅模擬 (未來 252 交易日)")
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 🌲 2. 森林法則蒙地卡羅隨機軌跡模擬 (未來 1 年)")
+    
+    st.markdown("""
+    <div class="explain-card">
+        <b>💡 一眼看懂蒙地卡羅機率：</b><br>
+        • <b>🟢 95% 樂觀上限</b>：極端牛市行情下，資產可達 <b>NT$ {:,.0f}</b>。<br>
+        • <b>🟡 50% 中位數</b>：統計上最可能的資產價值為 <b>NT$ {:,.0f}</b>。<br>
+        • <b>🔴 5% 壓力下緣</b>：極端熊市崩盤時的資產防禦底線為 <b>NT$ {:,.0f}</b>。
+    </div>
+    """.format(path_upper_95[-1], path_median[-1], path_lower_5[-1]), unsafe_allow_html=True)
+    
     fig_mc = go.Figure()
     days_arr = np.arange(num_sim_days)
     
+    # 填充 5% 到 95% 之間的信心區間漸層帶
+    fig_mc.add_trace(go.Scatter(
+        x=days_arr, y=path_upper_95, mode='lines', line=dict(width=0),
+        showlegend=False, hoverinfo='skip'
+    ))
+    fig_mc.add_trace(go.Scatter(
+        x=days_arr, y=path_lower_5, mode='lines', line=dict(width=0),
+        fill='tonexty', fillcolor='rgba(59, 130, 246, 0.12)',
+        showlegend=False, hoverinfo='skip'
+    ))
+    
+    # 畫出 5 條典型隨機路徑
     for p in range(5):
         fig_mc.add_trace(go.Scatter(
             x=days_arr, y=sim_paths[:, p], mode='lines',
-            line=dict(width=1, color='rgba(59, 130, 246, 0.25)'),
-            showlegend=False
+            line=dict(width=1, color='rgba(255, 255, 255, 0.25)'),
+            showlegend=False, hoverinfo='skip'
         ))
         
-    fig_mc.add_trace(go.Scatter(x=days_arr, y=path_upper_95, mode='lines', line=dict(width=1.5, color='#10B981', dash='dot'), name="95% 樂觀上限"))
-    fig_mc.add_trace(go.Scatter(x=days_arr, y=path_median, mode='lines', line=dict(width=2.5, color='#F59E0B'), name="50% 中位數預期"))
-    fig_mc.add_trace(go.Scatter(x=days_arr, y=path_lower_5, mode='lines', line=dict(width=1.5, color='#EF4444', dash='dot'), name="5% 壓力下緣"))
+    # 主線
+    fig_mc.add_trace(go.Scatter(x=days_arr, y=path_upper_95, mode='lines', line=dict(width=2, color='#10B981', dash='dot'), name="95% 樂觀上限"))
+    fig_mc.add_trace(go.Scatter(x=days_arr, y=path_median, mode='lines', line=dict(width=3, color='#F59E0B'), name="50% 中位數軌跡"))
+    fig_mc.add_trace(go.Scatter(x=days_arr, y=path_lower_5, mode='lines', line=dict(width=2, color='#EF4444', dash='dot'), name="5% 壓力下緣"))
     
     fig_mc.update_layout(
         template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
-        margin=dict(l=10, r=10, t=10, b=10), height=280,
-        xaxis=dict(title='交易日 (天)', gridcolor='#232D3F'),
-        yaxis=dict(title='資產市值 (NT$)', gridcolor='#232D3F'),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=10, r=10, t=10, b=10), height=300,
+        xaxis=dict(title='未來交易日 (天)', gridcolor='#232D3F', titlefont=dict(size=12, color='#9CA3AF')),
+        yaxis=dict(title='擔保品總市值 (NT$)', gridcolor='#232D3F', titlefont=dict(size=12, color='#9CA3AF')),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=10)),
         font=dict(family="sans-serif", size=12, color="#F3F4F6")
     )
     st.plotly_chart(fig_mc, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
