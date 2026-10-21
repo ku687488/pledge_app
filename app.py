@@ -78,19 +78,19 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 多筆房貸負債矩陣 • 生命週期 150% 曝險鎖定 • 智慧歷史殖利率引擎
+        💎 富人思維槓桿戰情室 • 最佳資產配置明確指引 • 多筆房貸矩陣與智慧殖利率
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. Session State 客戶端狀態持久化初始化 ====================
+# ==================== 2. Session State 客戶端狀態持久化初始化 (杜絕 KeyError) ====================
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.owned_assets = []
     st.session_state.reinvest_assets = []
-    st.session_state.mortgages = []  # 多筆房貸模組
+    st.session_state.mortgages = []
     st.session_state.custom_debts = []
     st.session_state.total_equity_cost = 0.0
     st.session_state.ltv_ratio_val = 0.0
@@ -99,6 +99,15 @@ if 'initialized' not in st.session_state:
     st.session_state.user_age_val = 25
     st.session_state.enable_life = True
     st.session_state.manual_override = False
+
+if 'mortgages' not in st.session_state:
+    st.session_state.mortgages = []
+if 'owned_assets' not in st.session_state:
+    st.session_state.owned_assets = []
+if 'reinvest_assets' not in st.session_state:
+    st.session_state.reinvest_assets = []
+if 'custom_debts' not in st.session_state:
+    st.session_state.custom_debts = []
 
 # 側邊欄：一鍵重置
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🛠️ 系統控制與重置</h3>", unsafe_allow_html=True)
@@ -397,7 +406,6 @@ for m_idx, m_item in enumerate(st.session_state.mortgages):
         st.session_state.mortgages.pop(m_idx)
         st.rerun()
 
-# 信貸與自訂負債
 enable_credit_loan = st.sidebar.checkbox("啟用信貸現金流試算", value=False)
 credit_annual_outflow = 0.0
 if enable_credit_loan:
@@ -574,9 +582,9 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (多筆房貸與智慧殖利率模式)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (最佳資產配置明確指引)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
-    • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 攻擊下限) | 每月淨現金流：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f}/月</b>
+    • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (目標收斂至 {target_lifecycle_exposure:.1f}% | 攻擊下限 ≥150%)
 </div>
 """, unsafe_allow_html=True)
 
@@ -585,12 +593,12 @@ def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，多筆房貸負債與索提諾模型已全數自動重算完成！")
+        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，最佳配置與索提諾模型已全數自動重算！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息與房貸支出大於總配息收益。")
     else:
-        alerts.append(f"🟢 **[現金流自償達成]** 達成 Positive Carry (+NT$ {net_c:,.0f}/年)，所有負債利息與房貸完全由總配息覆蓋！")
+        alerts.append(f"🟢 **[現金流自償達成]** 達成 Positive Carry (+NT$ {net_c:,.0f}/年)，所有負債利息與多筆房貸完全由總配息覆蓋！")
         
     return alerts
 
@@ -637,7 +645,7 @@ with c4:
     <div class="metric-card">
         <div class="card-title">自有資金淨權益曝險</div>
         <div class="card-value text-blue">{exposure_vs_equity:.1f}%</div>
-        <div class="card-subtitle text-green">⚡ 強力攻擊下限 ≥ 150%</div>
+        <div class="card-subtitle text-green">⚡ 目標收斂: {target_lifecycle_exposure:.1f}%</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -695,22 +703,29 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 9. 【極致清晰圖表與大白話解析】索提諾比率與蒙地卡羅模擬 ====================
-st.markdown("### 📈 華爾街量化核心：極致清晰圖表與大白話學理解析 (動態試算)")
+# ==================== 9. 【極致清晰圖表與明確資產配置建議】索提諾比率與生命週期權重指引 ====================
+st.markdown("### 📈 華爾街量化核心：最佳資產配置明確指引與索提諾解析")
 
 ef_col1, ef_col2 = st.columns(2)
 
 with ef_col1:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📊 1. 索提諾高效能前緣 (僅懲罰下行風險)")
+    st.markdown("##### 📊 1. 索提諾高效能前緣與明確資產配置建議")
     
+    # 根據生命週期模型給出最明確的配置建議文字
+    if st.session_state.enable_life:
+        rec_attack_pct = min(max((target_lifecycle_exposure - 100) / 100.0 * 60, 20.0), 90.0)
+        rec_defend_pct = 100.0 - rec_attack_pct
+        guidance_text = f"🎯 <b>【生命週期明確配置建議 ({st.session_state.user_age_val} 歲)】</b>：<br>• 目標淨權益曝險率應收斂至 <b>{target_lifecycle_exposure:.1f}%</b>。<br>• <b>最佳配置方案</b>：建議將 <b>{rec_attack_pct:.1f}%</b> 資金配置於高攻擊性正二標的（如 00631L），其餘 <b>{rec_defend_pct:.1f}%</b> 配置於高股息防禦標的（如 00713、0050）。"
+    else:
+        guidance_text = "🔓 <b>【自由曝險模式配置建議】</b>：已關閉生命週期降曝險。建議參考下方 ★ 黃金綠星點，配置約 <b>70% 攻擊標的</b> 與 <b>30% 防禦標的</b> 以維持最佳夏普與索提諾動能。"
+
     st.markdown(f"""
     <div class="explain-card">
-        <b>💡 一眼看懂索提諾圖表與生命週期權重微調：</b><br>
-        • <b>橫軸（下行跌幅風險）</b>：代表<b>只有下跌崩盤時</b>才算作風險。<br>
-        • <b>縱軸（預估年化總報酬）</b>：代表攻擊與防禦配置的預期回報。<br>
-        • <b>★ 黃金綠星點</b>：<b>最優 CP 值配置 ({optimal_sortino_weight_1 * 100:.1f}% 攻擊標的)</b>！<br>
-        • <b>🎯 生命週期權重調整指引</b>：當您年齡增長時，請參考星點提示，適度調降正二標的配比，增加原型大盤 ETF，使總權益曝險率符合您 {st.session_state.user_age_val} 歲對應的 <b>{target_lifecycle_exposure:.1f}%</b> 目標。
+        {guidance_text}<br><br>
+        <b>💡 索提諾圖表解讀：</b><br>
+        • <b>★ 黃金綠星點</b>：數學計算出的最佳 CP 值組合（權重 <b>{optimal_sortino_weight_1 * 100:.1f}%</b>）。<br>
+        • 無論是否開啟生命週期，星點皆可作為您隨時檢視投組效率的完美錨點！
     </div>
     """, unsafe_allow_html=True)
     
