@@ -62,7 +62,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.9rem; font-weight:600;">
-        💎 華爾街家族辦公室富人槓桿與現金流戰略引擎 • 隨年紀收斂至最低 150% 曝險 • AI 動態智慧偏離預警
+        💎 華爾街家族辦公室富人槓桿與現金流戰略引擎 • 嚴格以開盤價為基準之智慧行情方格 • AI 動態偏離預警
     </p>
 </div>
 """,
@@ -75,7 +75,6 @@ st.sidebar.markdown("<h3 style='color:#F3F4F6;'>👤 投資人戰略風格與槓
 enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (隨年紀收斂至最低 150% 曝險)", value=True)
 user_age = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=25, step=1)
 
-# 隨年紀降曝險至最低 150% (下限收斂至 150% 曝險)
 target_lifecycle_exposure = max(280.0 - (user_age - 25) * 3.5, 150.0)
 
 if enable_lifecycle_exposure:
@@ -87,8 +86,6 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 資本結構與自由質押設定</h3>", unsafe_allow_html=True)
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
-
-# 質押成數 LTV 自由調整，建議最多 25%
 ltv_ratio = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
 
 auto_loan_amount = int(total_equity_cost * ltv_ratio)
@@ -101,7 +98,6 @@ else:
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
-# 質押資金再投入比例自由調整 (0% ~ 100%)
 pledged_invest_ratio = st.sidebar.slider("4. 質押借出資金再投入比例 (%)", min_value=0.0, max_value=100.0, value=95.0, step=1.0) / 100.0
 st.sidebar.info(f"💡 質押資金投入部位：**{pledged_invest_ratio*100:.1f}%** | 留存現金流部位：**{(1-pledged_invest_ratio)*100:.1f}%**")
 
@@ -196,7 +192,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#F3F4F6;'>⚖️ 目標資產配置權重</h4>", unsafe_allow_html=True)
 target_weight_1 = st.sidebar.slider("目標攻擊標的權重 (%)", min_value=10.0, max_value=90.0, value=70.0, step=5.0) / 100.0
 
-# ==================== 3. 抓取短期高頻真實市場數據引擎 ====================
+# ==================== 3. 抓取短期高頻真實市場數據引擎 (含開盤基準價) ====================
 @st.cache_data(ttl=30)
 def fetch_short_term_data(ticker):
     data_dict = {}
@@ -219,7 +215,10 @@ def fetch_short_term_data(ticker):
                         s.index = s.index.tz_convert('Asia/Taipei')
                     else:
                         s.index = s.index.tz_localize('UTC').tz_convert('Asia/Taipei')
-                    data_dict[label] = s
+                    
+                    # 嚴格抓取該區間的官方開盤基準價 (Open)
+                    open_price = float(df['Open'].iloc[0]) if 'Open' in df.columns and not df['Open'].empty else float(s.iloc[0])
+                    data_dict[label] = {"series": s, "open_price": open_price}
         except:
             pass
     return data_dict
@@ -233,8 +232,8 @@ market_data_vix = fetch_short_term_data("^VIX")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
-        if key in data_dict and not data_dict[key].empty:
-            val = data_dict[key].iloc[-1]
+        if key in data_dict and not data_dict[key]["series"].empty:
+            val = data_dict[key]["series"].iloc[-1]
             if not pd.isna(val) and val > 100:
                 return float(val)
     return fallback
@@ -359,16 +358,24 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 【核心圖表方格區】台股現貨與美股指數精巧方格矩陣 ====================
+# ==================== 6. 【核心圖表方格區】台股現貨與美股指數精巧方格矩陣 (嚴格以開盤為基準) ====================
 st.markdown("### 📈 即時高頻市場行情方格 (短期即時檢視)")
-st.markdown("優先呈現 1 天 / 5 天短期高頻走勢，靈活 Y 軸縮放不從 0 開始，搭配下方成交量矩陣：")
+st.markdown("優先呈現 1 天 / 5 天短期高頻走勢，以官方開盤價為基準計算漲跌與顏色，搭配彈性 Y 軸縮放與成交量矩陣：")
 
-def create_square_card_chart(series, title_text):
+def create_square_card_chart(data_obj, title_text):
+    if isinstance(data_obj, dict):
+        series = data_obj["series"]
+        open_price = data_obj["open_price"]
+    else:
+        series = data_obj
+        open_price = series.iloc[0] if series is not None and not series.empty else 0.0
+
     if series is None or series.empty:
         series = pd.Series([46000, 46500, 46200, 46900], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='h'))
+        open_price = series.iloc[0]
         
-    s_open = series.iloc[0]
     s_curr = series.iloc[-1]
+    s_open = open_price # 嚴格以開盤基準價計算漲跌
     s_pct = ((s_curr - s_open) / s_open) * 100 if s_open != 0 else 0.0
     s_diff = s_curr - s_open
     is_up = s_diff >= 0
@@ -409,8 +416,8 @@ with box_col1:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
     st.markdown("##### 📌 台灣加權現貨 (^TWII)")
     p_sel_1 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="twii_box_sel")
-    ser_1 = market_data_twii.get(p_sel_1, list(market_data_twii.values())[0] if market_data_twii else None)
-    fig_1, curr_1, pct_1, diff_1, col_1 = create_square_card_chart(ser_1, "加權現貨")
+    data_obj_1 = market_data_twii.get(p_sel_1, {"series": pd.Series([46000]), "open_price": 46000})
+    fig_1, curr_1, pct_1, diff_1, col_1 = create_square_card_chart(data_obj_1, "加權現貨")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
         <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_1:,.2f}</span>
@@ -424,8 +431,8 @@ with box_col2:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
     st.markdown("##### 📌 美國 S&P 500 (^GSPC)")
     p_sel_2 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="sp500_box_sel")
-    ser_2 = market_data_gspc.get(p_sel_2, list(market_data_gspc.values())[0] if market_data_gspc else None)
-    fig_2, curr_2, pct_2, diff_2, col_2 = create_square_card_chart(ser_2, "S&P 500")
+    data_obj_2 = market_data_gspc.get(p_sel_2, {"series": pd.Series([5800]), "open_price": 5800})
+    fig_2, curr_2, pct_2, diff_2, col_2 = create_square_card_chart(data_obj_2, "S&P 500")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
         <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_2:,.2f}</span>
@@ -441,8 +448,8 @@ with box_col3:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
     st.markdown("##### 📌 那斯達克指數 (^IXIC)")
     p_sel_3 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="nasdaq_box_sel")
-    ser_3 = market_data_ixic.get(p_sel_3, list(market_data_ixic.values())[0] if market_data_ixic else None)
-    fig_3, curr_3, pct_3, diff_3, col_3 = create_square_card_chart(ser_3, "NASDAQ")
+    data_obj_3 = market_data_ixic.get(p_sel_3, {"series": pd.Series([18500]), "open_price": 18500})
+    fig_3, curr_3, pct_3, diff_3, col_3 = create_square_card_chart(data_obj_3, "NASDAQ")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
         <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_3:,.2f}</span>
@@ -456,8 +463,8 @@ with box_col4:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
     st.markdown("##### 📌 台積電 (2330.TW)")
     p_sel_4 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="tsmc_box_sel")
-    ser_4 = market_data_tsmc.get(p_sel_4, list(market_data_tsmc.values())[0] if market_data_tsmc else None)
-    fig_4, curr_4, pct_4, diff_4, col_4 = create_square_card_chart(ser_4, "台積電")
+    data_obj_4 = market_data_tsmc.get(p_sel_4, {"series": pd.Series([2405]), "open_price": 2405})
+    fig_4, curr_4, pct_4, diff_4, col_4 = create_square_card_chart(data_obj_4, "台積電")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
         <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">NT$ {curr_4:,.1f}</span>
