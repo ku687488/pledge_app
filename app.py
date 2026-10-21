@@ -78,7 +78,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 三階智慧融合與精準歷史殖利率引擎 • 100% 永續記憶
+        💎 富人思維槓桿戰情室 • 多筆房貸負債矩陣 • 生命週期 150% 曝險鎖定 • 智慧歷史殖利率引擎
     </p>
 </div>
 """,
@@ -90,6 +90,7 @@ if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.owned_assets = []
     st.session_state.reinvest_assets = []
+    st.session_state.mortgages = []  # 多筆房貸模組
     st.session_state.custom_debts = []
     st.session_state.total_equity_cost = 0.0
     st.session_state.ltv_ratio_val = 0.0
@@ -104,6 +105,7 @@ st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🛠️ 系統�
 if st.sidebar.button("🔄 一鍵重置為初次使用空白狀態"):
     st.session_state.owned_assets = []
     st.session_state.reinvest_assets = []
+    st.session_state.mortgages = []
     st.session_state.custom_debts = []
     st.session_state.total_equity_cost = 0.0
     st.session_state.ltv_ratio_val = 0.0
@@ -201,7 +203,6 @@ def fetch_live_market_data_and_exact_dividends(ticker):
         hist = tk_obj.history(period="max")
         current_close = float(hist['Close'].iloc[-1]) if not hist.empty else 0.0
         
-        # 第一階：嘗試從 dividends 陣列精算
         divs = tk_obj.dividends
         if not divs.empty and current_close > 0:
             now_ts = pd.Timestamp.now()
@@ -216,7 +217,6 @@ def fetch_live_market_data_and_exact_dividends(ticker):
             y_span_10 = min(10.0, max(1.0, (now_ts - divs_10y.index.min()).days / 365.25)) if not divs_10y.empty else 1.0
             yield_10y = float((divs_10y.sum() / y_span_10) / current_close) if not divs_10y.empty else yield_5y
             
-        # 第二階：若 dividends 為空，從 info 中抓取
         if recent_yield == 0.0:
             info = tk_obj.info
             info_dy = info.get("dividendYield", 0.0)
@@ -227,7 +227,6 @@ def fetch_live_market_data_and_exact_dividends(ticker):
     except:
         pass
 
-    # 第三階：若前兩階皆無法取得且命中家族辦公室知識庫，直接完美智慧兜底
     if recent_yield == 0.0 and clean_code in FAMILIAL_YIELD_KNOWLEDGE_BASE:
         recent_yield, yield_5y, yield_10y = FAMILIAL_YIELD_KNOWLEDGE_BASE[clean_code]
         
@@ -354,30 +353,51 @@ for j, rein in enumerate(st.session_state.reinvest_assets):
         st.session_state.reinvest_assets.pop(j)
         st.rerun()
 
-# 獨立房貸與信貸模組
+# ==================== 多筆房貸負債矩陣模組 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>💳 外部不動產/信貸負債模組 (自有資金本息負擔)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🏠 房貸負債矩陣 (可動態新增多筆)</h4>", unsafe_allow_html=True)
 
-enable_mortgage = st.sidebar.checkbox("啟用房貸現金流試算", value=False)
-mortgage_annual_outflow = 0.0
-if enable_mortgage:
-    m_balance = st.sidebar.number_input("房貸剩餘本金 (NT$)", value=0.0, step=100000.0)
-    m_rate = st.sidebar.slider("房貸年利率 (%)", min_value=1.5, max_value=5.0, value=2.2, step=0.1) / 100.0
-    m_term = st.sidebar.slider("房貸總年限 (年)", min_value=10, max_value=40, value=30, step=5)
-    m_grace = st.sidebar.checkbox("房貸享有寬限期 (只付利息)", value=True)
-    m_grace_years = st.sidebar.slider("寬限期年數", min_value=1, max_value=5, value=3, step=1) if m_grace else 0
+if st.sidebar.button("➕ 新增一筆房貸"):
+    st.session_state.mortgages.append({
+        "id": str(uuid.uuid4()),
+        "name": f"房貸 #{len(st.session_state.mortgages)+1}",
+        "balance": 0.0,
+        "rate": 2.2,
+        "term": 30,
+        "grace": True,
+        "grace_years": 3
+    })
+    st.rerun()
+
+mortgages_annual_outflow = 0.0
+for m_idx, m_item in enumerate(st.session_state.mortgages):
+    muid = m_item["id"]
+    st.sidebar.markdown(f"**📌 房貸項目 #{m_idx+1}**")
+    m_item["name"] = st.sidebar.text_input(f"房貸名稱 #{m_idx+1}", value=m_item["name"], key=f"m_name_{muid}")
+    m_item["balance"] = st.sidebar.number_input(f"剩餘本金 #{m_idx+1} (NT$)", value=float(m_item["balance"]), step=100000.0, key=f"m_bal_{muid}")
+    m_item["rate"] = st.sidebar.slider(f"年利率 #{m_idx+1} (%)", min_value=1.0, max_value=6.0, value=float(m_item["rate"]), step=0.1, key=f"m_rate_{muid}")
+    m_item["term"] = st.sidebar.slider(f"總年限 #{m_idx+1} (年)", min_value=5, max_value=40, value=int(m_item["term"]), step=5, key=f"m_term_{muid}")
+    m_item["grace"] = st.sidebar.checkbox(f"享有寬限期 (只付利息) #{m_idx+1}", value=m_item["grace"], key=f"m_grace_{muid}")
     
-    m_interest_only = m_balance * m_rate
-    if m_grace and m_grace_years > 0:
-        mortgage_annual_outflow = m_interest_only
-        st.sidebar.info(f"💡 房貸寬限期內年息支出 (自有資金負擔)：**NT$ {mortgage_annual_outflow:,.0f}**")
+    m_r = m_item["rate"] / 100.0
+    if m_item["grace"]:
+        m_item["grace_years"] = st.sidebar.slider(f"寬限期年數 #{m_idx+1}", min_value=1, max_value=5, value=int(m_item["grace_years"]), step=1, key=f"m_gy_{muid}")
+        outflow = m_item["balance"] * m_r
     else:
-        m_months = m_term * 12
-        m_m_rate = m_rate / 12.0
-        m_monthly_pmt = m_balance * (m_m_rate * (1 + m_m_rate)**m_months) / ((1 + m_m_rate)**m_months - 1)
-        mortgage_annual_outflow = m_monthly_pmt * 12
-        st.sidebar.info(f"💡 房貸本息攤還年支出 (自有資金負擔)：**NT$ {mortgage_annual_outflow:,.0f}**")
+        m_months = m_item["term"] * 12
+        m_m_rate = m_r / 12.0
+        if m_m_rate > 0 and m_months > 0:
+            monthly_pmt = m_item["balance"] * (m_m_rate * (1 + m_m_rate)**m_months) / ((1 + m_m_rate)**m_months - 1)
+            outflow = monthly_pmt * 12
+        else:
+            outflow = 0.0
+            
+    mortgages_annual_outflow += outflow
+    if st.sidebar.button(f"🗑️ 刪除房貸 #{m_idx+1}", key=f"del_m_{muid}"):
+        st.session_state.mortgages.pop(m_idx)
+        st.rerun()
 
+# 信貸與自訂負債
 enable_credit_loan = st.sidebar.checkbox("啟用信貸現金流試算", value=False)
 credit_annual_outflow = 0.0
 if enable_credit_loan:
@@ -389,9 +409,7 @@ if enable_credit_loan:
     c_m_rate = c_rate / 12.0
     c_monthly_pmt = c_balance * (c_m_rate * (1 + c_m_rate)**c_months) / ((1 + c_m_rate)**c_months - 1)
     credit_annual_outflow = c_monthly_pmt * 12
-    st.sidebar.info(f"💡 信貸本息攤還年支出 (自有資金負擔)：**NT$ {credit_annual_outflow:,.0f}**")
 
-# 動態自訂負債格子管理器
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>➕ 自訂彈性擴充負債格子</h4>", unsafe_allow_html=True)
 if st.sidebar.button("➕ 新增自訂負債項目"):
@@ -409,7 +427,6 @@ for i, debt in enumerate(st.session_state.custom_debts):
         debt["id"] = str(uuid.uuid4())
     duid = debt["id"]
     
-    st.sidebar.markdown(f"**📌 項目 #{i+1}**")
     debt["name"] = st.sidebar.text_input(f"負債名稱 #{i+1}", value=debt["name"], key=f"c_name_{duid}")
     debt["balance"] = st.sidebar.number_input(f"剩餘本金 #{i+1} (NT$)", value=float(debt["balance"]), step=50000.0, key=f"c_bal_{duid}")
     debt["rate"] = st.sidebar.slider(f"年利率 #{i+1} (%)", min_value=1.0, max_value=10.0, value=float(debt["rate"]), step=0.1, key=f"c_rate_{duid}")
@@ -419,14 +436,13 @@ for i, debt in enumerate(st.session_state.custom_debts):
         st.session_state.custom_debts.pop(i)
         st.rerun()
 
-total_external_outflow = mortgage_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
+total_external_outflow = mortgages_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
 
 # 大盤與台積電即時抓價
 market_data_twii, _, _, _ = fetch_live_market_data_and_exact_dividends("^TWII")
 market_data_tsmc, _, _, _ = fetch_live_market_data_and_exact_dividends("2330.TW")
 market_data_gspc, _, _, _ = fetch_live_market_data_and_exact_dividends("^GSPC")
 market_data_ixic, _, _, _ = fetch_live_market_data_and_exact_dividends("^IXIC")
-market_data_fx, _, _, _ = fetch_live_market_data_and_exact_dividends("TWD=X")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
@@ -558,7 +574,7 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (三階智慧融合與精準殖利率模式)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (多筆房貸與智慧殖利率模式)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
     • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 攻擊下限) | 每月淨現金流：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f}/月</b>
 </div>
@@ -569,12 +585,12 @@ def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，三階精準殖利率與索提諾模型已全數自動重算完成！")
+        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，多筆房貸負債與索提諾模型已全數自動重算完成！")
         
     if net_c < 0:
-        alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於總配息收益。")
+        alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息與房貸支出大於總配息收益。")
     else:
-        alerts.append(f"🟢 **[現金流自償達成]** 達成 Positive Carry (+NT$ {net_c:,.0f}/年)，所有負債利息完全由總配息覆蓋！")
+        alerts.append(f"🟢 **[現金流自償達成]** 達成 Positive Carry (+NT$ {net_c:,.0f}/年)，所有負債利息與房貸完全由總配息覆蓋！")
         
     return alerts
 
@@ -632,7 +648,7 @@ st.progress(progress_val)
 st.markdown("---")
 
 # ==================== 8. 【現金流至上核心優先】每月與年度現金流自償性試算面板 ====================
-st.markdown("### 💵 核心重點優先：房貸/信貸與質押現金流自償性綜合試算")
+st.markdown("### 💵 核心重點優先：多筆房貸/信貸與質押現金流自償性綜合試算")
 lc, rc = st.columns(2)
 
 with lc:
@@ -640,15 +656,15 @@ with lc:
     st.metric("每月質押利息支出 (只付利息)", f"-NT$ {monthly_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}% / 12")
     st.metric(f"總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}", f"涵蓋所有三階智慧融合殖利率自動計算標的")
     
-    if enable_mortgage or enable_credit_loan or st.session_state.custom_debts:
-        st.metric(f"每月外部房貸/信貸本息或寬限期支出", f"-NT$ {monthly_external_outflow:,.0f}")
+    if st.session_state.mortgages or enable_credit_loan or st.session_state.custom_debts:
+        st.metric(f"每月外部房貸矩陣/信貸/負債總支出", f"-NT$ {monthly_external_outflow:,.0f}")
         
     monthly_net_color = "text-green" if monthly_net_carry >= 0 else "text-red"
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px; margin-top: 8px;">
         <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">每月淨現金流效益 (Monthly Net Carry)</div>
         <div style="font-size: 1.5rem; font-weight: 900;" class="{monthly_net_color}">{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</div>
-        <div style="font-size: 0.8rem; color: #10B981; margin-top: 4px; font-weight: 700;">{'🟢 每月現金流完全自償：總配息完美覆蓋質押與房貸/信貸支出！' if monthly_net_carry >= 0 else '🔴 每月現金流短缺：需由本業現金流補足差額。'}</div>
+        <div style="font-size: 0.8rem; color: #10B981; margin-top: 4px; font-weight: 700;">{'🟢 每月現金流完全自償：總配息完美覆蓋質押與所有房貸/負債支出！' if monthly_net_carry >= 0 else '🔴 每月現金流短缺：需由本業現金流補足差額。'}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -656,15 +672,15 @@ with rc:
     st.markdown("##### 📅 年度現金流與複利滾存試算 (Annual Carry & Compound)")
     st.metric("年度質押利息總支出", f"-NT$ {annual_interest:,.0f}")
     st.metric("總資產年度配息總收益", f"+NT$ {total_expected_div:,.0f}")
-    if enable_mortgage or enable_credit_loan or st.session_state.custom_debts:
-        st.metric("年度外部負債總支出 (房貸/信貸)", f"-NT$ {total_external_outflow:,.0f}")
+    if st.session_state.mortgages or enable_credit_loan or st.session_state.custom_debts:
+        st.metric("年度外部負債矩陣總支出 (房貸/信貸)", f"-NT$ {total_external_outflow:,.0f}")
     
     net_carry_color = "text-green" if net_carry > 0 else "text-red"
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 12px; border-radius: 8px; margin-top: 8px;">
         <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">整體年度淨現金流效益 (Net Carry / 年)</div>
         <div style="font-size: 1.5rem; font-weight: 900;" class="{net_carry_color}">+NT$ {net_carry:,.0f}</div>
-        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px; font-weight: 700;">{'🟢 Positive Carry：所有資產收益完全覆蓋所有負債（含房貸/信貸）！' if net_carry > 0 else '🔴 負現金流狀態。'}</div>
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px; font-weight: 700;">{'🟢 Positive Carry：所有資產收益完全覆蓋所有負債（含多筆房貸）！' if net_carry > 0 else '🔴 負現金流狀態。'}</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -690,10 +706,11 @@ with ef_col1:
     
     st.markdown(f"""
     <div class="explain-card">
-        <b>💡 一眼看懂索提諾圖表：</b><br>
+        <b>💡 一眼看懂索提諾圖表與生命週期權重微調：</b><br>
         • <b>橫軸（下行跌幅風險）</b>：代表<b>只有下跌崩盤時</b>才算作風險。<br>
         • <b>縱軸（預估年化總報酬）</b>：代表攻擊與防禦配置的預期回報。<br>
-        • <b>★ 黃金綠星點</b>：<b>最優 CP 值配置 ({optimal_sortino_weight_1 * 100:.1f}% 攻擊標的)</b>！
+        • <b>★ 黃金綠星點</b>：<b>最優 CP 值配置 ({optimal_sortino_weight_1 * 100:.1f}% 攻擊標的)</b>！<br>
+        • <b>🎯 生命週期權重調整指引</b>：當您年齡增長時，請參考星點提示，適度調降正二標的配比，增加原型大盤 ETF，使總權益曝險率符合您 {st.session_state.user_age_val} 歲對應的 <b>{target_lifecycle_exposure:.1f}%</b> 目標。
     </div>
     """, unsafe_allow_html=True)
     
