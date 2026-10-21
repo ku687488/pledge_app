@@ -62,7 +62,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.9rem; font-weight:600;">
-        💎 華爾街家族辦公室富人槓桿與現金流戰略引擎 • 嚴格以開盤價為基準之智慧行情方格 • AI 動態偏離預警
+        💎 華爾街家族辦公室富人槓桿與現金流戰略引擎 • 優先現金流配置 • 正方形高頻矩陣 • AI 動態偏離預警
     </p>
 </div>
 """,
@@ -216,7 +216,6 @@ def fetch_short_term_data(ticker):
                     else:
                         s.index = s.index.tz_localize('UTC').tz_convert('Asia/Taipei')
                     
-                    # 嚴格抓取該區間的官方開盤基準價 (Open)
                     open_price = float(df['Open'].iloc[0]) if 'Open' in df.columns and not df['Open'].empty else float(s.iloc[0])
                     data_dict[label] = {"series": s, "open_price": open_price}
         except:
@@ -358,125 +357,7 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 【核心圖表方格區】台股現貨與美股指數精巧方格矩陣 (嚴格以開盤為基準) ====================
-st.markdown("### 📈 即時高頻市場行情方格 (短期即時檢視)")
-st.markdown("優先呈現 1 天 / 5 天短期高頻走勢，以官方開盤價為基準計算漲跌與顏色，搭配彈性 Y 軸縮放與成交量矩陣：")
-
-def create_square_card_chart(data_obj, title_text):
-    if isinstance(data_obj, dict):
-        series = data_obj["series"]
-        open_price = data_obj["open_price"]
-    else:
-        series = data_obj
-        open_price = series.iloc[0] if series is not None and not series.empty else 0.0
-
-    if series is None or series.empty:
-        series = pd.Series([46000, 46500, 46200, 46900], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='h'))
-        open_price = series.iloc[0]
-        
-    s_curr = series.iloc[-1]
-    s_open = open_price # 嚴格以開盤基準價計算漲跌
-    s_pct = ((s_curr - s_open) / s_open) * 100 if s_open != 0 else 0.0
-    s_diff = s_curr - s_open
-    is_up = s_diff >= 0
-    line_color = '#10B981' if is_up else '#EF4444'
-    
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.75, 0.25])
-    
-    fig.add_trace(go.Scatter(
-        x=series.index, y=series, mode='lines', name=title_text,
-        line=dict(color=line_color, width=2.2),
-        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.15)' if is_up else 'rgba(239, 68, 68, 0.15)',
-        hovertemplate='時間: %{x}<br>點位: %{y:,.2f}<extra></extra>'
-    ), row=1, col=1)
-    
-    volumes = np.random.uniform(1000, 8000, len(series))
-    fig.add_trace(go.Bar(
-        x=series.index, y=volumes, name='成交量',
-        marker_color=['#10B981' if v > 4000 else '#EF4444' for v in volumes],
-        hovertemplate='時間: %{x}<br>量: %{y:,.0f}<extra></extra>'
-    ), row=2, col=1)
-    
-    ymin, ymax = float(series.min()), float(series.max())
-    y_padding = (ymax - ymin) * 0.08 if ymax != ymin else 50.0
-    
-    fig.update_layout(
-        template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
-        margin=dict(l=5, r=5, t=5, b=5), height=260,
-        xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
-        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - y_padding, ymax + y_padding], autorange=False, title=''),
-        yaxis2=dict(showgrid=False, side='right', title=''),
-        hovermode='x unified', showlegend=False
-    )
-    return fig, s_curr, s_pct, s_diff, line_color
-
-box_col1, box_col2 = st.columns(2)
-
-with box_col1:
-    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📌 台灣加權現貨 (^TWII)")
-    p_sel_1 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="twii_box_sel")
-    data_obj_1 = market_data_twii.get(p_sel_1, {"series": pd.Series([46000]), "open_price": 46000})
-    fig_1, curr_1, pct_1, diff_1, col_1 = create_square_card_chart(data_obj_1, "加權現貨")
-    st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-        <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_1:,.2f}</span>
-        <span style="font-size: 0.8rem; font-weight: 700; color: {col_1};">{'+' if diff_1 >= 0 else ''}{pct_1:.2f}% ({'+' if diff_1 >= 0 else ''}{diff_1:,.2f})</span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.plotly_chart(fig_1, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with box_col2:
-    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📌 美國 S&P 500 (^GSPC)")
-    p_sel_2 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="sp500_box_sel")
-    data_obj_2 = market_data_gspc.get(p_sel_2, {"series": pd.Series([5800]), "open_price": 5800})
-    fig_2, curr_2, pct_2, diff_2, col_2 = create_square_card_chart(data_obj_2, "S&P 500")
-    st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-        <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_2:,.2f}</span>
-        <span style="font-size: 0.8rem; font-weight: 700; color: {col_2};">{'+' if diff_2 >= 0 else ''}{pct_2:.2f}% ({'+' if diff_2 >= 0 else ''}{diff_2:,.2f})</span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.plotly_chart(fig_2, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-box_col3, box_col4 = st.columns(2)
-
-with box_col3:
-    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📌 那斯達克指數 (^IXIC)")
-    p_sel_3 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="nasdaq_box_sel")
-    data_obj_3 = market_data_ixic.get(p_sel_3, {"series": pd.Series([18500]), "open_price": 18500})
-    fig_3, curr_3, pct_3, diff_3, col_3 = create_square_card_chart(data_obj_3, "NASDAQ")
-    st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-        <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">{curr_3:,.2f}</span>
-        <span style="font-size: 0.8rem; font-weight: 700; color: {col_3};">{'+' if diff_3 >= 0 else ''}{pct_3:.2f}% ({'+' if diff_3 >= 0 else ''}{diff_3:,.2f})</span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.plotly_chart(fig_3, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with box_col4:
-    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📌 台積電 (2330.TW)")
-    p_sel_4 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="tsmc_box_sel")
-    data_obj_4 = market_data_tsmc.get(p_sel_4, {"series": pd.Series([2405]), "open_price": 2405})
-    fig_4, curr_4, pct_4, diff_4, col_4 = create_square_card_chart(data_obj_4, "台積電")
-    st.markdown(f"""
-    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-        <span style="font-size: 1.3rem; font-weight: 800; color: #F8FAFC;">NT$ {curr_4:,.1f}</span>
-        <span style="font-size: 0.8rem; font-weight: 700; color: {col_4};">{'+' if diff_4 >= 0 else ''}{pct_4:.2f}% ({'+' if diff_4 >= 0 else ''}{diff_4:,.1f})</span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.plotly_chart(fig_4, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown("---")
-
-# ==================== 7. 【核心重點】現金流自償性與永續槓桿損益試算面板 ====================
+# ==================== 6. 【交換至上方】核心重點：現金流自償性與永續槓桿損益試算面板 ====================
 st.markdown("### 💵 核心重點：現金流自償性與永續槓桿損益試算面板")
 lc, rc = st.columns(2)
 with lc:
@@ -508,6 +389,126 @@ with rc:
         "淨現金流滾存總額": [f"NT$ {val:,.0f}" for val in compounded_values]
     })
     st.dataframe(comp_df, use_container_width=True, hide_index=True)
+
+st.markdown("---")
+
+# ==================== 7. 【核心圖表正方形 2x2 矩陣區】市場行情方格 (以開盤為基準) ====================
+st.markdown("### 📈 即時高頻市場行情方格 (正方形緊湊矩陣)")
+st.markdown("以官方開盤價為基準計算漲跌與顏色，採 2x2 正方形緊湊排版：")
+
+def create_square_card_chart(data_obj, title_text):
+    if isinstance(data_obj, dict):
+        series = data_obj["series"]
+        open_price = data_obj["open_price"]
+    else:
+        series = data_obj
+        open_price = series.iloc[0] if series is not None and not series.empty else 0.0
+
+    if series is None or series.empty:
+        series = pd.Series([46000, 46500, 46200, 46900], index=pd.date_range(end=datetime.datetime.now(), periods=4, freq='h'))
+        open_price = series.iloc[0]
+        
+    s_curr = series.iloc[-1]
+    s_open = open_price
+    s_pct = ((s_curr - s_open) / s_open) * 100 if s_open != 0 else 0.0
+    s_diff = s_curr - s_open
+    is_up = s_diff >= 0
+    line_color = '#10B981' if is_up else '#EF4444'
+    
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.75, 0.25])
+    
+    fig.add_trace(go.Scatter(
+        x=series.index, y=series, mode='lines', name=title_text,
+        line=dict(color=line_color, width=2.0),
+        fill='tozeroy', fillcolor='rgba(16, 185, 129, 0.15)' if is_up else 'rgba(239, 68, 68, 0.15)',
+        hovertemplate='時間: %{x}<br>點位: %{y:,.2f}<extra></extra>'
+    ), row=1, col=1)
+    
+    volumes = np.random.uniform(1000, 8000, len(series))
+    fig.add_trace(go.Bar(
+        x=series.index, y=volumes, name='成交量',
+        marker_color=['#10B981' if v > 4000 else '#EF4444' for v in volumes],
+        hovertemplate='時間: %{x}<br>量: %{y:,.0f}<extra></extra>'
+    ), row=2, col=1)
+    
+    ymin, ymax = float(series.min()), float(series.max())
+    y_padding = (ymax - ymin) * 0.08 if ymax != ymin else 50.0
+    
+    # 壓縮高度為正方形視覺 (height=190)
+    fig.update_layout(
+        template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
+        margin=dict(l=5, r=5, t=5, b=5), height=190,
+        xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
+        yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - y_padding, ymax + y_padding], autorange=False, title=''),
+        yaxis2=dict(showgrid=False, side='right', title=''),
+        hovermode='x unified', showlegend=False
+    )
+    return fig, s_curr, s_pct, s_diff, line_color
+
+# 2x2 正方形方格排版
+row1_col1, row1_col2 = st.columns(2)
+
+with row1_col1:
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📌 台灣加權現貨 (^TWII)")
+    p_sel_1 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="twii_box_sel")
+    data_obj_1 = market_data_twii.get(p_sel_1, {"series": pd.Series([46000]), "open_price": 46000})
+    fig_1, curr_1, pct_1, diff_1, col_1 = create_square_card_chart(data_obj_1, "加權現貨")
+    st.markdown(f"""
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
+        <span style="font-size: 1.2rem; font-weight: 800; color: #F8FAFC;">{curr_1:,.2f}</span>
+        <span style="font-size: 0.75rem; font-weight: 700; color: {col_1};">{'+' if diff_1 >= 0 else ''}{pct_1:.2f}% ({'+' if diff_1 >= 0 else ''}{diff_1:,.2f})</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.plotly_chart(fig_1, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with row1_col2:
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📌 美國 S&P 500 (^GSPC)")
+    p_sel_2 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="sp500_box_sel")
+    data_obj_2 = market_data_gspc.get(p_sel_2, {"series": pd.Series([5800]), "open_price": 5800})
+    fig_2, curr_2, pct_2, diff_2, col_2 = create_square_card_chart(data_obj_2, "S&P 500")
+    st.markdown(f"""
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
+        <span style="font-size: 1.2rem; font-weight: 800; color: #F8FAFC;">{curr_2:,.2f}</span>
+        <span style="font-size: 0.75rem; font-weight: 700; color: {col_2};">{'+' if diff_2 >= 0 else ''}{pct_2:.2f}% ({'+' if diff_2 >= 0 else ''}{diff_2:,.2f})</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.plotly_chart(fig_2, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+row2_col1, row2_col2 = st.columns(2)
+
+with row2_col1:
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📌 那斯達克指數 (^IXIC)")
+    p_sel_3 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="nasdaq_box_sel")
+    data_obj_3 = market_data_ixic.get(p_sel_3, {"series": pd.Series([18500]), "open_price": 18500})
+    fig_3, curr_3, pct_3, diff_3, col_3 = create_square_card_chart(data_obj_3, "NASDAQ")
+    st.markdown(f"""
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
+        <span style="font-size: 1.2rem; font-weight: 800; color: #F8FAFC;">{curr_3:,.2f}</span>
+        <span style="font-size: 0.75rem; font-weight: 700; color: {col_3};">{'+' if diff_3 >= 0 else ''}{pct_3:.2f}% ({'+' if diff_3 >= 0 else ''}{diff_3:,.2f})</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.plotly_chart(fig_3, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with row2_col2:
+    st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
+    st.markdown("##### 📌 台積電 (2330.TW)")
+    p_sel_4 = st.selectbox("選擇區間", ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"], index=0, key="tsmc_box_sel")
+    data_obj_4 = market_data_tsmc.get(p_sel_4, {"series": pd.Series([2405]), "open_price": 2405})
+    fig_4, curr_4, pct_4, diff_4, col_4 = create_square_card_chart(data_obj_4, "台積電")
+    st.markdown(f"""
+    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
+        <span style="font-size: 1.2rem; font-weight: 800; color: #F8FAFC;">NT$ {curr_4:,.1f}</span>
+        <span style="font-size: 0.75rem; font-weight: 700; color: {col_4};">{'+' if diff_4 >= 0 else ''}{pct_4:.2f}% ({'+' if diff_4 >= 0 else ''}{diff_4:,.1f})</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.plotly_chart(fig_4, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
