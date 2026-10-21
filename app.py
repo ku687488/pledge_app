@@ -77,7 +77,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 強力攻擊曝險 (≥150% 下限) • 索提諾下行風險最適化 • 森林法則蒙地卡羅動態模擬
+        💎 富人思維槓桿戰情室 • 質押再投入動態維持率優化 • 索提諾下行風險最適化 • 24小時智慧量化試算
     </p>
 </div>
 """,
@@ -90,7 +90,6 @@ st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人�
 enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (強制保留 ≥ 150% 攻擊下限)", value=True)
 user_age = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=25, step=1)
 
-# 生命週期模型：確保曝險絕不低於 150% 的強力攻擊下限
 target_lifecycle_exposure = max(280.0 - (user_age - 25) * 3.5, 150.0)
 
 if enable_lifecycle_exposure:
@@ -270,9 +269,13 @@ monthly_div_2 = expected_div_2 / 12.0
 monthly_external_outflow = total_external_outflow / 12.0
 monthly_net_carry = net_carry / 12.0
 
-val_1 = shares_1 * p_1
-val_2 = shares_2 * p_2
-total_collateral = val_1 + val_2
+# 核心動態再投入資產加總：初始本金市值 + 再投入資金轉化之資產價值增幅
+base_val_1 = shares_1 * p_1
+base_val_2 = shares_2 * p_2
+reinvested_asset_addition = loan_amount * pledged_invest_ratio
+total_collateral = base_val_1 + base_val_2 + reinvested_asset_addition
+
+# 動態即時質押維持率：結合再投入後的總擔保品市值 / 借款金額
 margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
 # ==================== 4. 華爾街量化模型：索提諾比率與森林法則隨機蒙地卡羅模擬 ====================
@@ -284,7 +287,7 @@ corr_12 = 0.35
 
 np.random.seed(42)
 num_portfolios = 1500
-weights_1_arr = np.random.uniform(0.2, 0.9, num_portfolios) # 強制保證攻擊部位基底
+weights_1_arr = np.random.uniform(0.2, 0.9, num_portfolios)
 port_returns = weights_1_arr * ret_1 + (1 - weights_1_arr) * ret_2
 port_vols = np.sqrt(weights_1_arr**2 * vol_1**2 + (1 - weights_1_arr)**2 * vol_2**2 + 2 * weights_1_arr * (1 - weights_1_arr) * vol_1 * vol_2 * corr_12)
 risk_free_rate = 0.015
@@ -336,7 +339,7 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 excess_ret = (optimal_sortino_weight_1 * ret_1 + (1 - optimal_sortino_weight_1) * ret_2) - risk_free_rate
 portfolio_variance = port_vols[max_sortino_idx] ** 2
 full_kelly = excess_ret / portfolio_variance if portfolio_variance > 0 else 1.0
-half_kelly_exposure = max(full_kelly * 0.75, 1.50) # 強制不低於 150% 攻擊曝險
+half_kelly_exposure = max(full_kelly * 0.75, 1.50)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>⚖️ 目標資產配置權重 (索提諾模型推薦)</h4>", unsafe_allow_html=True)
@@ -348,39 +351,32 @@ if use_ai_weight:
 else:
     target_weight_1 = st.sidebar.slider("自訂目標攻擊標的權重 (%)", min_value=20.0, max_value=90.0, value=float(optimal_sortino_weight_1*100), step=5.0) / 100.0
 
-current_weight_1 = val_1 / total_collateral if total_collateral > 0 else 0
+current_weight_1 = base_val_1 / total_collateral if total_collateral > 0 else 0
 weight_deviation = current_weight_1 - target_weight_1
 
-exposure_1 = val_1 * beta_1
-exposure_2 = val_2 * beta_2
+exposure_1 = base_val_1 * beta_1
+exposure_2 = base_val_2 * beta_2
 total_exposure = exposure_1 + exposure_2
 net_equity = total_collateral - loan_amount
 exposure_vs_asset = (total_exposure / total_collateral) * 100 if total_collateral > 0 else 0
-exposure_vs_equity = max((total_exposure / net_equity) * 100, 150.0) if net_equity > 0 else 150.0 # 強制曝險率不低於 150%
+exposure_vs_equity = max((total_exposure / net_equity) * 100, 150.0) if net_equity > 0 else 150.0
 
 # ==================== 5. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室量化戰情快報 (富人思維現金流監控)】</b><br>
-    • 當前 LTV 質押成數：<b>{ltv_ratio*100:.1f}%</b> {'(⚠️ 已超過建議最高 25% 安全線)' if ltv_ratio > 0.25 else '(🟢 符合最多 25% 穩健原則)'}<br>
-    • 強力攻擊曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 下限攻擊準則)<br>
-    • 每月淨現金流效益：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</b> (富人思維：借款永不還本、只付利息)
+    📡 <b>【Apex 家族辦公室量化戰情快報 (動態再投入維持率優化)】</b><br>
+    • 質押資金再投入比例：<b>{pledged_invest_ratio*100:.1f}%</b> (動態擴大擔保品市值)<br>
+    • 即時動態質押維持率：<b>{margin_ratio:.1f}%</b> (已全面計入再投入資產效益)<br>
+    • 每月淨現金流效益：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</b> (借款永不還本、只付利息)
 </div>
 """, unsafe_allow_html=True)
 
-def generate_ai_dynamic_alerts(ltv, exp_eq, t_exp, w_dev, net_c, is_lifecycle, age):
+def generate_ai_dynamic_alerts(ltv, margin_r, reinvest_r, net_c):
     alerts = []
     if ltv > 0.25:
-        alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過您設定的最多 25% 穩健防禦上限。")
+        alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[質押 LTV 合規]** 目前 LTV 質押成數為 {ltv*100:.1f}%，完美控制在最多 25% 的黃金安全防線內。")
-        
-    if is_lifecycle:
-        alerts.append(f"🟢 **[攻擊曝險合格]** 淨權益曝險率維持在 **{exp_eq:.1f}%**，完美符合 150% 強力攻擊下限標準。")
-            
-    if abs(w_dev) > 0.15:
-        direction = "攻擊標的過重" if w_dev > 0 else "防禦標的過重"
-        alerts.append(f"⚖️ **[資產配置權重偏離警告]** 實際攻擊權重為 {current_weight_1*100:.1f}%，偏離模型推薦超過 15% ({direction})，建議執行再平衡。")
+        alerts.append(f"🟢 **[質押 LTV 與再投入合規]** 質押借款再投入比例達 {reinvest_r*100:.1f}%，動態維持率推升至 **{margin_r:.1f}%**，防禦緩衝極佳！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於配息收益。")
@@ -389,7 +385,7 @@ def generate_ai_dynamic_alerts(ltv, exp_eq, t_exp, w_dev, net_c, is_lifecycle, a
         
     return alerts
 
-ai_insights = generate_ai_dynamic_alerts(ltv_ratio, exposure_vs_equity, target_lifecycle_exposure, weight_deviation, net_carry, enable_lifecycle_exposure, user_age)
+ai_insights = generate_ai_dynamic_alerts(ltv_ratio, margin_ratio, pledged_invest_ratio, net_carry)
 
 for insight in ai_insights:
     if "警報" in insight or "警告" in insight or "提醒" in insight:
@@ -403,9 +399,9 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">擔保品總市值</div>
+        <div class="card-title">擔保品總市值 (含再投入)</div>
         <div class="card-value">NT$ {total_collateral:,.0f}</div>
-        <div class="card-subtitle text-blue">本金: NT$ {total_equity_cost:,.0f} | LTV: {ltv_ratio*100:.0f}%</div>
+        <div class="card-subtitle text-blue">再投入增幅: +NT$ {reinvested_asset_addition:,.0f}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -422,9 +418,9 @@ with c3:
     status_color = "text-green" if margin_ratio > 200 else ("text-gold" if margin_ratio > 160 else "text-red")
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">即時質押維持率</div>
+        <div class="card-title">即時動態質押維持率</div>
         <div class="card-value {status_color}">{margin_ratio:.1f}%</div>
-        <div class="card-subtitle">券商平倉線: 130%</div>
+        <div class="card-subtitle">券商平倉線: 130% (再投入優化版)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -438,7 +434,7 @@ with c4:
     """, unsafe_allow_html=True)
 
 progress_val = min(max((margin_ratio - 130) / (300 - 130), 0.0), 1.0)
-st.markdown("**🛡️ 質押維持率安全緩衝條 (Margin Safety Buffer)**")
+st.markdown("**🛡️ 質押維持率安全緩衝條 (Margin Safety Buffer - 動態再投入優化)**")
 st.progress(progress_val)
 
 st.markdown("---")
@@ -545,7 +541,7 @@ with ef_col2:
     <div class="explain-card">
         <b>💡 一眼看懂蒙地卡羅機率：</b><br>
         • <b>🟢 95% 樂觀上限</b>：極端牛市行情下，資產可達 <b>NT$ {:,.0f}</b>。<br>
-        • <b>🟡 50% 中位數</b>：統計上最強攻擊配置下的最可能資產價值：<b>NT$ {:,.0f}</b>。<br>
+        • <b>🟡 50% 中位數</b>：動態再投入優化下的最可能資產價值：<b>NT$ {:,.0f}</b>。<br>
         • <b>🔴 5% 壓力下緣</b>：極端熊市崩盤時的資產防禦底線：<b>NT$ {:,.0f}</b>。
     </div>
     """.format(path_upper_95[-1], path_median[-1], path_lower_5[-1]), unsafe_allow_html=True)
@@ -593,12 +589,12 @@ with rebal_c1:
     st.markdown("##### 🔄 資產配置再平衡執行清單 (Rebalance Action Plan)")
     target_val_1 = total_collateral * target_weight_1
     target_val_2 = total_collateral * (1 - target_weight_1)
-    diff_val_1 = target_val_1 - val_1
+    diff_val_1 = target_val_1 - base_val_1
     action_str_1 = f"需買進 NT$ {abs(diff_val_1):,.0f}" if diff_val_1 > 0 else f"需賣出 NT$ {abs(diff_val_1):,.0f}"
     
     rebal_df = pd.DataFrame({
         "資產類別": [selected_label_1[:15], selected_label_2[:15]],
-        "實際市值": [f"NT$ {val_1:,.0f}", f"NT$ {val_2:,.0f}"],
+        "實際市值": [f"NT$ {base_val_1:,.0f}", f"NT$ {base_val_2:,.0f}"],
         "實際權重": [f"{current_weight_1*100:.1f}%", f"{(1-current_weight_1)*100:.1f}%"],
         "目標權重": [f"{target_weight_1*100:.1f}%", f"{(1-target_weight_1)*100:.1f}%"],
         "再平衡動作": [action_str_1, f"調整差額對應處理"]
@@ -610,7 +606,7 @@ with rebal_c2:
     required_collateral_130 = loan_amount * 1.30
     drop_to_130_pct = max(((total_collateral - required_collateral_130) / total_collateral) * 100, 0.0) if total_collateral > 0 else 0.0
     st.metric("擔保品整體允許最大回檔幅度", f"-{drop_to_130_pct:.1f}%", "跌幅超過此比例將觸及 130% 平倉線")
-    st.info(f"💡 目前維持率 **{margin_ratio:.1f}%**。若總市值由 NT$ {total_collateral:,.0f} 跌至 NT$ {required_collateral_130:,.0f}，將面臨券商追繳。")
+    st.info(f"💡 目前動態維持率 **{margin_ratio:.1f}%**。若總市值由 NT$ {total_collateral:,.0f} 跌至 NT$ {required_collateral_130:,.0f}，將面臨券商追繳。")
 
 st.markdown("---")
 
@@ -803,7 +799,7 @@ for _ in range(crash_days):
 
 sim_val_1 = shares_1 * sim_p1
 sim_val_2 = shares_2 * sim_p2
-sim_total_collateral = sim_val_1 + sim_val_2
+sim_total_collateral = sim_val_1 + sim_val_2 + (loan_amount * pledged_invest_ratio)
 sim_margin_ratio = (sim_total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
 required_collateral_130 = loan_amount * 1.30
