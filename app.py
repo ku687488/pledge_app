@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
 
-# ==================== 1. 頁面配置與華爾街黑卡級美學 CSS ====================
+# ==================== 1. 頁面配置與華爾街黑卡級柔和美學 CSS ====================
 st.set_page_config(
     page_title="Apex Global Institutional Terminal | 家族辦公室量化戰情室",
     page_icon="🏛️",
@@ -17,40 +17,53 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-    .stApp { background-color: #0B0E14; color: #E0E6ED; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    section[data-testid="stSidebar"] { background-color: #151A23 !important; border-right: 1px solid #232D3F; }
+    /* 全局柔和字體與抗鋸齒設定，全面採用粗體與高清晰度排版 */
+    .stApp { 
+        background-color: #0B0E14; 
+        color: #F3F4F6; 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+        font-weight: 600;
+        -webkit-font-smoothing: antialiased;
+    }
+    section[data-testid="stSidebar"] { 
+        background-color: #151A23 !important; 
+        border-right: 1px solid #232D3F; 
+        font-weight: 600;
+    }
     .metric-card {
-        background: linear-gradient(135deg, rgba(25, 32, 45, 0.8) 0%, rgba(18, 24, 35, 0.9) 100%);
+        background: linear-gradient(135deg, rgba(25, 32, 45, 0.85) 0%, rgba(18, 24, 35, 0.95) 100%);
         border: 1px solid #2A364F; border-radius: 12px; padding: 18px;
         box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); margin-bottom: 15px;
     }
-    .card-title { color: #8B949E; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-    .card-value { color: #F3F4F6; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
-    .card-subtitle { font-size: 0.75rem; margin-top: 4px; }
-    .text-gold { color: #F59E0B !important; }
-    .text-green { color: #10B981 !important; }
-    .text-blue { color: #3B82F6 !important; }
-    .text-red { color: #EF4444 !important; }
+    .card-title { color: #9CA3AF; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .card-value { color: #FFFFFF; font-size: 1.65rem; font-weight: 800; letter-spacing: -0.5px; }
+    .card-subtitle { font-size: 0.8rem; font-weight: 600; margin-top: 4px; }
+    .text-gold { color: #F59E0B !important; font-weight: 700; }
+    .text-green { color: #10B981 !important; font-weight: 700; }
+    .text-blue { color: #3B82F6 !important; font-weight: 700; }
+    .text-red { color: #EF4444 !important; font-weight: 700; }
     .hero-header {
         background: linear-gradient(90deg, #1E293B 0%, #0F172A 100%);
-        border-left: 4px solid #F59E0B; padding: 18px 22px; border-radius: 8px; margin-bottom: 20px;
+        border-left: 6px solid #F59E0B; padding: 18px 22px; border-radius: 8px; margin-bottom: 20px;
     }
     .web-push-ticker {
         background: rgba(30, 41, 59, 0.95); border: 1px solid #3B82F6; border-left: 6px solid #3B82F6;
-        padding: 12px 18px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC; font-size: 0.9rem;
+        padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC; font-size: 0.95rem; font-weight: 700;
     }
     .ai-alert-box {
         background: rgba(239, 68, 68, 0.12); border: 1px solid #EF4444; border-left: 6px solid #EF4444;
-        padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; color: #F8FAFC; font-size: 0.9rem;
+        padding: 14px 16px; border-radius: 8px; margin-bottom: 15px; color: #F8FAFC; font-size: 0.95rem; font-weight: 700;
     }
     .ai-success-box {
         background: rgba(16, 185, 129, 0.12); border: 1px solid #10B981; border-left: 6px solid #10B981;
-        padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; color: #F8FAFC; font-size: 0.9rem;
+        padding: 14px 16px; border-radius: 8px; margin-bottom: 15px; color: #F8FAFC; font-size: 0.95rem; font-weight: 700;
     }
     .chart-container-box {
-        background: rgba(18, 24, 36, 0.85); border: 1px solid #2A364F; border-radius: 12px;
-        padding: 12px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        background: rgba(18, 24, 36, 0.9); border: 1px solid #2A364F; border-radius: 12px;
+        padding: 14px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
+    p, span, div, label, .stMarkdown { font-weight: 600 !important; }
+    h1, h2, h3, h4, h5, h6 { font-weight: 800 !important; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -59,9 +72,9 @@ st.markdown(
 st.markdown(
     """
 <div class="hero-header">
-    <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
-    <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.9rem; font-weight:600;">
-        💎 富人思維槓桿戰情室 • 森林法則隨機蒙地卡羅模擬 • 索提諾下行風險最適化 • 每月現金流自償矩陣
+    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
+    <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
+        💎 富人思維槓桿戰情室 • 森林法則蒙地卡羅動態模擬 • 索提諾下行風險最適化 • 每月現金流自償矩陣
     </p>
 </div>
 """,
@@ -69,7 +82,7 @@ st.markdown(
 )
 
 # ==================== 2. 側邊欄：生命週期、資本結構與自由調控模組 ====================
-st.sidebar.markdown("<h3 style='color:#F3F4F6;'>👤 投資人戰略風格與槓桿模式</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與槓桿模式</h3>", unsafe_allow_html=True)
 
 enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (隨年紀收斂至最低 150% 曝險)", value=True)
 user_age = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=25, step=1)
@@ -82,7 +95,7 @@ else:
     st.sidebar.info("🔓 【完全自由曝險模式】：由您自行掌控曝險倍數，AI 僅負責試算與即時偏離提醒。")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h3 style='color:#F3F4F6;'>⚙️ 資本結構與富人質押設定</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>⚙️ 資本結構與富人質押設定</h3>", unsafe_allow_html=True)
 
 total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=2400000, step=100000)
 ltv_ratio = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=10.0, max_value=60.0, value=25.0, step=1.0) / 100.0
@@ -102,7 +115,7 @@ st.sidebar.info(f"💡 質押資金投入部位：**{pledged_invest_ratio*100:.1
 
 # 獨立房貸與信貸模組
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#F3F4F6;'>💳 外部不動產/信貸負債模組</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>💳 外部不動產/信貸負債模組</h4>", unsafe_allow_html=True)
 
 enable_mortgage = st.sidebar.checkbox("啟用房貸現金流試算", value=False)
 mortgage_annual_outflow = 0.0
@@ -139,7 +152,7 @@ if enable_credit_loan:
 
 # 動態自訂負債格子管理器
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#F3F4F6;'>➕ 自訂彈性擴充負債格子</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>➕ 自訂彈性擴充負債格子</h4>", unsafe_allow_html=True)
 if 'custom_debts' not in st.session_state:
     st.session_state.custom_debts = []
 
@@ -166,7 +179,7 @@ for i, debt in enumerate(st.session_state.custom_debts):
 total_external_outflow = mortgage_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#F3F4F6;'>🔍 標的選擇與 Beta 參數設定</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 標的選擇與 Beta 參數設定</h4>", unsafe_allow_html=True)
 
 preset_tickers = {
     "00685L.TW - 元大台灣加權正2 (槓桿攻擊)": {"beta": 2.0, "default_div": 0.0},
@@ -286,21 +299,18 @@ max_sortino_idx = np.argmax(sortino_ratios)
 optimal_sortino_weight_1 = weights_1_arr[max_sortino_idx]
 
 # 森林法則隨機蒙地卡羅模擬 (Random Forest Regime-Switching Monte Carlo)
-# 模擬 252 個交易日（1年），生成 300 條隨機路徑，結合決策樹狀態切換（牛市、熊市、盤整）
 num_sim_days = 252
 num_paths = 250
 dt = 1.0 / 252.0
 base_portfolio_val = total_collateral
 
-# 模擬隨機森林特徵權重 regime 狀態轉換機率矩陣
-regimes_drift = [0.22, -0.15, 0.05] # 牛市, 熊市, 盤整年化回報
-regimes_vol = [0.18, 0.32, 0.12]   # 波動率
+regimes_drift = [0.22, -0.15, 0.05]
+regimes_vol = [0.18, 0.32, 0.12]
 
 sim_paths = np.zeros((num_sim_days, num_paths))
 sim_paths[0, :] = base_portfolio_val
 
 for p in range(num_paths):
-    # 隨機森林決策樹路徑選擇
     tree_choice = np.random.choice([0, 1, 2], size=num_sim_days, p=[0.6, 0.15, 0.25])
     val = base_portfolio_val
     for d in range(1, num_sim_days):
@@ -311,7 +321,6 @@ for p in range(num_paths):
         val = val * (1 + drift * dt + vol * np.sqrt(dt) * shock)
         sim_paths[d, p] = max(val, 1000.0)
 
-# 計算分位數軌跡供圖表呈現
 path_median = np.percentile(sim_paths, 50, axis=1)
 path_upper_95 = np.percentile(sim_paths, 95, axis=1)
 path_lower_5 = np.percentile(sim_paths, 5, axis=1)
@@ -322,7 +331,7 @@ full_kelly = excess_ret / portfolio_variance if portfolio_variance > 0 else 1.0
 half_kelly_exposure = full_kelly * 0.75
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#F3F4F6;'>⚖️ 目標資產配置權重 (索提諾模型推薦)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>⚖️ 目標資產配置權重 (索提諾模型推薦)</h4>", unsafe_allow_html=True)
 st.sidebar.info(f"💡 索提諾比率最佳化推薦權重：**{optimal_sortino_weight_1*100:.1f}%**\n💡 0.75 半凱利動態曝險建議：**{half_kelly_exposure*100:.1f}%**")
 
 use_ai_weight = st.sidebar.checkbox("採納索提諾模型最佳黃金權重", value=True)
@@ -443,9 +452,9 @@ with lc:
     monthly_net_color = "text-green" if monthly_net_carry >= 0 else "text-red"
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px; margin-top: 8px;">
-        <div style="color: #8B949E; font-size: 0.8rem; font-weight: 600;">每月淨現金流效益 (Monthly Net Carry)</div>
-        <div style="font-size: 1.4rem; font-weight: 700;" class="{monthly_net_color}">{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</div>
-        <div style="font-size: 0.75rem; color: #10B981; margin-top: 3px;">{'🟢 每月現金流完全自償：被動配息完美覆蓋每月利息！' if monthly_net_carry >= 0 else '🔴 每月現金流短缺：需由本業現金流補足差額。'}</div>
+        <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">每月淨現金流效益 (Monthly Net Carry)</div>
+        <div style="font-size: 1.5rem; font-weight: 900;" class="{monthly_net_color}">{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</div>
+        <div style="font-size: 0.8rem; color: #10B981; margin-top: 4px; font-weight: 700;">{'🟢 每月現金流完全自償：被動配息完美覆蓋每月利息！' if monthly_net_carry >= 0 else '🔴 每月現金流短缺：需由本業現金流補足差額。'}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -457,9 +466,9 @@ with rc:
     net_carry_color = "text-green" if net_carry > 0 else "text-red"
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 12px; border-radius: 8px; margin-top: 8px;">
-        <div style="color: #8B949E; font-size: 0.8rem; font-weight: 600;">整體年度淨現金流效益 (Net Carry / 年)</div>
-        <div style="font-size: 1.4rem; font-weight: 700;" class="{net_carry_color}">+NT$ {net_carry:,.0f}</div>
-        <div style="font-size: 0.75rem; color: #F59E0B; margin-top: 3px;">{'🟢 Positive Carry：資產收益完全覆蓋所有負債利息！' if net_carry > 0 else '🔴 負現金流狀態。'}</div>
+        <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">整體年度淨現金流效益 (Net Carry / 年)</div>
+        <div style="font-size: 1.5rem; font-weight: 900;" class="{net_carry_color}">+NT$ {net_carry:,.0f}</div>
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px; font-weight: 700;">{'🟢 Positive Carry：資產收益完全覆蓋所有負債利息！' if net_carry > 0 else '🔴 負現金流狀態。'}</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -502,7 +511,8 @@ with ef_col1:
         margin=dict(l=10, r=10, t=10, b=10), height=280,
         xaxis=dict(title='預估年化波動率 (%)', gridcolor='#232D3F'),
         yaxis=dict(title='預估年化報酬率 (%)', gridcolor='#232D3F'),
-        showlegend=False
+        showlegend=False,
+        font=dict(family="sans-serif", size=12, color="#F3F4F6")
     )
     st.plotly_chart(fig_ef, use_container_width=True)
 
@@ -511,7 +521,6 @@ with ef_col2:
     fig_mc = go.Figure()
     days_arr = np.arange(num_sim_days)
     
-    # 畫出 5 條隨機抽樣軌跡
     for p in range(5):
         fig_mc.add_trace(go.Scatter(
             x=days_arr, y=sim_paths[:, p], mode='lines',
@@ -519,7 +528,6 @@ with ef_col2:
             showlegend=False
         ))
         
-    # 畫出 95% 區間與中位數
     fig_mc.add_trace(go.Scatter(x=days_arr, y=path_upper_95, mode='lines', line=dict(width=1.5, color='#10B981', dash='dot'), name="95% 樂觀上限"))
     fig_mc.add_trace(go.Scatter(x=days_arr, y=path_median, mode='lines', line=dict(width=2.5, color='#F59E0B'), name="50% 中位數預期"))
     fig_mc.add_trace(go.Scatter(x=days_arr, y=path_lower_5, mode='lines', line=dict(width=1.5, color='#EF4444', dash='dot'), name="5% 壓力下緣"))
@@ -529,7 +537,8 @@ with ef_col2:
         margin=dict(l=10, r=10, t=10, b=10), height=280,
         xaxis=dict(title='交易日 (天)', gridcolor='#232D3F'),
         yaxis=dict(title='資產市值 (NT$)', gridcolor='#232D3F'),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        font=dict(family="sans-serif", size=12, color="#F3F4F6")
     )
     st.plotly_chart(fig_mc, use_container_width=True)
 
@@ -610,7 +619,8 @@ def create_square_card_chart(data_obj, title_text):
         xaxis=dict(showgrid=True, gridcolor='#232D3F', title=''),
         yaxis=dict(showgrid=True, gridcolor='#232D3F', side='right', range=[ymin - y_padding, ymax + y_padding], autorange=False, title=''),
         yaxis2=dict(showgrid=False, side='right', title=''),
-        hovermode='x unified', showlegend=False
+        hovermode='x unified', showlegend=False,
+        font=dict(family="sans-serif", size=11, color="#F3F4F6")
     )
     return fig, s_curr, s_pct, s_diff, line_color
 
@@ -624,8 +634,8 @@ with row1_col1:
     fig_1, curr_1, pct_1, diff_1, col_1 = create_square_card_chart(data_obj_1, "加權現貨")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-        <span style="font-size: 1.2rem; font-weight: 800; color: #F8FAFC;">{curr_1:,.2f}</span>
-        <span style="font-size: 0.75rem; font-weight: 700; color: {col_1};">{'+' if diff_1 >= 0 else ''}{pct_1:.2f}% ({'+' if diff_1 >= 0 else ''}{diff_1:,.2f})</span>
+        <span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_1:,.2f}</span>
+        <span style="font-size: 0.8rem; font-weight: 800; color: {col_1};">{'+' if diff_1 >= 0 else ''}{pct_1:.2f}% ({'+' if diff_1 >= 0 else ''}{diff_1:,.2f})</span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_1, use_container_width=True)
@@ -639,8 +649,8 @@ with row1_col2:
     fig_2, curr_2, pct_2, diff_2, col_2 = create_square_card_chart(data_obj_2, "S&P 500")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-        <span style="font-size: 1.2rem; font-weight: 800; color: #F8FAFC;">{curr_2:,.2f}</span>
-        <span style="font-size: 0.75rem; font-weight: 700; color: {col_2};">{'+' if diff_2 >= 0 else ''}{pct_2:.2f}% ({'+' if diff_2 >= 0 else ''}{diff_2:,.2f})</span>
+        <span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_2:,.2f}</span>
+        <span style="font-size: 0.8rem; font-weight: 800; color: {col_2};">{'+' if diff_2 >= 0 else ''}{pct_2:.2f}% ({'+' if diff_2 >= 0 else ''}{diff_2:,.2f})</span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_2, use_container_width=True)
@@ -656,8 +666,8 @@ with row2_col1:
     fig_3, curr_3, pct_3, diff_3, col_3 = create_square_card_chart(data_obj_3, "NASDAQ")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-        <span style="font-size: 1.2rem; font-weight: 800; color: #F8FAFC;">{curr_3:,.2f}</span>
-        <span style="font-size: 0.75rem; font-weight: 700; color: {col_3};">{'+' if diff_3 >= 0 else ''}{pct_3:.2f}% ({'+' if diff_3 >= 0 else ''}{diff_3:,.2f})</span>
+        <span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">{curr_3:,.2f}</span>
+        <span style="font-size: 0.8rem; font-weight: 800; color: {col_3};">{'+' if diff_3 >= 0 else ''}{pct_3:.2f}% ({'+' if diff_3 >= 0 else ''}{diff_3:,.2f})</span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_3, use_container_width=True)
@@ -671,8 +681,8 @@ with row2_col2:
     fig_4, curr_4, pct_4, diff_4, col_4 = create_square_card_chart(data_obj_4, "台積電")
     st.markdown(f"""
     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;">
-        <span style="font-size: 1.2rem; font-weight: 800; color: #F8FAFC;">NT$ {curr_4:,.1f}</span>
-        <span style="font-size: 0.75rem; font-weight: 700; color: {col_4};">{'+' if diff_4 >= 0 else ''}{pct_4:.2f}% ({'+' if diff_4 >= 0 else ''}{diff_4:,.1f})</span>
+        <span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">NT$ {curr_4:,.1f}</span>
+        <span style="font-size: 0.8rem; font-weight: 800; color: {col_4};">{'+' if diff_4 >= 0 else ''}{pct_4:.2f}% ({'+' if diff_4 >= 0 else ''}{diff_4:,.1f})</span>
     </div>
     """, unsafe_allow_html=True)
     st.plotly_chart(fig_4, use_container_width=True)
