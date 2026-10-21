@@ -115,7 +115,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與攻擊曝險設定</h3>", unsafe_allow_html=True)
 
 st.session_state.enable_life = st.sidebar.checkbox("啟用生命週期動態降曝險 (強制保留 ≥ 150% 攻擊下限)", value=st.session_state.enable_life)
-st.session_state.user_age_val = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=st.session_state.user_age_val, step=1)
+st.session_state.user_age_val = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=90, value=int(st.session_state.user_age_val), step=1)
 target_lifecycle_exposure = max(280.0 - (st.session_state.user_age_val - 25) * 3.5, 150.0)
 
 if st.session_state.enable_life:
@@ -126,13 +126,13 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>⚙️ 資本結構與富人質押設定</h3>", unsafe_allow_html=True)
 
-st.session_state.total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=float(st.session_state.total_equity_cost), step=100000)
+st.session_state.total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=float(st.session_state.total_equity_cost), step=100000.0)
 st.session_state.ltv_ratio_val = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=0.0, max_value=60.0, value=float(st.session_state.ltv_ratio_val), step=1.0) / 100.0
 
 auto_loan_amount = int(st.session_state.total_equity_cost * st.session_state.ltv_ratio_val)
 st.session_state.manual_override = st.sidebar.checkbox("手動自訂質押借款金額 (永久不還本金)", value=st.session_state.manual_override)
 if st.session_state.manual_override:
-    loan_amount = st.sidebar.number_input("自訂質押借款金額 (NT$)", value=float(st.session_state.manual_loan_val), step=10000)
+    loan_amount = st.sidebar.number_input("自訂質押借款金額 (NT$)", value=float(st.session_state.manual_loan_val), step=10000.0)
     st.session_state.manual_loan_val = loan_amount
 else:
     loan_amount = auto_loan_amount
@@ -190,7 +190,7 @@ st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>💳 外部不�
 enable_mortgage = st.sidebar.checkbox("啟用房貸現金流試算", value=False)
 mortgage_annual_outflow = 0.0
 if enable_mortgage:
-    m_balance = st.sidebar.number_input("房貸剩餘本金 (NT$)", value=0, step=100000)
+    m_balance = st.sidebar.number_input("房貸剩餘本金 (NT$)", value=0.0, step=100000.0)
     m_rate = st.sidebar.slider("房貸年利率 (%)", min_value=1.5, max_value=5.0, value=2.2, step=0.1) / 100.0
     m_term = st.sidebar.slider("房貸總年限 (年)", min_value=10, max_value=40, value=30, step=5)
     m_grace = st.sidebar.checkbox("房貸享有寬限期 (只付利息)", value=True)
@@ -210,7 +210,7 @@ if enable_mortgage:
 enable_credit_loan = st.sidebar.checkbox("啟用信貸現金流試算", value=False)
 credit_annual_outflow = 0.0
 if enable_credit_loan:
-    c_balance = st.sidebar.number_input("信貸剩餘本金 (NT$)", value=0, step=50000)
+    c_balance = st.sidebar.number_input("信貸剩餘本金 (NT$)", value=0.0, step=50000.0)
     c_rate = st.sidebar.slider("信貸年利率 (%)", min_value=2.0, max_value=8.0, value=2.8, step=0.1) / 100.0
     c_term = st.sidebar.slider("信貸總年限 (年)", min_value=3, max_value=7, value=7, step=1)
     
@@ -240,9 +240,9 @@ for i, debt in enumerate(st.session_state.custom_debts):
     
     st.sidebar.markdown(f"**📌 項目 #{i+1}**")
     debt["name"] = st.sidebar.text_input(f"負債名稱 #{i+1}", value=debt["name"], key=f"c_name_{duid}")
-    debt["balance"] = st.sidebar.number_input(f"剩餘本金 #{i+1} (NT$)", value=debt["balance"], step=50000, key=f"c_bal_{duid}")
-    debt["rate"] = st.sidebar.slider(f"年利率 #{i+1} (%)", min_value=1.0, max_value=10.0, value=debt["rate"], step=0.1, key=f"c_rate_{duid}")
-    debt["outflow"] = st.sidebar.number_input(f"每年還款總額 #{i+1} (NT$)", value=debt["outflow"], step=10000, key=f"c_out_{duid}")
+    debt["balance"] = st.sidebar.number_input(f"剩餘本金 #{i+1} (NT$)", value=float(debt["balance"]), step=50000.0, key=f"c_bal_{duid}")
+    debt["rate"] = st.sidebar.slider(f"年利率 #{i+1} (%)", min_value=1.0, max_value=10.0, value=float(debt["rate"]), step=0.1, key=f"c_rate_{duid}")
+    debt["outflow"] = st.sidebar.number_input(f"每年還款總額 #{i+1} (NT$)", value=float(debt["outflow"]), step=10000.0, key=f"c_out_{duid}")
     custom_debts_total_outflow += debt["outflow"]
     if st.sidebar.button(f"🗑️ 刪除此項 #{i+1}", key=f"del_c_{duid}"):
         st.session_state.custom_debts.pop(i)
