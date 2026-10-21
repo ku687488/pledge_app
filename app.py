@@ -62,7 +62,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#F8FAFC; font-weight:800; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:5px 0 0 0; color:#F59E0B; font-size:0.9rem; font-weight:600;">
-        💎 華爾街家族辦公室富人槓桿與現金流戰略引擎 • 優先現金流配置 • 正方形高頻矩陣 • AI 動態偏離預警
+        💎 華爾街家族辦公室富人槓桿與現金流戰略引擎 • 智慧再平衡執行與斷頭防禦模組 • AI 動態偏離預警
     </p>
 </div>
 """,
@@ -192,7 +192,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#F3F4F6;'>⚖️ 目標資產配置權重</h4>", unsafe_allow_html=True)
 target_weight_1 = st.sidebar.slider("目標攻擊標的權重 (%)", min_value=10.0, max_value=90.0, value=70.0, step=5.0) / 100.0
 
-# ==================== 3. 抓取短期高頻真實市場數據引擎 (含開盤基準價) ====================
+# ==================== 3. 抓取短期高頻真實市場數據引擎 (含開盤基準價與匯率) ====================
 @st.cache_data(ttl=30)
 def fetch_short_term_data(ticker):
     data_dict = {}
@@ -226,14 +226,13 @@ market_data_twii = fetch_short_term_data("^TWII")
 market_data_tsmc = fetch_short_term_data("2330.TW")
 market_data_gspc = fetch_short_term_data("^GSPC")
 market_data_ixic = fetch_short_term_data("^IXIC")
-market_data_dji = fetch_short_term_data("^DJI")
-market_data_vix = fetch_short_term_data("^VIX")
+market_data_fx = fetch_short_term_data("TWD=X")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
         if key in data_dict and not data_dict[key]["series"].empty:
             val = data_dict[key]["series"].iloc[-1]
-            if not pd.isna(val) and val > 100:
+            if not pd.isna(val) and val > 0:
                 return float(val)
     return fallback
 
@@ -243,8 +242,7 @@ tsmc_p = get_latest_price(market_data_tsmc, 2405.0)
 taiwii_p = get_latest_price(market_data_twii, 46292.0)
 sp500_p = get_latest_price(market_data_gspc, 5800.0)
 nasdaq_p = get_latest_price(market_data_ixic, 18500.0)
-dji_p = get_latest_price(market_data_dji, 43000.0)
-cur_vix = get_latest_price(market_data_vix, 16.0)
+usdtwd_p = get_latest_price(market_data_fx, 32.2)
 
 annual_interest = loan_amount * interest_rate
 pledged_fund_2 = loan_amount * pledged_invest_ratio
@@ -274,7 +272,7 @@ st.markdown(f"""
 <div class="web-push-ticker">
     📡 <b>【Apex 家族辦公室量化戰情快報 (AI 動態智慧監控模式)】</b><br>
     • 當前 LTV 質押成數：<b>{ltv_ratio*100:.1f}%</b> {'(⚠️ 已超過建議最高 25% 安全線)' if ltv_ratio > 0.25 else '(🟢 符合最多 25% 穩健原則)'}<br>
-    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | VIX <b>{cur_vix:.2f}</b>
+    • 核心資產價位：台積電 <b>NT$ {tsmc_p:,.1f}</b> | 加權指數 <b>{taiwii_p:,.2f} 點</b> | 美元匯率 USD/TWD <b>{usdtwd_p:.2f}</b>
 </div>
 """, unsafe_allow_html=True)
 
@@ -357,7 +355,7 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 6. 【交換至上方】核心重點：現金流自償性與永續槓桿損益試算面板 ====================
+# ==================== 6. 【核心重點優先】現金流自償性與永續槓桿損益試算面板 ====================
 st.markdown("### 💵 核心重點：現金流自償性與永續槓桿損益試算面板")
 lc, rc = st.columns(2)
 with lc:
@@ -392,7 +390,37 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 7. 【核心圖表正方形 2x2 矩陣區】市場行情方格 (以開盤為基準) ====================
+# ==================== 7. 【新功能】智慧資產再平衡與斷頭價格防禦矩陣 ====================
+st.markdown("### ⚖️ 智慧資產再平衡與斷頭價格防禦矩陣")
+rebal_c1, rebal_c2 = st.columns(2)
+
+with rebal_c1:
+    st.markdown("##### 🔄 資產配置再平衡建議 (Rebalance Action Plan)")
+    target_val_1 = total_collateral * target_weight_1
+    target_val_2 = total_collateral * (1 - target_weight_1)
+    diff_val_1 = target_val_1 - val_1
+    action_str_1 = f"需買進 NT$ {abs(diff_val_1):,.0f}" if diff_val_1 > 0 else f"需賣出 NT$ {abs(diff_val_1):,.0f}"
+    
+    rebal_df = pd.DataFrame({
+        "資產類別": [selected_label_1[:15], selected_label_2[:15]],
+        "實際市值": [f"NT$ {val_1:,.0f}", f"NT$ {val_2:,.0f}"],
+        "實際權重": [f"{current_weight_1*100:.1f}%", f"{(1-current_weight_1)*100:.1f}%"],
+        "目標權重": [f"{target_weight_1*100:.1f}%", f"{(1-target_weight_1)*100:.1f}%"],
+        "再平衡動作": [action_str_1, f"調整差額對應處理"]
+    })
+    st.dataframe(rebal_df, use_container_width=True, hide_index=True)
+
+with rebal_c2:
+    st.markdown("##### 🛡️ 130% 斷頭價格防禦安全邊際")
+    required_collateral_130 = loan_amount * 1.30
+    drop_to_130_pct = max(((total_collateral - required_collateral_130) / total_collateral) * 100, 0.0) if total_collateral > 0 else 0.0
+    
+    st.metric("擔保品整體允許最大回檔幅度", f"-{drop_to_130_pct:.1f}%", "跌幅超過此比例將觸及 130% 平倉線")
+    st.info(f"💡 目前您的維持率為 **{margin_ratio:.1f}%**。若擔保品總市值從 NT$ {total_collateral:,.0f} 跌至 NT$ {required_collateral_130:,.0f}，將面臨券商追繳或斷頭。")
+
+st.markdown("---")
+
+# ==================== 8. 【核心圖表正方形 2x2 矩陣區】市場行情方格 (以開盤為基準) ====================
 st.markdown("### 📈 即時高頻市場行情方格 (正方形緊湊矩陣)")
 st.markdown("以官方開盤價為基準計算漲跌與顏色，採 2x2 正方形緊湊排版：")
 
@@ -434,7 +462,6 @@ def create_square_card_chart(data_obj, title_text):
     ymin, ymax = float(series.min()), float(series.max())
     y_padding = (ymax - ymin) * 0.08 if ymax != ymin else 50.0
     
-    # 壓縮高度為正方形視覺 (height=190)
     fig.update_layout(
         template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
         margin=dict(l=5, r=5, t=5, b=5), height=190,
@@ -445,7 +472,6 @@ def create_square_card_chart(data_obj, title_text):
     )
     return fig, s_curr, s_pct, s_diff, line_color
 
-# 2x2 正方形方格排版
 row1_col1, row1_col2 = st.columns(2)
 
 with row1_col1:
@@ -512,7 +538,7 @@ with row2_col2:
 
 st.markdown("---")
 
-# ==================== 8. 【TSMC 多情境 EPS 與機構共識精巧矩陣】 ====================
+# ==================== 9. 【TSMC 多情境 EPS 與機構共識精巧矩陣】 ====================
 st.markdown("### 🏛️ 台積電 (2330.TW) 保守 / 平均 / 樂觀 EPS 與機構共識矩陣")
 
 @st.cache_data(ttl=300)
@@ -563,7 +589,7 @@ st.dataframe(
 
 st.markdown("---")
 
-# ==================== 9. 正二路徑依賴與極端壓力測試 ====================
+# ==================== 10. 正二路徑依賴與極端壓力測試 ====================
 st.markdown("### 🚨 機構級正二路徑依賴與極端壓力測試 (Path-Dependent Stress Test)")
 col_s1, col_s2 = st.columns([2, 1])
 with col_s1:
