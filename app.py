@@ -78,14 +78,14 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 歷史殖利率動態智慧抓取 • 索提諾與蒙地卡羅動態重算模型
+        💎 富人思維槓桿戰情室 • LTV 與狀態完美持久化 • 近期/5年/10年多維歷史殖利率分析
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. Session State 狀態持久化與初次初始化 ====================
+# ==================== 2. Session State 客戶端狀態持久化初始化 ====================
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.owned_assets = []
@@ -127,9 +127,19 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>⚙️ 資本結構與富人質押設定</h3>", unsafe_allow_html=True)
 
 st.session_state.total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", value=float(st.session_state.total_equity_cost), step=100000.0)
-st.session_state.ltv_ratio_val = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=0.0, max_value=60.0, value=float(st.session_state.ltv_ratio_val), step=1.0) / 100.0
 
-auto_loan_amount = int(st.session_state.total_equity_cost * st.session_state.ltv_ratio_val)
+# 使用 session_state 綁定 LTV 滑動條，杜絕歸零問題
+ltv_slider_input = st.sidebar.slider(
+    "2. 股票質押成數 LTV (%)", 
+    min_value=0.0, 
+    max_value=60.0, 
+    value=float(st.session_state.ltv_ratio_val * 100), 
+    step=1.0
+)
+st.session_state.ltv_ratio_val = ltv_slider_input / 100.0
+ltv_ratio = st.session_state.ltv_ratio_val
+
+auto_loan_amount = int(st.session_state.total_equity_cost * ltv_ratio)
 st.session_state.manual_override = st.sidebar.checkbox("手動自訂質押借款金額 (永久不還本金)", value=st.session_state.manual_override)
 if st.session_state.manual_override:
     loan_amount = st.sidebar.number_input("自訂質押借款金額 (NT$)", value=float(st.session_state.manual_loan_val), step=10000.0)
@@ -141,7 +151,88 @@ else:
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.interest_rate_val), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
 
-# ==================== 自有資金持倉管理 ====================
+# ==================== 3. 24小時即時多源重試與多維歷史殖利率引擎 ====================
+@st.cache_data(ttl=60)
+def fetch_live_market_data_and_multi_dividends(ticker):
+    data_dict = {}
+    configs = {
+        "1天 (即時高頻)": ("1d", "2m"),
+        "5天 (近期走勢)": ("5d", "15m"),
+        "1個月": ("1mo", "1d")
+    }
+    for label, (per, iv) in configs.items():
+        try:
+            df = yf.download(ticker, period=per, interval=iv, auto_adjust=False, progress=False)
+            if not df.empty:
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                if 'Close' in df.columns:
+                    s = df['Close'].dropna()
+                    if isinstance(s, pd.DataFrame):
+                        s = s.iloc[:, 0]
+                    if s.index.tz is not None:
+                        s.index = s.index.tz_convert('Asia/Taipei')
+                    else:
+                        s.index = s.index.tz_localize('UTC').tz_convert('Asia/Taipei')
+                    
+                    open_price = float(df['Open'].iloc[0]) if 'Open' in df.columns and not df['Open'].empty else float(s.iloc[0])
+                    data_dict[label] = {"series": s, "open_price": open_price}
+        except:
+            pass
+
+    # 計算多維歷史殖利率 (近期、5年、10年平均)
+    recent_yield = 0.0
+    yield_5y = 0.0
+    yield_10y = 0.0
+    try:
+        tk_obj = yf.Ticker(ticker)
+        divs = tk_obj.dividends
+        hist = tk_obj.history(period="max")
+        if not divs.empty and not hist.empty:
+            current_close = float(hist['Close'].iloc[-1])
+            if current_close > 0:
+                # 近期 1 年平均
+                recent_divs = divs.loc[divs.index >= (pd.Timestamp.now() - pd.DateOffset(years=1))]
+                recent_yield = float(recent_divs.sum() / current_close) if not recent_divs.empty else 0.0
+                
+                # 5 年平均
+                divs_5y = divs.loc[divs.index >= (pd.Timestamp.now() - pd.DateOffset(years=5))]
+                yield_5y = float((divs_5y.sum() / 5.0) / current_close) if not divs_5y.empty else recent_yield
+                
+                # 10 年平均
+                divs_10y = divs.loc[divs.index >= (pd.Timestamp.now() - pd.DateOffset(years=10))]
+                yield_10y = float((divs_10y.sum() / 10.0) / current_close) if not divs_10y.empty else yield_5y
+    except:
+        recent_yield, yield_5y, yield_10y = 0.035, 0.035, 0.035
+        
+    return data_dict, recent_yield, yield_5y, yield_10y
+
+def resolve_ticker_info(raw_input):
+    clean_t = raw_input.strip().upper()
+    if not clean_t:
+        return {}, 60.0, (0.035, 0.035, 0.035)
+    if clean_t.startswith("^"):
+        res, r_y, y_5, y_10 = fetch_live_market_data_and_multi_dividends(clean_t)
+        return res, 1000.0, (0.0, 0.0, 0.0)
+        
+    candidates = []
+    if clean_t.endswith(".TW") or clean_t.endswith(".TWO"):
+        candidates.append(clean_t)
+    else:
+        candidates.append(clean_t + ".TW")
+        candidates.append(clean_t + ".TWO")
+        
+    for cand in candidates:
+        res, r_y, y_5, y_10 = fetch_live_market_data_and_multi_dividends(cand)
+        if res:
+            for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
+                if key in res and not res[key]["series"].empty:
+                    val = float(res[key]["series"].iloc[-1])
+                    if not pd.isna(val) and val > 0:
+                        return res, val, (r_y, y_5, y_10)
+    return {}, 50.0, (0.0, 0.0, 0.0)
+
+# ==================== 自有資金持倉管理 (動態展示多維殖利率) ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (-1代表自動抓歷史殖利率)</h4>", unsafe_allow_html=True)
 
@@ -153,6 +244,24 @@ if st.sidebar.button("➕ 新增自有持倉標的"):
         "div_yield_override": -1.0
     })
     st.rerun()
+
+price_cache = {}
+yield_cache_dict = {}
+market_series_cache = {}
+
+all_tickers_to_fetch = set()
+for a in st.session_state.owned_assets:
+    if a.get("ticker", "").strip():
+        all_tickers_to_fetch.add(a["ticker"].strip().upper())
+for r in st.session_state.reinvest_assets:
+    if r.get("ticker", "").strip():
+        all_tickers_to_fetch.add(r["ticker"].strip().upper())
+
+for t in all_tickers_to_fetch:
+    res, latest_p, (r_y, y_5, y_10) = resolve_ticker_info(t)
+    price_cache[t] = latest_p
+    yield_cache_dict[t] = {"recent": r_y, "5y": y_5, "10y": y_10}
+    market_series_cache[t] = res
 
 for i, asset in enumerate(st.session_state.owned_assets):
     if "id" not in asset:
@@ -169,7 +278,14 @@ for i, asset in enumerate(st.session_state.owned_assets):
     st.sidebar.markdown(f"**📌 自有持倉 #{i+1}**")
     asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 00685L, 2330)", value=asset["ticker"], key=f"own_t_{uid}")
     asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{uid}")
-    asset["div_yield_override"] = st.sidebar.number_input(f"殖利率覆蓋 (-1代表自動抓歷史平均) #{i+1}", value=float(asset["div_yield_override"]), step=0.005, key=f"own_div_{uid}")
+    
+    # 即時顯示抓取到的歷史殖利率數據（近1年、5年、10年平均）
+    curr_t_key = asset["ticker"].strip().upper()
+    if curr_t_key in yield_cache_dict:
+        y_info = yield_cache_dict[curr_t_key]
+        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; margin-bottom:4px;'>📊 歷史殖利率參考：近期 {y_info['recent']*100:.2f}% | 5年平均 {y_info['5y']*100:.2f}% | 10年平均 {y_info['10y']*100:.2f}%</div>", unsafe_allow_html=True)
+
+    asset["div_yield_override"] = st.sidebar.number_input(f"殖利率覆蓋 (-1代表自動抓取) #{i+1}", value=float(asset["div_yield_override"]), step=0.005, key=f"own_div_{uid}")
     if st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{uid}"):
         st.session_state.owned_assets.pop(i)
         st.rerun()
@@ -202,7 +318,13 @@ for j, rein in enumerate(st.session_state.reinvest_assets):
     st.sidebar.markdown(f"**📌 質押再投入 #{j+1}**")
     rein["ticker"] = st.sidebar.text_input(f"再投入台股代號 #{j+1}", value=rein["ticker"], key=f"rein_t_{ruid}")
     rein["amount"] = st.sidebar.number_input(f"投入金額 #{j+1} (NT$)", value=float(rein["amount"]), step=50000.0, key=f"rein_amt_{ruid}")
-    rein["div_yield_override"] = st.sidebar.number_input(f"殖利率覆蓋 (-1代表自動抓歷史平均) #{j+1}", value=float(rein["div_yield_override"]), step=0.005, key=f"rein_div_{ruid}")
+    
+    curr_r_key = rein["ticker"].strip().upper()
+    if curr_r_key in yield_cache_dict:
+        y_info = yield_cache_dict[curr_r_key]
+        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; margin-bottom:4px;'>📊 歷史殖利率參考：近期 {y_info['recent']*100:.2f}% | 5年平均 {y_info['5y']*100:.2f}% | 10年平均 {y_info['10y']*100:.2f}%</div>", unsafe_allow_html=True)
+
+    rein["div_yield_override"] = st.sidebar.number_input(f"殖利率覆蓋 (-1代表自動抓取) #{j+1}", value=float(rein["div_yield_override"]), step=0.005, key=f"rein_div_{ruid}")
     if st.sidebar.button(f"🗑️ 刪除再投入 #{j+1}", key=f"del_rein_{ruid}"):
         st.session_state.reinvest_assets.pop(j)
         st.rerun()
@@ -274,97 +396,12 @@ for i, debt in enumerate(st.session_state.custom_debts):
 
 total_external_outflow = mortgage_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
 
-# ==================== 3. 24小時即時多源重試與歷史殖利率自動計算引擎 ====================
-@st.cache_data(ttl=60)
-def fetch_live_market_data_and_dividends(ticker):
-    data_dict = {}
-    configs = {
-        "1天 (即時高頻)": ("1d", "2m"),
-        "5天 (近期走勢)": ("5d", "15m"),
-        "1個月": ("1mo", "1d")
-    }
-    for label, (per, iv) in configs.items():
-        try:
-            df = yf.download(ticker, period=per, interval=iv, auto_adjust=False, progress=False)
-            if not df.empty:
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = df.columns.get_level_values(0)
-                if 'Close' in df.columns:
-                    s = df['Close'].dropna()
-                    if isinstance(s, pd.DataFrame):
-                        s = s.iloc[:, 0]
-                    if s.index.tz is not None:
-                        s.index = s.index.tz_convert('Asia/Taipei')
-                    else:
-                        s.index = s.index.tz_localize('UTC').tz_convert('Asia/Taipei')
-                    
-                    open_price = float(df['Open'].iloc[0]) if 'Open' in df.columns and not df['Open'].empty else float(s.iloc[0])
-                    data_dict[label] = {"series": s, "open_price": open_price}
-        except:
-            pass
-
-    hist_yield = 0.0
-    try:
-        tk_obj = yf.Ticker(ticker)
-        divs = tk_obj.dividends
-        hist = tk_obj.history(period="1y")
-        if not divs.empty and not hist.empty:
-            total_annual_div = divs.tail(4).sum() if len(divs) >= 4 else divs.sum()
-            current_close = float(hist['Close'].iloc[-1])
-            if current_close > 0:
-                hist_yield = float(total_annual_div / current_close)
-    except:
-        hist_yield = 0.035
-        
-    return data_dict, hist_yield
-
-def resolve_ticker_info(raw_input):
-    clean_t = raw_input.strip().upper()
-    if not clean_t:
-        return {}, 60.0, 0.035
-    if clean_t.startswith("^"):
-        res, dy = fetch_live_market_data_and_dividends(clean_t)
-        return res, 1000.0, 0.0
-        
-    candidates = []
-    if clean_t.endswith(".TW") or clean_t.endswith(".TWO"):
-        candidates.append(clean_t)
-    else:
-        candidates.append(clean_t + ".TW")
-        candidates.append(clean_t + ".TWO")
-        
-    for cand in candidates:
-        res, dy = fetch_live_market_data_and_dividends(cand)
-        if res:
-            for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
-                if key in res and not res[key]["series"].empty:
-                    val = float(res[key]["series"].iloc[-1])
-                    if not pd.isna(val) and val > 0:
-                        return res, val, dy
-    return {}, 50.0, 0.0
-
-all_tickers_to_fetch = set()
-for a in st.session_state.owned_assets:
-    if a.get("ticker", "").strip():
-        all_tickers_to_fetch.add(a["ticker"].strip().upper())
-for r in st.session_state.reinvest_assets:
-    if r.get("ticker", "").strip():
-        all_tickers_to_fetch.add(r["ticker"].strip().upper())
-
-price_cache = {}
-yield_cache = {}
-market_series_cache = {}
-for t in all_tickers_to_fetch:
-    res, latest_p, hist_dy = resolve_ticker_info(t)
-    price_cache[t] = latest_p
-    yield_cache[t] = hist_dy
-    market_series_cache[t] = res
-
-market_data_twii, _ = fetch_live_market_data_and_dividends("^TWII")
-market_data_tsmc, _ = fetch_live_market_data_and_dividends("2330.TW")
-market_data_gspc, _ = fetch_live_market_data_and_dividends("^GSPC")
-market_data_ixic, _ = fetch_live_market_data_and_dividends("^IXIC")
-market_data_fx, _ = fetch_live_market_data_and_dividends("TWD=X")
+# 大盤與台積電即時抓價
+market_data_twii, _ = fetch_live_market_data_and_multi_dividends("^TWII")
+market_data_tsmc, _ = fetch_live_market_data_and_multi_dividends("2330.TW")
+market_data_gspc, _ = fetch_live_market_data_and_multi_dividends("^GSPC")
+market_data_ixic, _ = fetch_live_market_data_and_multi_dividends("^IXIC")
+market_data_fx, _ = fetch_live_market_data_and_multi_dividends("TWD=X")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
@@ -392,7 +429,11 @@ for a in st.session_state.owned_assets:
     base_val_total += val
     
     override_dy = a.get("div_yield_override", -1.0)
-    dy = override_dy if override_dy >= 0 else yield_cache.get(t_key, 0.035)
+    if override_dy >= 0:
+        dy = override_dy
+    else:
+        y_info = yield_cache_dict.get(t_key, {"recent": 0.035})
+        dy = y_info["recent"]
     expected_div_base += val * dy
     effective_exposure_base += val * beta
 
@@ -410,7 +451,11 @@ for r in st.session_state.reinvest_assets:
     reinvest_val_total += amt
     
     override_dy = r.get("div_yield_override", -1.0)
-    dy = override_dy if override_dy >= 0 else yield_cache.get(t_key, 0.04)
+    if override_dy >= 0:
+        dy = override_dy
+    else:
+        y_info = yield_cache_dict.get(t_key, {"recent": 0.04})
+        dy = y_info["recent"]
     expected_div_rein += amt * dy
     effective_exposure_rein += amt * beta
 
@@ -488,7 +533,7 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (動態歷史殖利率與計量重算模式)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (多維歷史殖利率與 LTV 記憶保持模式)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
     • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 攻擊下限) | 每月淨現金流：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f}/月</b>
 </div>
@@ -499,7 +544,7 @@ def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，歷史殖利率與索提諾模型已全數自動重算完成！")
+        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，多維歷史殖利率與索提諾模型已全數自動重算完成！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於總配息收益。")
@@ -568,13 +613,16 @@ lc, rc = st.columns(2)
 with lc:
     st.markdown("##### 📅 每月現金流即時檢視 (Monthly Cash Flow)")
     st.metric("每月質押利息支出 (只付利息)", f"-NT$ {monthly_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}% / 12")
-    st.metric(f"總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}", f"涵蓋所有自動抓取歷史殖利率之標的")
+    st.metric(f"總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}", f"涵蓋所有多維歷史殖利率自動計算標的")
     
     if enable_mortgage or enable_credit_loan or st.session_state.custom_debts:
         st.metric(f"每月外部房貸/信貸本息或寬限期支出", f"-NT$ {monthly_external_outflow:,.0f}")
         
     monthly_net_color = "text-green" if monthly_net_carry >= 0 else "text-red"
     st.markdown(f"""
+    <style>
+    /* 確保文字對比與樣式一致 */
+    </style>
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px; margin-top: 8px;">
         <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">每月淨現金流效益 (Monthly Net Carry)</div>
         <div style="font-size: 1.5rem; font-weight: 900;" class="{monthly_net_color}">{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</div>
