@@ -77,7 +77,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 質押再投入動態維持率優化 • 索提諾下行風險最適化 • 24小時智慧量化試算
+        💎 富人思維槓桿戰情室 • 精準代號對應 (00685L群益正二 / 00631L元大正二) • 動態再投入與曝險邏輯修正
     </p>
 </div>
 """,
@@ -114,7 +114,7 @@ else:
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
 pledged_invest_ratio = st.sidebar.slider("4. 質押借出資金再投入比例 (%)", min_value=0.0, max_value=100.0, value=95.0, step=1.0) / 100.0
-st.sidebar.info(f"💡 質押資金投入部位：**{pledged_invest_ratio*100:.1f}%** | 留存現金流部位：**{(1-pledged_invest_ratio)*100:.1f}%**")
+st.sidebar.info(f"💡 質押資金投入部位：**{pledged_invest_ratio*100:.1f}%** (再投入越高，總曝險與擔保品同步擴大)")
 
 # 獨立房貸與信貸模組
 st.sidebar.markdown("---")
@@ -182,11 +182,11 @@ for i, debt in enumerate(st.session_state.custom_debts):
 total_external_outflow = mortgage_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 標的選擇與 Beta 參數設定</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 精準標的選擇與 Beta 參數設定</h4>", unsafe_allow_html=True)
 
 preset_tickers = {
-    "00685L.TW - 元大台灣加權正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
-    "00631L.TW - 富邦台灣加權正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
+    "00685L.TW - 群益臺灣加權正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
+    "00631L.TW - 元大台灣50正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
     "00713.TW - 元大台灣高息低波 (防禦收息)": {"beta": 0.68, "default_div": 0.065},
     "0050.TW - 元大台灣50 (原型大盤)": {"beta": 1.0, "default_div": 0.03},
     "0056.TW - 元大高股息": {"beta": 0.85, "default_div": 0.07},
@@ -206,9 +206,9 @@ div_yield_2 = st.sidebar.slider("標的 2 預期年化殖利率 (%)", min_value=
 beta_1 = preset_tickers.get(selected_label_1, {"beta": 2.0})["beta"]
 beta_2 = preset_tickers.get(selected_label_2, {"beta": 0.68})["beta"]
 
-# ==================== 3. 抓取短期高頻真實市場數據引擎 (含開盤基準價與匯率) ====================
+# ==================== 3. 24小時實時市場真實抓價引擎 (Yahoo Finance API) ====================
 @st.cache_data(ttl=30)
-def fetch_short_term_data(ticker):
+def fetch_live_market_data(ticker):
     data_dict = {}
     configs = {
         "1天 (即時高頻)": ("1d", "2m"),
@@ -236,11 +236,14 @@ def fetch_short_term_data(ticker):
             pass
     return data_dict
 
-market_data_twii = fetch_short_term_data("^TWII")
-market_data_tsmc = fetch_short_term_data("2330.TW")
-market_data_gspc = fetch_short_term_data("^GSPC")
-market_data_ixic = fetch_short_term_data("^IXIC")
-market_data_fx = fetch_short_term_data("TWD=X")
+# 分別即時抓取標的 1 與標的 2 的真實市場價格
+live_data_1 = fetch_live_market_data(ticker_1)
+live_data_2 = fetch_live_market_data(ticker_2)
+market_data_twii = fetch_live_market_data("^TWII")
+market_data_tsmc = fetch_live_market_data("2330.TW")
+market_data_gspc = fetch_live_market_data("^GSPC")
+market_data_ixic = fetch_live_market_data("^IXIC")
+market_data_fx = fetch_live_market_data("TWD=X")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
@@ -250,8 +253,8 @@ def get_latest_price(data_dict, fallback):
                 return float(val)
     return fallback
 
-p_1 = 60.0
-p_2 = 50.0
+p_1 = get_latest_price(live_data_1, 60.0)
+p_2 = get_latest_price(live_data_2, 50.0)
 tsmc_p = get_latest_price(market_data_tsmc, 2405.0)
 taiwii_p = get_latest_price(market_data_twii, 46292.0)
 sp500_p = get_latest_price(market_data_gspc, 5800.0)
@@ -269,16 +272,14 @@ monthly_div_2 = expected_div_2 / 12.0
 monthly_external_outflow = total_external_outflow / 12.0
 monthly_net_carry = net_carry / 12.0
 
-# 核心動態再投入資產加總：初始本金市值 + 再投入資金轉化之資產價值增幅
+# 核心資產市值與再投入加總
 base_val_1 = shares_1 * p_1
 base_val_2 = shares_2 * p_2
 reinvested_asset_addition = loan_amount * pledged_invest_ratio
 total_collateral = base_val_1 + base_val_2 + reinvested_asset_addition
-
-# 動態即時質押維持率：結合再投入後的總擔保品市值 / 借款金額
 margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
-# ==================== 4. 華爾街量化模型：索提諾比率與森林法則隨機蒙地卡羅模擬 ====================
+# ==================== 4. 華爾街量化模型：索提諾比率與修正後的動態曝險運算 ====================
 ret_1 = 0.18 * beta_1
 ret_2 = 0.08 * beta_2
 vol_1 = 0.25 * beta_1
@@ -309,7 +310,7 @@ downside_vols = np.array(downside_vols)
 max_sortino_idx = np.argmax(sortino_ratios)
 optimal_sortino_weight_1 = weights_1_arr[max_sortino_idx]
 
-# 森林法則隨機蒙地卡羅模擬 (Random Forest Regime-Switching Monte Carlo)
+# 森林法則隨機蒙地卡羅模擬
 num_sim_days = 252
 num_paths = 250
 dt = 1.0 / 252.0
@@ -343,7 +344,7 @@ half_kelly_exposure = max(full_kelly * 0.75, 1.50)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>⚖️ 目標資產配置權重 (索提諾模型推薦)</h4>", unsafe_allow_html=True)
-st.sidebar.info(f"💡 索提諾比率最佳化推薦權重：**{optimal_sortino_weight_1*100:.1f}%**\n💡 0.75 半凱利動態曝險 (≥150%下限)：**{half_kelly_exposure*100:.1f}%**")
+st.sidebar.info(f"💡 索提諾比率最佳化推薦權重：**{optimal_sortino_weight_1*100:.1f}%**")
 
 use_ai_weight = st.sidebar.checkbox("採納索提諾模型最佳黃金權重", value=True)
 if use_ai_weight:
@@ -354,19 +355,19 @@ else:
 current_weight_1 = base_val_1 / total_collateral if total_collateral > 0 else 0
 weight_deviation = current_weight_1 - target_weight_1
 
-exposure_1 = base_val_1 * beta_1
-exposure_2 = base_val_2 * beta_2
-total_exposure = exposure_1 + exposure_2
+# 【曝險邏輯修正】：再投入比例越高，總資產與總曝險等比例擴大；再投入拉低，曝險隨之收斂
+effective_exposure_1 = (base_val_1 + reinvested_asset_addition * target_weight_1) * beta_1
+effective_exposure_2 = (base_val_2 + reinvested_asset_addition * (1 - target_weight_1)) * beta_2
+total_exposure = effective_exposure_1 + effective_exposure_2
 net_equity = total_collateral - loan_amount
-exposure_vs_asset = (total_exposure / total_collateral) * 100 if total_collateral > 0 else 0
 exposure_vs_equity = max((total_exposure / net_equity) * 100, 150.0) if net_equity > 0 else 150.0
 
 # ==================== 5. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室量化戰情快報 (動態再投入維持率優化)】</b><br>
-    • 質押資金再投入比例：<b>{pledged_invest_ratio*100:.1f}%</b> (動態擴大擔保品市值)<br>
-    • 即時動態質押維持率：<b>{margin_ratio:.1f}%</b> (已全面計入再投入資產效益)<br>
+    📡 <b>【Apex 家族辦公室 24 小時實時量化戰情快報】</b><br>
+    • 實時抓價狀態：<b>{ticker_1} (NT$ {p_1:,.2f}) | {ticker_2} (NT$ {p_2:,.2f})</b><br>
+    • 質押再投入連動曝險率：<b>{exposure_vs_equity:.1f}%</b> (完美連動再投入與 ≥150% 攻擊下限)<br>
     • 每月淨現金流效益：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</b> (借款永不還本、只付利息)
 </div>
 """, unsafe_allow_html=True)
@@ -376,7 +377,7 @@ def generate_ai_dynamic_alerts(ltv, margin_r, reinvest_r, net_c):
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[質押 LTV 與再投入合規]** 質押借款再投入比例達 {reinvest_r*100:.1f}%，動態維持率推升至 **{margin_r:.1f}%**，防禦緩衝極佳！")
+        alerts.append(f"🟢 **[精準實時市價與再投入合規]** 質押再投入比例為 {reinvest_r*100:.1f}%，動態維持率推升至 **{margin_r:.1f}%**，防禦緩衝極佳！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於配息收益。")
@@ -401,7 +402,7 @@ with c1:
     <div class="metric-card">
         <div class="card-title">擔保品總市值 (含再投入)</div>
         <div class="card-value">NT$ {total_collateral:,.0f}</div>
-        <div class="card-subtitle text-blue">再投入增幅: +NT$ {reinvested_asset_addition:,.0f}</div>
+        <div class="card-subtitle text-blue">再投入加值: +NT$ {reinvested_asset_addition:,.0f}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -420,7 +421,7 @@ with c3:
     <div class="metric-card">
         <div class="card-title">即時動態質押維持率</div>
         <div class="card-value {status_color}">{margin_ratio:.1f}%</div>
-        <div class="card-subtitle">券商平倉線: 130% (再投入優化版)</div>
+        <div class="card-subtitle">券商平倉線: 130% (即時抓價)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -434,7 +435,7 @@ with c4:
     """, unsafe_allow_html=True)
 
 progress_val = min(max((margin_ratio - 130) / (300 - 130), 0.0), 1.0)
-st.markdown("**🛡️ 質押維持率安全緩衝條 (Margin Safety Buffer - 動態再投入優化)**")
+st.markdown("**🛡️ 質押維持率安全緩衝條 (Margin Safety Buffer - 即時實時優化)**")
 st.progress(progress_val)
 
 st.markdown("---")
@@ -803,7 +804,7 @@ sim_total_collateral = sim_val_1 + sim_val_2 + (loan_amount * pledged_invest_rat
 sim_margin_ratio = (sim_total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
 required_collateral_130 = loan_amount * 1.30
-denominator = (shares_1 * p_1 * beta_1 + shares_2 * p_2 * beta_2)
+denominator = (base_val_1 * beta_1 + base_val_2 * beta_2)
 critical_drop_pct = max(((total_collateral - required_collateral_130) / denominator) * 100, 0.0) if denominator > 0 else 0.0
 
 s1, s2, s3, s4 = st.columns(4)
