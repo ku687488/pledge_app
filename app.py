@@ -180,7 +180,6 @@ def fetch_live_market_data_and_multi_dividends(ticker):
         except:
             pass
 
-    # 計算多維歷史殖利率 (近期、5年、10年平均)
     recent_yield = 0.0
     yield_5y = 0.0
     yield_10y = 0.0
@@ -191,15 +190,12 @@ def fetch_live_market_data_and_multi_dividends(ticker):
         if not divs.empty and not hist.empty:
             current_close = float(hist['Close'].iloc[-1])
             if current_close > 0:
-                # 近期 1 年平均
                 recent_divs = divs.loc[divs.index >= (pd.Timestamp.now() - pd.DateOffset(years=1))]
                 recent_yield = float(recent_divs.sum() / current_close) if not recent_divs.empty else 0.0
                 
-                # 5 年平均
                 divs_5y = divs.loc[divs.index >= (pd.Timestamp.now() - pd.DateOffset(years=5))]
                 yield_5y = float((divs_5y.sum() / 5.0) / current_close) if not divs_5y.empty else recent_yield
                 
-                # 10 年平均
                 divs_10y = divs.loc[divs.index >= (pd.Timestamp.now() - pd.DateOffset(years=10))]
                 yield_10y = float((divs_10y.sum() / 10.0) / current_close) if not divs_10y.empty else yield_5y
     except:
@@ -232,7 +228,7 @@ def resolve_ticker_info(raw_input):
                         return res, val, (r_y, y_5, y_10)
     return {}, 50.0, (0.0, 0.0, 0.0)
 
-# ==================== 自有資金持倉管理 (動態展示多維殖利率) ====================
+# ==================== 自有資金持倉管理 ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (-1代表自動抓歷史殖利率)</h4>", unsafe_allow_html=True)
 
@@ -279,7 +275,6 @@ for i, asset in enumerate(st.session_state.owned_assets):
     asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 00685L, 2330)", value=asset["ticker"], key=f"own_t_{uid}")
     asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{uid}")
     
-    # 即時顯示抓取到的歷史殖利率數據（近1年、5年、10年平均）
     curr_t_key = asset["ticker"].strip().upper()
     if curr_t_key in yield_cache_dict:
         y_info = yield_cache_dict[curr_t_key]
@@ -396,12 +391,12 @@ for i, debt in enumerate(st.session_state.custom_debts):
 
 total_external_outflow = mortgage_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
 
-# 大盤與台積電即時抓價
-market_data_twii, _ = fetch_live_market_data_and_multi_dividends("^TWII")
-market_data_tsmc, _ = fetch_live_market_data_and_multi_dividends("2330.TW")
-market_data_gspc, _ = fetch_live_market_data_and_multi_dividends("^GSPC")
-market_data_ixic, _ = fetch_live_market_data_and_multi_dividends("^IXIC")
-market_data_fx, _ = fetch_live_market_data_and_multi_dividends("TWD=X")
+# 大盤與台積電即時抓價（正確解包 4 個回傳值）
+market_data_twii, _, _, _ = fetch_live_market_data_and_multi_dividends("^TWII")
+market_data_tsmc, _, _, _ = fetch_live_market_data_and_multi_dividends("2330.TW")
+market_data_gspc, _, _, _ = fetch_live_market_data_and_multi_dividends("^GSPC")
+market_data_ixic, _, _, _ = fetch_live_market_data_and_multi_dividends("^IXIC")
+market_data_fx, _, _, _ = fetch_live_market_data_and_multi_dividends("TWD=X")
 
 def get_latest_price(data_dict, fallback):
     for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
@@ -620,9 +615,6 @@ with lc:
         
     monthly_net_color = "text-green" if monthly_net_carry >= 0 else "text-red"
     st.markdown(f"""
-    <style>
-    /* 確保文字對比與樣式一致 */
-    </style>
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px; margin-top: 8px;">
         <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">每月淨現金流效益 (Monthly Net Carry)</div>
         <div style="font-size: 1.5rem; font-weight: 900;" class="{monthly_net_color}">{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</div>
