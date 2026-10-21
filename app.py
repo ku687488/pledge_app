@@ -77,32 +77,52 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 初始完全空白自定義 • 智慧動態量化試算
+        💎 富人思維槓桿戰情室 • 全台股任意代號智慧搜尋 • 動態量化試算
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. 標庫選單與預設值定義 ====================
-preset_tickers = {
-    "00685L.TW - 群益臺灣加權正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
-    "00631L.TW - 元大台灣50正2 (強悍攻擊)": {"beta": 2.0, "default_div": 0.0},
-    "00713.TW - 元大台灣高息低波 (防禦收息)": {"beta": 0.68, "default_div": 0.065},
-    "0050.TW - 元大台灣50 (原型大盤)": {"beta": 1.0, "default_div": 0.03},
-    "0056.TW - 元大高股息": {"beta": 0.85, "default_div": 0.07},
-    "00878.TW - 國泰永續高股息": {"beta": 0.8, "default_div": 0.06},
-    "00919.TW - 群益台灣精選高息": {"beta": 0.9, "default_div": 0.10}
-}
+# ==================== 2. 全台股智慧搜尋標庫定義 ====================
+default_market_tickers = [
+    "00685L.TW - 群益臺灣加權正2",
+    "00631L.TW - 元大台灣50正2",
+    "00713.TW - 元大台灣高息低波",
+    "0050.TW - 元大台灣50",
+    "0056.TW - 元大高股息",
+    "00878.TW - 國泰永續高股息",
+    "00919.TW - 群益台灣精選高息",
+    "2330.TW - 台積電",
+    "2317.TW - 鴻海",
+    "2454.TW - 聯發科"
+]
 
-# 初始化 Session State (預設完全空白 / 零部位，由使用者自行新增填入)
+if 'custom_ticker_pool' not in st.session_state:
+    st.session_state.custom_ticker_pool = default_market_tickers
+
 if 'owned_assets' not in st.session_state:
     st.session_state.owned_assets = []
 
 if 'reinvest_assets' not in st.session_state:
     st.session_state.reinvest_assets = []
 
+# ==================== 側邊欄：全台股智慧新增標的專區 ====================
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🔍 全台股智慧搜尋與標的庫</h3>", unsafe_allow_html=True)
+new_search_input = st.sidebar.text_input("輸入台股代號新增至清單 (例如: 2603.TW, 00940.TW)", value="")
+if st.sidebar.button("➕ 加入全台股搜尋庫"):
+    if new_search_input:
+        formatted_code = new_search_input.strip().upper()
+        if not formatted_code.endswith(".TW") and not formatted_code.endswith(".TWO"):
+            formatted_code += ".TW"
+        new_entry = f"{formatted_code} - 自定義搜尋標的"
+        if new_entry not in st.session_state.custom_ticker_pool:
+            st.session_state.custom_ticker_pool.append(new_entry)
+            st.sidebar.success(f"成功新增 {formatted_code} 至選單！")
+            st.rerun()
+
 # ==================== 側邊欄：生命週期、資本結構與攻擊曝險 ====================
+st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與攻擊曝險設定</h3>", unsafe_allow_html=True)
 
 enable_lifecycle_exposure = st.sidebar.checkbox("啟用生命週期動態降曝險 (強制保留 ≥ 150% 攻擊下限)", value=True)
@@ -130,38 +150,36 @@ else:
 
 interest_rate = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=3.7, step=0.1) / 100.0
 
-# ==================== 自有資金持倉：動態擴充管理器 (初始空白) ====================
+# ==================== 自有資金持倉：動態擴充管理器 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (請自行新增標的)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增自有持倉標的"):
-    st.session_state.owned_assets.append({"label": list(preset_tickers.keys())[0], "shares": 0.0, "div_yield": 0.0})
+    st.session_state.owned_assets.append({"label": st.session_state.custom_ticker_pool[0], "shares": 0.0, "div_yield": 0.05})
     st.rerun()
 
 for i, asset in enumerate(st.session_state.owned_assets):
     st.sidebar.markdown(f"**📌 自有持倉 #{i+1}**")
-    asset["label"] = st.sidebar.selectbox(f"選擇標的 #{i+1}", list(preset_tickers.keys()), index=list(preset_tickers.keys()).index(asset["label"]) if asset["label"] in preset_tickers else 0, key=f"own_lbl_{i}")
+    asset["label"] = st.sidebar.selectbox(f"選擇標的 #{i+1}", st.session_state.custom_ticker_pool, index=st.session_state.custom_ticker_pool.index(asset["label"]) if asset["label"] in st.session_state.custom_ticker_pool else 0, key=f"own_lbl_{i}")
     asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{i}")
-    def_div = preset_tickers[asset["label"]]["default_div"] * 100
-    asset["div_yield"] = st.sidebar.slider(f"預期年化殖利率 #{i+1} (%)", min_value=0.0, max_value=12.0, value=float(asset["div_yield"] * 100 if asset["div_yield"] > 0 else def_div), step=0.1, key=f"own_div_{i}") / 100.0
+    asset["div_yield"] = st.sidebar.slider(f"預期年化殖利率 #{i+1} (%)", min_value=0.0, max_value=15.0, value=float(asset["div_yield"] * 100), step=0.1, key=f"own_div_{i}") / 100.0
     if st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{i}"):
         st.session_state.owned_assets.pop(i)
         st.rerun()
 
-# ==================== 質押額外資金：動態擴充管理器 (初始空白) ====================
+# ==================== 質押額外資金：動態擴充管理器 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金再投入部位 (可自由增加或留空作生活費)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔀 質押額外資金再投入部位</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增質押再投入標的"):
-    st.session_state.reinvest_assets.append({"label": list(preset_tickers.keys())[2], "amount": 0.0, "div_yield": 0.065})
+    st.session_state.reinvest_assets.append({"label": st.session_state.custom_ticker_pool[2] if len(st.session_state.custom_ticker_pool)>2 else st.session_state.custom_ticker_pool[0], "amount": 0.0, "div_yield": 0.065})
     st.rerun()
 
 for j, rein in enumerate(st.session_state.reinvest_assets):
     st.sidebar.markdown(f"**📌 質押再投入 #{j+1}**")
-    rein["label"] = st.sidebar.selectbox(f"選擇再投入標的 #{j+1}", list(preset_tickers.keys()), index=list(preset_tickers.keys()).index(rein["label"]) if rein["label"] in preset_tickers else 0, key=f"rein_lbl_{j}")
+    rein["label"] = st.sidebar.selectbox(f"選擇再投入標的 #{j+1}", st.session_state.custom_ticker_pool, index=st.session_state.custom_ticker_pool.index(rein["label"]) if rein["label"] in st.session_state.custom_ticker_pool else 0, key=f"rein_lbl_{j}")
     rein["amount"] = st.sidebar.number_input(f"投入金額 #{j+1} (NT$)", value=float(rein["amount"]), step=50000.0, key=f"rein_amt_{j}")
-    def_div_rein = preset_tickers[rein["label"]]["default_div"] * 100
-    rein["div_yield"] = st.sidebar.slider(f"再投入預期殖利率 #{j+1} (%)", min_value=0.0, max_value=12.0, value=float(rein["div_yield"] * 100 if rein["div_yield"] > 0 else def_div_rein), step=0.1, key=f"rein_div_{j}") / 100.0
+    rein["div_yield"] = st.sidebar.slider(f"再投入預期殖利率 #{j+1} (%)", min_value=0.0, max_value=15.0, value=float(rein["div_yield"] * 100), step=0.1, key=f"rein_div_{j}") / 100.0
     if st.sidebar.button(f"🗑️ 刪除再投入 #{j+1}", key=f"del_rein_{j}"):
         st.session_state.reinvest_assets.pop(j)
         st.rerun()
@@ -306,7 +324,7 @@ effective_exposure_base = 0.0
 for a in st.session_state.owned_assets:
     t_code = a["label"].split(" - ")[0].strip()
     p = price_cache.get(t_code, 60.0)
-    beta = preset_tickers.get(a["label"], {"beta": 1.0})["beta"]
+    beta = 2.0 if "2" in t_code or "L" in t_code else 1.0
     val = a["shares"] * p
     base_val_total += val
     expected_div_base += val * a["div_yield"]
@@ -319,7 +337,7 @@ effective_exposure_rein = 0.0
 for r in st.session_state.reinvest_assets:
     t_code = r["label"].split(" - ")[0].strip()
     p = price_cache.get(t_code, 60.0)
-    beta = preset_tickers.get(r["label"], {"beta": 1.0})["beta"]
+    beta = 2.0 if "2" in t_code or "L" in t_code else 1.0
     amt = r["amount"]
     reinvest_val_total += amt
     expected_div_rein += amt * r["div_yield"]
@@ -398,7 +416,7 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (空白自定義模式)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (全台股搜尋模式)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
     • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (嚴格遵守 ≥150% 攻擊下限) | 每月淨現金流：<b>{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f}/月</b>
 </div>
@@ -409,7 +427,7 @@ def generate_ai_dynamic_alerts(ltv, margin_r, net_c):
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
-        alerts.append(f"🟢 **[自定義配置狀態正常]** 即時動態維持率為 **{margin_r:.1f}%**，請隨時自訂您的部位與槓桿！")
+        alerts.append(f"🟢 **[全台股搜尋配置狀態正常]** 即時動態維持率為 **{margin_r:.1f}%**，請隨時自訂您的部位與槓桿！")
         
     if net_c < 0:
         alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息支出大於總配息收益。")
