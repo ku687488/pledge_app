@@ -79,7 +79,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 半凱利動態數學模型 • 直覺化無腦下單執行指引
+        💎 富人思維槓桿戰情室 • 寬限期前後現金流動態模擬 • 半凱利動態收斂模型
     </p>
 </div>
 """,
@@ -129,7 +129,6 @@ st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人�
 st.session_state.enable_life = st.sidebar.checkbox("啟用生命週期半凱利動態收斂模型", value=st.session_state.enable_life)
 st.session_state.user_age_val = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=95, value=int(st.session_state.user_age_val), step=1)
 
-# 半凱利與現代生命週期模型：從 25 歲的 240% 隨年齡平滑下降，70歲約 130%，80歲收斂至 100%
 age = st.session_state.user_age_val
 if age <= 25:
     target_lifecycle_exposure = 240.0
@@ -377,7 +376,7 @@ for j, rein in enumerate(st.session_state.reinvest_assets):
         st.session_state.reinvest_assets.pop(j)
         st.rerun()
 
-# ==================== 多筆房貸負債矩陣模組 ====================
+# ==================== 多筆房貸負債矩陣模組（同時計算寬限期內與寬限期後） ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🏠 房貸負債矩陣 (可動態新增多筆)</h4>", unsafe_allow_html=True)
 
@@ -393,7 +392,9 @@ if st.sidebar.button("➕ 新增一筆房貸"):
     })
     st.rerun()
 
-mortgages_annual_outflow = 0.0
+mortgages_annual_outflow_grace = 0.0      # 寬限期內年度支出 (只付利息)
+mortgages_annual_outflow_post_grace = 0.0  # 寬限期後年度支出 (本息均攤)
+
 for m_idx, m_item in enumerate(st.session_state.mortgages):
     muid = m_item["id"]
     st.sidebar.markdown(f"**📌 房貸項目 #{m_idx+1}**")
@@ -404,19 +405,30 @@ for m_idx, m_item in enumerate(st.session_state.mortgages):
     m_item["grace"] = st.sidebar.checkbox(f"享有寬限期 (只付利息) #{m_idx+1}", value=m_item["grace"], key=f"m_grace_{muid}")
     
     m_r = m_item["rate"] / 100.0
+    m_balance = m_item["balance"]
+    m_term = m_item["term"]
+    
+    # 寬限期內的年支出（只付利息）
+    outflow_grace = m_balance * m_r
+    
+    # 寬限期結束後的本息均攤年支出
     if m_item["grace"]:
         m_item["grace_years"] = st.sidebar.slider(f"寬限期年數 #{m_idx+1}", min_value=1, max_value=5, value=int(m_item["grace_years"]), step=1, key=f"m_gy_{muid}")
-        outflow = m_item["balance"] * m_r
+        # 寬限期過後，剩餘的還款期數 = (總年限 - 寬限期年數) * 12
+        post_grace_months = max((m_term - m_item["grace_years"]) * 12, 12)
     else:
-        m_months = m_item["term"] * 12
-        m_m_rate = m_r / 12.0
-        if m_m_rate > 0 and m_months > 0:
-            monthly_pmt = m_item["balance"] * (m_m_rate * (1 + m_m_rate)**m_months) / ((1 + m_m_rate)**m_months - 1)
-            outflow = monthly_pmt * 12
-        else:
-            outflow = 0.0
-            
-    mortgages_annual_outflow += outflow
+        post_grace_months = m_term * 12
+        
+    m_m_rate = m_r / 12.0
+    if m_m_rate > 0 and post_grace_months > 0:
+        monthly_pmt_post = m_balance * (m_m_rate * (1 + m_m_rate)**post_grace_months) / ((1 + m_m_rate)**post_grace_months - 1)
+        outflow_post = monthly_pmt_post * 12
+    else:
+        outflow_post = outflow_grace
+        
+    mortgages_annual_outflow_grace += outflow_grace
+    mortgages_annual_outflow_post_grace += outflow_post
+    
     if st.sidebar.button(f"🗑️ 刪除房貸 #{m_idx+1}", key=f"del_m_{muid}"):
         st.session_state.mortgages.pop(m_idx)
         st.rerun()
@@ -459,7 +471,9 @@ for i, debt in enumerate(st.session_state.custom_debts):
         st.session_state.custom_debts.pop(i)
         st.rerun()
 
-total_external_outflow = mortgages_annual_outflow + credit_annual_outflow + custom_debts_total_outflow
+# 總外部負債支出（分寬限期內 vs 寬限期後）
+total_external_outflow_grace = mortgages_annual_outflow_grace + credit_annual_outflow + custom_debts_total_outflow
+total_external_outflow_post = mortgages_annual_outflow_post_grace + credit_annual_outflow + custom_debts_total_outflow
 
 # 大盤與台積電即時抓價
 market_data_twii, _, _, _ = fetch_live_market_data_and_exact_dividends("^TWII")
@@ -528,12 +542,18 @@ margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
 total_expected_div = expected_div_base + expected_div_rein
 annual_interest = loan_amount * interest_rate
-net_carry = total_expected_div - annual_interest - total_external_outflow
+
+# 淨現金流計算（分別計算寬限期內與寬限期後）
+net_carry_grace = total_expected_div - annual_interest - total_external_outflow_grace
+net_carry_post = total_expected_div - annual_interest - total_external_outflow_post
 
 monthly_interest = annual_interest / 12.0
 monthly_div = total_expected_div / 12.0
-monthly_external_outflow = total_external_outflow / 12.0
-monthly_net_carry = net_carry / 12.0
+monthly_external_grace = total_external_outflow_grace / 12.0
+monthly_external_post = total_external_outflow_post / 12.0
+
+monthly_net_grace = net_carry_grace / 12.0
+monthly_net_post = net_carry_post / 12.0
 
 total_exposure = effective_exposure_base + effective_exposure_rein
 net_equity = total_collateral - loan_amount
@@ -597,32 +617,32 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (半凱利動態收斂模型)】</b><br>
+    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (寬限期前後現金流模擬)】</b><br>
     • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
     • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (目前 {st.session_state.user_age_val} 歲半凱利目標收斂至 <b>{target_lifecycle_exposure:.1f}%</b>)
 </div>
 """, unsafe_allow_html=True)
 
-def generate_ai_dynamic_alerts(ltv, margin_r, net_c, cur_exp, target_exp):
+def generate_ai_dynamic_alerts(ltv, margin_r, net_c_grace, net_c_post, cur_exp, target_exp):
     alerts = []
     if ltv > 0.25:
         alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
     else:
         alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，半凱利與索提諾最佳組合已自動重算！")
         
-    if st.session_state.enable_life and abs(cur_exp - target_exp) > 20.0:
-        alerts.append(f"⚠️ **[曝險偏離警告]** 目前實際曝險率 ({cur_exp:.1f}%) 與 {st.session_state.user_age_val} 歲半凱利目標 ({target_exp:.1f}%) 偏離較大，請參考下方具體標的操作指引進行動態調倉。")
-    elif st.session_state.enable_life:
-        alerts.append(f"🟢 **[半凱利動態模型完美契合]** 目前曝險率 ({cur_exp:.1f}%) 與 {st.session_state.user_age_val} 歲目標 ({target_exp:.1f}%) 完美匹配！")
-        
-    if net_c < 0:
-        alerts.append(f"⚠️ **[負現金流提醒 (Negative Carry)]** 年度淨現金流為 -NT$ {abs(net_c):,.0f}，利息與房貸支出大於總配息收益。")
+    if net_c_grace < 0:
+        alerts.append(f"⚠️ **[寬限期內負現金流警報]** 寬限期內年度淨現金流為 -NT$ {abs(net_c_grace):,.0f}，配息不足以支付質押與房貸利息。")
     else:
-        alerts.append(f"🟢 **[現金流自償達成]** 達成 Positive Carry (+NT$ {net_c:,.0f}/年)，所有負債利息與多筆房貸完全由總配息覆蓋！")
+        alerts.append(f"🟢 **[寬限期內現金流自償]** 寬限期內達成 Positive Carry (+NT$ {net_c_grace:,.0f}/年)，配息完美覆蓋所有利息！")
+        
+    if net_c_post < 0:
+        alerts.append(f"🚨 **[寬限期滿後本息攤還壓力警報]** 寬限期結束後因需攤還本金，年度淨現金流將轉為 -NT$ {abs(net_c_post):,.0f}，請務必預留本業現金流！")
+    else:
+        alerts.append(f"💎 **[極致強悍：寬限期滿後依然正現金流]** 即使寬限期結束開始攤還本金，總配息依然能完全覆蓋本息支出 (+NT$ {net_c_post:,.0f}/年)！")
         
     return alerts
 
-ai_insights = generate_ai_dynamic_alerts(st.session_state.ltv_ratio_val, margin_ratio, net_carry, exposure_vs_equity, target_lifecycle_exposure)
+ai_insights = generate_ai_dynamic_alerts(st.session_state.ltv_ratio_val, margin_ratio, net_carry_grace, net_carry_post, exposure_vs_equity, target_lifecycle_exposure)
 for insight in ai_insights:
     if "警報" in insight or "警告" in insight or "提醒" in insight:
         st.markdown(f'<div class="ai-alert-box">{insight}</div>', unsafe_allow_html=True)
@@ -675,51 +695,41 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 8. 【現金流至上核心優先】每月與年度現金流自償性試算面板 ====================
-st.markdown("### 💵 核心重點優先：多筆房貸/信貸與質押現金流自償性綜合試算")
+# ==================== 8. 【現金流至上核心優先】寬限期內 vs 寬限期後即時對比面板 ====================
+st.markdown("### 💵 核心重點優先：房貸寬限期內 vs 寬限期滿後（本息攤還）現金流自償性對比")
 lc, rc = st.columns(2)
 
 with lc:
-    st.markdown("##### 📅 每月現金流即時檢視 (Monthly Cash Flow)")
-    st.metric("每月質押利息支出 (只付利息)", f"-NT$ {monthly_interest:,.0f}", f"貸款 NT$ {loan_amount:,.0f} × 利率 {interest_rate*100:.2f}% / 12")
-    st.metric(f"總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}", f"涵蓋所有三階智慧融合殖利率自動計算標的")
-    
+    st.markdown("##### 🟢 階段一：寬限期內每月現金流 (Grace Period - 只付利息)")
+    st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
+    st.metric("總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}")
     if st.session_state.mortgages or enable_credit_loan or st.session_state.custom_debts:
-        st.metric(f"每月外部房貸矩陣/信貸/負債總支出", f"-NT$ {monthly_external_outflow:,.0f}")
+        st.metric("每月房貸/信貸支出 (寬限期內)", f"-NT$ {monthly_external_grace:,.0f}")
         
-    monthly_net_color = "text-green" if monthly_net_carry >= 0 else "text-red"
+    net_grace_color = "text-green" if monthly_net_grace >= 0 else "text-red"
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px; margin-top: 8px;">
-        <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">每月淨現金流效益 (Monthly Net Carry)</div>
-        <div style="font-size: 1.5rem; font-weight: 900;" class="{monthly_net_color}">{'+' if monthly_net_carry >= 0 else ''}NT$ {monthly_net_carry:,.0f} / 月</div>
-        <div style="font-size: 0.8rem; color: #10B981; margin-top: 4px; font-weight: 700;">{'🟢 每月現金流完全自償：總配息完美覆蓋質押與所有房貸/負債支出！' if monthly_net_carry >= 0 else '🔴 每月現金流短缺：需由本業現金流補足差額。'}</div>
+        <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">寬限期內每月淨現金流 (Monthly Net Carry)</div>
+        <div style="font-size: 1.5rem; font-weight: 900;" class="{net_grace_color}">{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f} / 月</div>
+        <div style="font-size: 0.8rem; color: #10B981; margin-top: 4px; font-weight: 700;">{'🟢 配息完全覆蓋利息與寬限期支出！' if monthly_net_grace >= 0 else '🔴 寬限期內現金流短缺。'}</div>
     </div>
     """, unsafe_allow_html=True)
 
 with rc:
-    st.markdown("##### 📅 年度現金流與複利滾存試算 (Annual Carry & Compound)")
-    st.metric("年度質押利息總支出", f"-NT$ {annual_interest:,.0f}")
-    st.metric("總資產年度配息總收益", f"+NT$ {total_expected_div:,.0f}")
+    st.markdown("##### 🟠 階段二：寬限期滿後每月現金流 (Post-Grace - 本息均攤)")
+    st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
+    st.metric("總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}")
     if st.session_state.mortgages or enable_credit_loan or st.session_state.custom_debts:
-        st.metric("年度外部負債矩陣總支出 (房貸/信貸)", f"-NT$ {total_external_outflow:,.0f}")
-    
-    net_carry_color = "text-green" if net_carry > 0 else "text-red"
+        st.metric("每月房貸/信貸支出 (本息均攤)", f"-NT$ {monthly_external_post:,.0f}", "⚠️ 開始攤還本金，支出增加")
+        
+    net_post_color = "text-green" if monthly_net_post >= 0 else "text-red"
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 12px; border-radius: 8px; margin-top: 8px;">
-        <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">整體年度淨現金流效益 (Net Carry / 年)</div>
-        <div style="font-size: 1.5rem; font-weight: 900;" class="{net_carry_color}">+NT$ {net_carry:,.0f}</div>
-        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px; font-weight: 700;">{'🟢 Positive Carry：所有資產收益完全覆蓋所有負債（含多筆房貸）！' if net_carry > 0 else '🔴 負現金流狀態。'}</div>
+        <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">寬限期滿後每月淨現金流 (本息攤還)</div>
+        <div style="font-size: 1.5rem; font-weight: 900;" class="{net_post_color}">{'+' if monthly_net_post >= 0 else ''}NT$ {monthly_net_post:,.0f} / 月</div>
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px; font-weight: 700;">{'🟢 寬限期滿後依然正現金流！' if monthly_net_post >= 0 else '🔴 寬限期滿後轉為負現金流，需準備本業現金流支應本金。'}</div>
     </div>
     """, unsafe_allow_html=True)
-    
-    avg_div_yield = total_expected_div / total_collateral if total_collateral > 0 else 0.05
-    comp_years = np.array([1, 3, 5, 10])
-    compounded_values = [net_carry * (((1 + avg_div_yield) ** y - 1) / avg_div_yield) if net_carry > 0 else net_carry * y for y in comp_years]
-    comp_df = pd.DataFrame({
-        "累積時間": [f"{y} 年後" for y in comp_years],
-        "淨現金流滾存總額": [f"NT$ {val:,.0f}" for val in compounded_values]
-    })
-    st.dataframe(comp_df, use_container_width=True, hide_index=True)
 
 st.markdown("---")
 
