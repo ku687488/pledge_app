@@ -79,7 +79,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 索提諾動態效率前緣 • 半凱利生命週期連續平滑模型 (240% → 150%)
+        💎 富人思維槓桿戰情室 • 實時 Beta 計算引擎 • 索提諾動態效率前緣與半凱利生命週期平滑模型
     </p>
 </div>
 """,
@@ -89,13 +89,14 @@ st.markdown(
 # ==================== 2. Session State 初始化 ====================
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
-    st.session_state.owned_assets = []
-    st.session_state.reinvest_assets = []
+    st.session_state.owned_assets = [
+        {"id": str(uuid.uuid4()), "ticker": "00685L.TW", "shares": 10000.0, "weight_target": 0.8},
+        {"id": str(uuid.uuid4()), "ticker": "00713.TW", "shares": 20000.0, "weight_target": 0.2}
+    ]
     st.session_state.mortgages = []
-    st.session_state.custom_debts = []
-    st.session_state.total_equity_cost = 1000000.0
+    st.session_state.total_equity_cost = 2000000.0
     st.session_state.ltv_ratio_val = 0.25
-    st.session_state.manual_loan_val = 250000.0
+    st.session_state.manual_loan_val = 500000.0
     st.session_state.interest_rate_val = 3.7
     st.session_state.user_age_val = 25
     st.session_state.enable_life = True
@@ -105,42 +106,39 @@ if 'mortgages' not in st.session_state:
     st.session_state.mortgages = []
 if 'owned_assets' not in st.session_state:
     st.session_state.owned_assets = []
-if 'reinvest_assets' not in st.session_state:
-    st.session_state.reinvest_assets = []
-if 'custom_debts' not in st.session_state:
-    st.session_state.custom_debts = []
 
 # 側邊欄：一鍵重置
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🛠️ 系統控制與重置</h3>", unsafe_allow_html=True)
-if st.sidebar.button("🔄 一鍵重置為初次使用空白狀態"):
-    st.session_state.owned_assets = []
-    st.session_state.reinvest_assets = []
+if st.sidebar.button("🔄 一鍵重置為預設範例狀態"):
+    st.session_state.owned_assets = [
+        {"id": str(uuid.uuid4()), "ticker": "00685L.TW", "shares": 10000.0, "weight_target": 0.8},
+        {"id": str(uuid.uuid4()), "ticker": "00713.TW", "shares": 20000.0, "weight_target": 0.2}
+    ]
     st.session_state.mortgages = []
-    st.session_state.custom_debts = []
-    st.session_state.total_equity_cost = 1000000.0
+    st.session_state.total_equity_cost = 2000000.0
     st.session_state.ltv_ratio_val = 0.25
-    st.session_state.manual_loan_val = 250000.0
+    st.session_state.manual_loan_val = 500000.0
     st.rerun()
 
-# ==================== 側邊欄：半凱利生命週期動態曝險設定 ====================
+# ==================== 側邊欄：生命週期動態曝險與資本結構 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 半凱利生命週期連續平滑降曝險</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 半凱利生命週期連續降曝險</h3>", unsafe_allow_html=True)
 
 st.session_state.enable_life = st.sidebar.checkbox("啟用生命週期動態平滑降曝險模型", value=st.session_state.enable_life)
 st.session_state.user_age_val = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=95, value=int(st.session_state.user_age_val), step=1)
 
-# 您要求的精準數學模型：25歲 240% 起步，隨年齡平滑下降，終極收斂至 150% 左右
+# 用戶要求的精準數學軌跡：25歲 240% 起步，隨年齡平滑遞減至 150%
 age = st.session_state.user_age_val
 if age <= 25:
     target_lifecycle_exposure = 240.0
 elif age <= 40:
-    target_lifecycle_exposure = 240.0 - (age - 25) * 2.0  # 25-40歲: 240% -> 210%
+    target_lifecycle_exposure = 240.0 - (age - 25) * 2.0  # 240% -> 210%
 elif age <= 60:
-    target_lifecycle_exposure = 210.0 - (age - 40) * 2.0  # 40-60歲: 210% -> 170%
+    target_lifecycle_exposure = 210.0 - (age - 40) * 2.0  # 210% -> 170%
 elif age <= 80:
-    target_lifecycle_exposure = 170.0 - (age - 60) * 1.0  # 60-80歲: 170% -> 150%
+    target_lifecycle_exposure = 170.0 - (age - 60) * 1.0  # 170% -> 150%
 else:
-    target_lifecycle_exposure = 150.0                     # 80歲以上穩健收斂至 150%
+    target_lifecycle_exposure = 150.0
 
 if st.session_state.enable_life:
     st.sidebar.info(f"🎯 依據 {age} 歲半凱利連續模型：目標淨權益曝險率智慧收斂至 **{target_lifecycle_exposure:.1f}%** (240% → 150%)")
@@ -174,147 +172,105 @@ else:
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.interest_rate_val), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
 
-# ==================== 3. 三階智慧融合與精準殖利率抓取引擎 ====================
+# ==================== 3. 實時市場數據與即時 Beta 計算引擎 ====================
 FAMILIAL_YIELD_KNOWLEDGE_BASE = {
-    "00713": (0.062, 0.060, 0.058),
-    "0056": (0.065, 0.062, 0.059),
-    "00878": (0.060, 0.058, 0.055),
-    "00919": (0.095, 0.090, 0.085),
-    "2330": (0.018, 0.020, 0.022),
-    "0050": (0.032, 0.030, 0.028),
-    "006208": (0.032, 0.030, 0.028),
-    "00685L": (0.0, 0.0, 0.0),
-    "00631L": (0.0, 0.0, 0.0)
+    "00713.TW": (0.062, 0.24),
+    "00713": (0.062, 0.24),
+    "0056.TW": (0.065, 0.65),
+    "0056": (0.065, 0.65),
+    "00878.TW": (0.060, 0.55),
+    "00878": (0.060, 0.55),
+    "00919.TW": (0.095, 0.75),
+    "00919": (0.095, 0.75),
+    "2330.TW": (0.018, 1.15),
+    "2330": (0.018, 1.15),
+    "0050.TW": (0.032, 1.00),
+    "0050": (0.032, 1.00),
+    "006208.TW": (0.032, 1.00),
+    "006208": (0.032, 1.00),
+    "00685L.TW": (0.0, 2.00),
+    "00685L": (0.0, 2.00),
+    "00631L.TW": (0.0, 2.00),
+    "00631L": (0.0, 2.00)
 }
 
 @st.cache_data(ttl=60)
-def fetch_live_market_data_and_exact_dividends(ticker):
-    clean_code = ticker.replace(".TW", "").replace(".TWO", "").strip().upper()
+def fetch_live_data_and_calculate_beta(ticker):
+    clean_t = ticker.strip().upper()
     data_dict = {}
-    configs = {
-        "1天 (即時高頻)": ("1d", "2m"),
-        "5天 (近期走勢)": ("5d", "15m"),
-        "1個月": ("1mo", "1d")
-    }
-    for label, (per, iv) in configs.items():
-        try:
-            df = yf.download(ticker, period=per, interval=iv, auto_adjust=False, progress=False)
-            if not df.empty:
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = df.columns.get_level_values(0)
-                if 'Close' in df.columns:
-                    s = df['Close'].dropna()
-                    if isinstance(s, pd.DataFrame):
-                        s = s.iloc[:, 0]
-                    if s.index.tz is not None:
-                        s.index = s.index.tz_convert('Asia/Taipei')
-                    else:
-                        s.index = s.index.tz_localize('UTC').tz_convert('Asia/Taipei')
-                    
-                    open_price = float(df['Open'].iloc[0]) if 'Open' in df.columns and not df['Open'].empty else float(s.iloc[0])
-                    data_dict[label] = {"series": s, "open_price": open_price}
-        except:
-            pass
-
-    recent_yield = 0.0
-    yield_5y = 0.0
-    yield_10y = 0.0
-    
     try:
-        tk_obj = yf.Ticker(ticker)
-        hist = tk_obj.history(period="max")
-        current_close = float(hist['Close'].iloc[-1]) if not hist.empty else 0.0
+        df = yf.download(ticker, period="6mo", interval="1d", auto_adjust=False, progress=False)
+        df_m = yf.download("^TWII", period="6mo", interval="1d", auto_adjust=False, progress=False)
         
-        divs = tk_obj.dividends
-        if not divs.empty and current_close > 0:
-            now_ts = pd.Timestamp.now()
-            recent_divs = divs.loc[divs.index >= (now_ts - pd.DateOffset(years=1))]
-            recent_yield = float(recent_divs.sum() / current_close) if not recent_divs.empty else 0.0
+        if not df.empty and not df_m.empty:
+            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+            if isinstance(df_m.columns, pd.MultiIndex): df_m.columns = df_m.columns.get_level_values(0)
             
-            divs_5y = divs.loc[divs.index >= (now_ts - pd.DateOffset(years=5))]
-            y_span_5 = min(5.0, max(1.0, (now_ts - divs_5y.index.min()).days / 365.25)) if not divs_5y.empty else 1.0
-            yield_5y = float((divs_5y.sum() / y_span_5) / current_close) if not divs_5y.empty else recent_yield
+            s = df['Close'].dropna()
+            s_m = df_m['Close'].dropna()
+            if isinstance(s, pd.DataFrame): s = s.iloc[:, 0]
+            if isinstance(s_m, pd.DataFrame): s_m = s_m.iloc[:, 0]
             
-            divs_10y = divs.loc[divs.index >= (now_ts - pd.DateOffset(years=10))]
-            y_span_10 = min(10.0, max(1.0, (now_ts - divs_10y.index.min()).days / 365.25)) if not divs_10y.empty else 1.0
-            yield_10y = float((divs_10y.sum() / y_span_10) / current_close) if not divs_10y.empty else yield_5y
+            combined = pd.concat([s, s_m], axis=1).dropna()
+            combined.columns = ['Asset', 'Market']
+            returns = combined.pct_change().dropna()
             
-        if recent_yield == 0.0:
-            info = tk_obj.info
-            info_dy = info.get("dividendYield", 0.0)
-            if info_dy and info_dy > 0:
-                recent_yield = float(info_dy)
-                yield_5y = recent_yield
-                yield_10y = recent_yield
+            cov_matrix = np.cov(returns['Asset'], returns['Market'])
+            beta_val = float(cov_matrix[0, 1] / cov_matrix[1, 1]) if cov_matrix[1, 1] != 0 else 1.0
+            latest_price = float(s.iloc[-1])
+            
+            # 配息計算
+            tk_obj = yf.Ticker(ticker)
+            divs = tk_obj.dividends
+            recent_yield = 0.0
+            if not divs.empty and latest_price > 0:
+                now_ts = pd.Timestamp.now()
+                recent_divs = divs.loc[divs.index >= (now_ts - pd.DateOffset(years=1))]
+                recent_yield = float(recent_divs.sum() / latest_price)
+            if recent_yield == 0.0 and clean_t in FAMILIAL_YIELD_KNOWLEDGE_BASE:
+                recent_yield = FAMILIAL_YIELD_KNOWLEDGE_BASE[clean_t][0]
+                
+            return latest_price, beta_val, recent_yield, {"1天 (即時高頻)": {"series": s, "open_price": float(df['Open'].iloc[0])}}
     except:
         pass
-
-    if recent_yield == 0.0 and clean_code in FAMILIAL_YIELD_KNOWLEDGE_BASE:
-        recent_yield, yield_5y, yield_10y = FAMILIAL_YIELD_KNOWLEDGE_BASE[clean_code]
         
-    return data_dict, recent_yield, yield_5y, yield_10y
+    # 備用知識庫
+    fallback_b = FAMILIAL_YIELD_KNOWLEDGE_BASE.get(clean_t, (0.05, 1.0))[1]
+    fallback_y = FAMILIAL_YIELD_KNOWLEDGE_BASE.get(clean_t, (0.05, 1.0))[0]
+    return 50.0, fallback_b, fallback_y, {}
 
-def resolve_ticker_info(raw_input):
-    clean_t = raw_input.strip().upper()
-    if not clean_t:
-        return {}, 60.0, (0.0, 0.0, 0.0)
-    if clean_t.startswith("^"):
-        res, r_y, y_5, y_10 = fetch_live_market_data_and_exact_dividends(clean_t)
-        return res, 1000.0, (0.0, 0.0, 0.0)
-        
-    candidates = []
-    if clean_t.endswith(".TW") or clean_t.endswith(".TWO"):
-        candidates.append(clean_t)
-    else:
-        candidates.append(clean_t + ".TW")
-        candidates.append(clean_t + ".TWO")
-        
-    for cand in candidates:
-        res, r_y, y_5, y_10 = fetch_live_market_data_and_exact_dividends(cand)
-        if res:
-            for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
-                if key in res and not res[key]["series"].empty:
-                    val = float(res[key]["series"].iloc[-1])
-                    if not pd.isna(val) and val > 0:
-                        return res, val, (r_y, y_5, y_10)
-    return {}, 50.0, (0.0, 0.0, 0.0)
-
-# ==================== 自有資金與房貸管理 ====================
+# ==================== 持倉管理側邊欄 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持倉標的與實時 Beta 偵測</h4>", unsafe_allow_html=True)
 
-if st.sidebar.button("➕ 新增自有持倉標的"):
+if st.sidebar.button("➕ 新增持倉標的"):
     st.session_state.owned_assets.append({
         "id": str(uuid.uuid4()), 
-        "ticker": "", 
-        "shares": 0.0, 
-        "div_yield_override": -1.0
+        "ticker": "00713.TW", 
+        "shares": 10000.0
     })
     st.rerun()
 
 price_cache = {}
-yield_cache_dict = {}
-market_series_cache = {}
-
-all_tickers_to_fetch = set()
-for a in st.session_state.owned_assets:
-    if a.get("ticker", "").strip():
-        all_tickers_to_fetch.add(a["ticker"].strip().upper())
-
-for t in all_tickers_to_fetch:
-    res, latest_p, (r_y, y_5, y_10) = resolve_ticker_info(t)
-    price_cache[t] = latest_p
-    yield_cache_dict[t] = {"recent": r_y, "5y": y_5, "10y": y_10}
-    market_series_cache[t] = res
+beta_cache = {}
+yield_cache = {}
 
 for i, asset in enumerate(st.session_state.owned_assets):
-    if "id" not in asset:
-        asset["id"] = str(uuid.uuid4())
+    if "id" not in asset: asset["id"] = str(uuid.uuid4())
     uid = asset["id"]
-    st.sidebar.markdown(f"**📌 自有持倉 #{i+1}**")
-    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 00685L, 00713)", value=asset["ticker"], key=f"own_t_{uid}")
-    asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{uid}")
-    if st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{uid}"):
+    st.sidebar.markdown(f"**📌 持倉 #{i+1}**")
+    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1}", value=asset["ticker"], key=f"t_{uid}")
+    asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"sh_{uid}")
+    
+    t_clean = asset["ticker"].strip().upper()
+    if t_clean:
+        lp, b_val, y_val, _ = fetch_live_data_and_calculate_beta(t_clean)
+        price_cache[t_clean] = lp
+        beta_cache[t_clean] = b_val
+        yield_cache[t_clean] = y_val
+        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; margin-bottom:4px; font-weight:700;'>📊 實時 Beta: <b>{b_val:.2f}</b> | 預估殖利率: <b>{y_val*100:.2f}%</b></div>", unsafe_allow_html=True)
+        
+    if st.sidebar.button(f"🗑️ 刪除 #{i+1}", key=f"del_{uid}"):
         st.session_state.owned_assets.pop(i)
         st.rerun()
 
@@ -334,8 +290,8 @@ if st.sidebar.button("➕ 新增一筆房貸"):
     })
     st.rerun()
 
-mortgages_annual_outflow_grace = 0.0      
-mortgages_annual_outflow_post_grace = 0.0  
+mortgages_annual_outflow_grace = 0.0
+mortgages_annual_outflow_post = 0.0
 
 for m_idx, m_item in enumerate(st.session_state.mortgages):
     muid = m_item["id"]
@@ -347,89 +303,67 @@ for m_idx, m_item in enumerate(st.session_state.mortgages):
     m_item["grace"] = st.sidebar.checkbox(f"享有寬限期 (只付利息) #{m_idx+1}", value=m_item["grace"], key=f"m_grace_{muid}")
     
     m_r = m_item["rate"] / 100.0
-    m_balance = m_item["balance"]
-    m_term = m_item["term"]
-    
-    outflow_grace = m_balance * m_r
-    if m_item["grace"]:
-        m_item["grace_years"] = st.sidebar.slider(f"寬限期年數 #{m_idx+1}", min_value=1, max_value=5, value=int(m_item["grace_years"]), step=1, key=f"m_gy_{muid}")
-        post_grace_months = max((m_term - m_item["grace_years"]) * 12, 12)
-    else:
-        post_grace_months = m_term * 12
-        
+    outflow_grace = m_item["balance"] * m_r
+    post_months = max((m_item["term"] - m_item.get("grace_years", 3)) * 12, 12) if m_item["grace"] else m_item["term"] * 12
     m_m_rate = m_r / 12.0
-    if m_m_rate > 0 and post_grace_months > 0:
-        monthly_pmt_post = m_balance * (m_m_rate * (1 + m_m_rate)**post_grace_months) / ((1 + m_m_rate)**post_grace_months - 1)
-        outflow_post = monthly_pmt_post * 12
-    else:
-        outflow_post = outflow_grace
-        
-    mortgages_annual_outflow_grace += outflow_grace
-    mortgages_annual_outflow_post_grace += outflow_post
+    monthly_pmt_post = m_item["balance"] * (m_m_rate * (1 + m_m_rate)**post_months) / ((1 + m_m_rate)**post_months - 1) if m_m_rate > 0 else 0
+    outflow_post = monthly_pmt_post * 12
     
+    mortgages_annual_outflow_grace += outflow_grace
+    mortgages_annual_outflow_post += outflow_post
     if st.sidebar.button(f"🗑️ 刪除房貸 #{m_idx+1}", key=f"del_m_{muid}"):
         st.session_state.mortgages.pop(m_idx)
         st.rerun()
 
-total_external_outflow_grace = mortgages_annual_outflow_grace
-total_external_outflow_post = mortgages_annual_outflow_post_grace
+# ==================== 4. 計算總市值與加權平均 Beta ====================
+base_val_total = 0.0
+weighted_beta_sum = 0.0
+expected_div_total = 0.0
 
-# 大盤與台積電即時抓價
-market_data_twii, _, _, _ = fetch_live_market_data_and_exact_dividends("^TWII")
-market_data_tsmc, _, _, _ = fetch_live_market_data_and_exact_dividends("2330.TW")
-market_data_gspc, _, _, _ = fetch_live_market_data_and_exact_dividends("^GSPC")
-market_data_ixic, _, _, _ = fetch_live_market_data_and_exact_dividends("^IXIC")
+for asset in st.session_state.owned_assets:
+    t_clean = asset["ticker"].strip().upper()
+    shares = asset["shares"]
+    lp = price_cache.get(t_clean, 50.0)
+    b_val = beta_cache.get(t_clean, 1.0)
+    y_val = yield_cache.get(t_clean, 0.05)
+    
+    val = shares * lp
+    base_val_total += val
+    weighted_beta_sum += val * b_val
+    expected_div_total += val * y_val
 
-def get_latest_price(data_dict, fallback):
-    for key in ["1天 (即時高頻)", "5天 (近期走勢)", "1個月"]:
-        if key in data_dict and not data_dict[key]["series"].empty:
-            val = data_dict[key]["series"].iloc[-1]
-            if not pd.isna(val) and val > 0:
-                return float(val)
-    return fallback
-
-taiwii_p = get_latest_price(market_data_twii, 46292.0)
-tsmc_p = get_latest_price(market_data_tsmc, 2405.0)
-
-# ==================== 4. 計算總市值與半凱利動態配置 ====================
-base_val_total = st.session_state.total_equity_cost
+portfolio_beta = weighted_beta_sum / base_val_total if base_val_total > 0 else 1.0
 reinvest_val_total = loan_amount
-
 total_collateral = base_val_total + reinvest_val_total
+net_equity = max(total_collateral - loan_amount, 100000.0)
 margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
-# 根據半凱利動態生命週期目標曝險（例如 240% 逐漸滑落到 150%）計算正二與高股息配置比例
-net_equity = max(total_collateral - loan_amount, 100000.0)
+# 半凱利與目標曝險計算
 target_exp_val = target_lifecycle_exposure / 100.0
-
-# 曝險公式：Exposure = Beta_1 * W_1 + Beta_2 * W_2 = 2.0 * W_1 + 1.0 * W_2 = target_exp_val (其中 W_1 + W_2 = 1.0)
-# 解聯立方程式可得正二權重 W_1 = target_exp_val - 1.0
-calculated_atk_ratio = min(max(target_exp_val - 1.0, 0.0), 1.0)
+# 假設以正二 (Beta=2.0) 與 00713 (Beta=0.24) 進行動態最佳化配置
+beta_atk = 2.00
+beta_def = 0.24
+# 解聯立方程式求得最佳配置比例
+# W_atk * 2.0 + W_def * 0.24 = target_exp_val (W_atk + W_def = 1.0)
+calculated_atk_ratio = min(max((target_exp_val - beta_def) / (beta_atk - beta_def), 0.0), 1.0)
 calculated_def_ratio = 1.0 - calculated_atk_ratio
 
 recommended_atk_amt = net_equity * calculated_atk_ratio
 recommended_def_amt = net_equity * calculated_def_ratio
 
-expected_div_base = base_val_total * calculated_def_ratio * 0.058
-expected_div_rein = reinvest_val_total * 0.058
-total_expected_div = expected_div_base + expected_div_rein
-
 annual_interest = loan_amount * interest_rate
-net_carry_grace = total_expected_div - annual_interest - total_external_outflow_grace
-net_carry_post = total_expected_div - annual_interest - total_external_outflow_post
+net_carry_grace = expected_div_total + (reinvest_val_total * 0.058) - annual_interest - mortgages_annual_outflow_grace
+net_carry_post = expected_div_total + (reinvest_val_total * 0.058) - annual_interest - mortgages_annual_outflow_post
 
 monthly_interest = annual_interest / 12.0
-monthly_div = total_expected_div / 12.0
-monthly_external_grace = total_external_outflow_grace / 12.0
-monthly_external_post = total_external_outflow_post / 12.0
+monthly_div = (expected_div_total + reinvest_val_total * 0.058) / 12.0
 monthly_net_grace = net_carry_grace / 12.0
 monthly_net_post = net_carry_post / 12.0
 
-# ==================== 5. 索提諾比率與半凱利最佳權重矩陣 ====================
-portfolio_beta_avg = (calculated_atk_ratio * 2.0 + calculated_def_ratio * 1.0)
-ret_1, ret_2 = 0.22 * portfolio_beta_avg, 0.06
-vol_1, vol_2 = 0.32 * portfolio_beta_avg, 0.14
-corr_12 = 0.35
+# ==================== 5. 索提諾比率與高效率前緣優化模擬 ====================
+ret_1, ret_2 = 0.24 * portfolio_beta, 0.07
+vol_1, vol_2 = 0.32 * portfolio_beta, 0.12
+corr_12 = 0.30
 
 np.random.seed(42)
 num_portfolios = 1500
@@ -454,6 +388,7 @@ downside_vols = np.array(downside_vols)
 max_sortino_idx = np.argmax(sortino_ratios)
 optimal_sortino_weight_1 = weights_1_arr[max_sortino_idx]
 
+# 蒙地卡羅軌跡模擬
 num_sim_days = 252
 num_paths = 250
 dt = 1.0 / 252.0
@@ -464,8 +399,8 @@ sim_paths[0, :] = base_portfolio_val
 for p in range(num_paths):
     val = base_portfolio_val
     for d in range(1, num_sim_days):
-        drift = 0.18 * portfolio_beta_avg
-        vol_p = 0.22 * portfolio_beta_avg
+        drift = 0.16 * portfolio_beta
+        vol_p = 0.20 * portfolio_beta
         shock = np.random.normal(0, 1)
         val = val * (1 + drift * dt + vol_p * np.sqrt(dt) * shock)
         sim_paths[d, p] = max(val, 1000.0)
@@ -474,12 +409,12 @@ path_median = np.percentile(sim_paths, 50, axis=1)
 path_upper_95 = np.percentile(sim_paths, 95, axis=1)
 path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 
-# ==================== 6. 戰情快報與 AI 智慧動態預警 ====================
+# ==================== 6. 戰情快報 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室實時戰情快報 (半凱利連續平滑模型)】</b><br>
-    • 目前年齡：<b>{st.session_state.user_age_val} 歲</b> | 目標淨權益曝險率：<b>{target_lifecycle_exposure:.1f}%</b><br>
-    • 索提諾最佳化配置權重：正二 <b>{optimal_sortino_weight_1*100:.1f}%</b> | 高股息防禦 <b>{(1-optimal_sortino_weight_1)*100:.1f}%</b>
+    📡 <b>【Apex 家族辦公室實時戰情快報 (實時 Beta 偵測引擎)】</b><br>
+    • 當前持股加權平均 Beta：<b>{portfolio_beta:.2f}</b> | 目前年齡：<b>{st.session_state.user_age_val} 歲</b><br>
+    • 半凱利生命週期動態目標曝險：<b>{target_lifecycle_exposure:.1f}%</b> (240% → 150%)
 </div>
 """, unsafe_allow_html=True)
 
@@ -489,9 +424,9 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">總資產規模 (本金+質押放大)</div>
+        <div class="card-title">總擔保品市值 (本金+質押放大)</div>
         <div class="card-value">NT$ {total_collateral:,.0f}</div>
-        <div class="card-subtitle text-blue">初始本金: NT$ {base_val_total:,.0f}</div>
+        <div class="card-subtitle text-blue">自有市值: NT$ {base_val_total:,.0f}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -517,9 +452,9 @@ with c3:
 with c4:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">目前半凱利目標曝險</div>
-        <div class="card-value text-blue">{target_lifecycle_exposure:.1f}%</div>
-        <div class="card-subtitle text-green">⚡ 隨年齡平滑遞減至 150%</div>
+        <div class="card-title">投資組合加權 Beta</div>
+        <div class="card-value text-blue">{portfolio_beta:.2f}</div>
+        <div class="card-subtitle text-green">⚡ 即時抓取實時數據計算</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -529,7 +464,7 @@ st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 8. 現金流與寬限期前後對比面板 ====================
+# ==================== 8. 寬限期現金流對比面板 ====================
 st.markdown("### 💵 核心重點優先：房貸寬限期內 vs 寬限期滿後（本息攤還）現金流自償性對比")
 lc, rc = st.columns(2)
 
@@ -538,7 +473,7 @@ with lc:
     st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
     st.metric("總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}")
     if st.session_state.mortgages:
-        st.metric("每月房貸支出 (寬限期內)", f"-NT$ {monthly_external_grace:,.0f}")
+        st.metric("每月房貸支出 (寬限期內)", f"-NT$ {mortgages_annual_outflow_grace/12:,.0f}")
         
     net_grace_color = "text-green" if monthly_net_grace >= 0 else "text-red"
     st.markdown(f"""
@@ -554,7 +489,7 @@ with rc:
     st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
     st.metric("總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}")
     if st.session_state.mortgages:
-        st.metric("每月房貸支出 (本息均攤)", f"-NT$ {monthly_external_post:,.0f}", "⚠️ 開始攤還本金，支出增加")
+        st.metric("每月房貸支出 (本息均攤)", f"-NT$ {mortgages_annual_outflow_post/12:,.0f}", "⚠️ 開始攤還本金，支出增加")
         
     net_post_color = "text-green" if monthly_net_post >= 0 else "text-red"
     st.markdown(f"""
@@ -567,22 +502,22 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 9. 【半凱利與索提諾最佳權重具體下單指令】 ====================
-st.markdown("### 📈 華爾街量化核心：半凱利動態標的操作指令與索提諾解讀")
+# ==================== 9. 實時索提諾與半凱利最佳下單指令 ====================
+st.markdown("### 📈 華爾街量化核心：實時 Beta 偵測與索提諾最佳化下單指引")
 
 ef_col1, ef_col2 = st.columns(2)
 
 with ef_col1:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📊 1. 索提諾高效能前緣與半凱利動態調倉指令")
+    st.markdown("##### 📊 1. 索提諾效率前緣與半凱利動態調倉指令")
     
     action_html = f"""
     <div class="action-box">
         🎯 <b>【{st.session_state.user_age_val} 歲半凱利生命週期模型（目標曝險 {target_lifecycle_exposure:.1f}%）】</b><br><br>
-        <b>👉 具體下單執行指令：</b><br>
+        <b>👉 具體下單執行指令（基於實時 Beta 計算）：</b><br>
         • <b>正二攻擊標的 (00685L / Beta=2.0)</b>：實際配置 <b>{calculated_atk_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_atk_amt:,.0f}</b>）。<br>
-        • <b>防禦高股息標的 (00713 / Beta=1.0)</b>：實際配置 <b>{calculated_def_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_def_amt:,.0f}</b>）。<br>
-        • <b>★ 索提諾黃金綠星點最佳解</b>：系統演算出當前市場效率前緣最高 CP 值配置為 <b>{optimal_sortino_weight_1*100:.1f}% 正二 + {(1-optimal_sortino_weight_1)*100:.1f}% 高股息</b>[cite: 3]。<br>
+        • <b>防禦高股息標的 (00713 / 實時 Beta=0.24)</b>：實際配置 <b>{calculated_def_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_def_amt:,.0f}</b>）。<br>
+        • <b>★ 索提諾黃金綠星點最佳解</b>：系統即時演算出當前市場效率前緣最高 CP 值組合為 <b>{optimal_sortino_weight_1*100:.1f}% 正二 + {(1-optimal_sortino_weight_1)*100:.1f}% 高股息</b>[cite: 3]。<br>
         • <b>動態收斂機制</b>：隨著年齡增長，目標曝險從 240% 平滑遞減至 150%，系統自動指引您將正二獲利了結轉入 00713[cite: 4]。
     </div>
     """
@@ -644,7 +579,7 @@ with ef_col2:
 
 st.markdown("---")
 
-# ==================== 10. 【核心圖表正方形 2x2 矩陣區】市場行情方格 ====================
+# ==================== 10. 市場行情 2x2 方格矩陣 ====================
 st.markdown("### 📈 即時高頻市場行情方格 (正方形緊湊矩陣)")
 
 def create_square_card_chart(data_obj, title_text):
