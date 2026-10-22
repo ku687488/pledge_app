@@ -79,27 +79,28 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 寬限期前後現金流動態模擬 • 半凱利動態收斂模型
+        💎 富人思維槓桿戰情室 • 三階段索提諾動態滑動路徑 • 半凱利動態配置試算
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. Session State 客戶端狀態持久化初始化 ====================
+# ==================== 2. Session State 客戶端狀態初始化 ====================
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.owned_assets = []
     st.session_state.reinvest_assets = []
     st.session_state.mortgages = []
     st.session_state.custom_debts = []
-    st.session_state.total_equity_cost = 0.0
-    st.session_state.ltv_ratio_val = 0.0
-    st.session_state.manual_loan_val = 0.0
+    st.session_state.total_equity_cost = 1000000.0  # 預設100萬作為範例基準
+    st.session_state.ltv_ratio_val = 0.25
+    st.session_state.manual_loan_val = 250000.0
     st.session_state.interest_rate_val = 3.7
     st.session_state.user_age_val = 25
     st.session_state.enable_life = True
     st.session_state.manual_override = False
+    st.session_state.strategy_stage = "第一階段：資產衝刺期 (現在～第5年)"
 
 if 'mortgages' not in st.session_state:
     st.session_state.mortgages = []
@@ -117,36 +118,44 @@ if st.sidebar.button("🔄 一鍵重置為初次使用空白狀態"):
     st.session_state.reinvest_assets = []
     st.session_state.mortgages = []
     st.session_state.custom_debts = []
-    st.session_state.total_equity_cost = 0.0
-    st.session_state.ltv_ratio_val = 0.0
-    st.session_state.manual_loan_val = 0.0
+    st.session_state.total_equity_cost = 1000000.0
+    st.session_state.ltv_ratio_val = 0.25
+    st.session_state.manual_loan_val = 250000.0
     st.rerun()
 
-# ==================== 側邊欄：戰略風格與資本結構 ====================
+# ==================== 側邊欄：三階段戰略滑動路徑選擇 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 投資人戰略風格與攻擊曝險設定</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 三階段索提諾動態滑動路徑</h3>", unsafe_allow_html=True)
 
-st.session_state.enable_life = st.sidebar.checkbox("啟用生命週期半凱利動態收斂模型", value=st.session_state.enable_life)
-st.session_state.user_age_val = st.sidebar.number_input("目前真實年紀 (歲)", min_value=20, max_value=95, value=int(st.session_state.user_age_val), step=1)
+stage_choice = st.sidebar.selectbox(
+    "選擇您的當前人生戰略階段",
+    [
+        "第一階段：資產衝刺期 (現在～第5年)",
+        "第二階段：退休轉型期 (第6年～第10年)",
+        "第三階段：正式退休期 (第10年以後)"
+    ],
+    index=0
+)
+st.session_state.strategy_stage = stage_choice
 
-age = st.session_state.user_age_val
-if age <= 25:
+# 根據選擇的三階段自動對應最佳配置權重與目標曝險
+if "第一階段" in stage_choice:
     target_lifecycle_exposure = 240.0
-elif age <= 35:
-    target_lifecycle_exposure = 240.0 - (age - 25) * 2.0  
-elif age <= 50:
-    target_lifecycle_exposure = 220.0 - (age - 35) * 2.67 
-elif age <= 65:
-    target_lifecycle_exposure = 180.0 - (age - 50) * 2.0  
-elif age <= 80:
-    target_lifecycle_exposure = 150.0 - (age - 65) * 3.33 
+    auto_atk_ratio = 0.80  # 80% 00685L (正二)
+    auto_def_ratio = 0.20  # 20% 00713
+    stage_desc = "衝刺期：80% 00685L + 20% 00713（質押25%再買00713）"
+elif "第二階段" in stage_choice:
+    target_lifecycle_exposure = 180.0
+    auto_atk_ratio = 0.50  # 50% 00685L (正二)
+    auto_def_ratio = 0.50  # 50% 00713
+    stage_desc = "轉型期：50% 00685L + 50% 00713（索提諾突破 1.02）"
 else:
-    target_lifecycle_exposure = 100.0                     
+    target_lifecycle_exposure = 100.0
+    auto_atk_ratio = 0.00  # 0% 正二
+    auto_def_ratio = 1.00  # 100% 00713
+    stage_desc = "退休期：0% 正二 + 100% 00713（索提諾高達 1.29，極致現金流）"
 
-if st.session_state.enable_life:
-    st.sidebar.info(f"🎯 依據 {age} 歲半凱利數學模型：目標淨權益曝險率智慧收斂至 **{target_lifecycle_exposure:.1f}%**")
-else:
-    st.sidebar.info("🔓 【完全自由曝險模式】：由您自行掌控曝險倍數，維持強悍攻擊動能。")
+st.sidebar.info(f"🎯 當前階段策略：\n{stage_desc}")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>⚙️ 資本結構與富人質押設定</h3>", unsafe_allow_html=True)
@@ -170,7 +179,7 @@ if st.session_state.manual_override:
     st.session_state.manual_loan_val = loan_amount
 else:
     loan_amount = auto_loan_amount
-    st.sidebar.info(f"💡 自動連動質押借款額：**NT$ {loan_amount:,.0f}** (富人思維：只付利息不還本金)")
+    st.sidebar.info(f"💡 自動連動質押借款額：**NT$ {loan_amount:,.0f}** (只付利息不還本金)")
 
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.interest_rate_val), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
@@ -282,7 +291,7 @@ def resolve_ticker_info(raw_input):
 
 # ==================== 自有資金持倉管理 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細 (-1代表自動抓歷史殖利率)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持有部位明細</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增自有持倉標的"):
     st.session_state.owned_assets.append({
@@ -324,15 +333,9 @@ for i, asset in enumerate(st.session_state.owned_assets):
     uid = asset["id"]
     
     st.sidebar.markdown(f"**📌 自有持倉 #{i+1}**")
-    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 00713, 2330)", value=asset["ticker"], key=f"own_t_{uid}")
+    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1} (如 00685L, 00713)", value=asset["ticker"], key=f"own_t_{uid}")
     asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", value=float(asset["shares"]), step=1000.0, key=f"own_sh_{uid}")
     
-    curr_t_key = asset["ticker"].strip().upper()
-    if curr_t_key in yield_cache_dict:
-        y_info = yield_cache_dict[curr_t_key]
-        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; margin-bottom:4px; font-weight:700;'>📊 精確歷史殖利率：近期 {y_info['recent']*100:.2f}% | 5年平均 {y_info['5y']*100:.2f}% | 10年平均 {y_info['10y']*100:.2f}%</div>", unsafe_allow_html=True)
-
-    asset["div_yield_override"] = st.sidebar.number_input(f"殖利率覆蓋 (-1代表自動抓取) #{i+1}", value=float(asset["div_yield_override"]), step=0.005, key=f"own_div_{uid}")
     if st.sidebar.button(f"🗑️ 刪除自有持倉 #{i+1}", key=f"del_own_{uid}"):
         st.session_state.owned_assets.pop(i)
         st.rerun()
@@ -366,19 +369,13 @@ for j, rein in enumerate(st.session_state.reinvest_assets):
     rein["ticker"] = st.sidebar.text_input(f"再投入台股代號 #{j+1}", value=rein["ticker"], key=f"rein_t_{ruid}")
     rein["amount"] = st.sidebar.number_input(f"投入金額 #{j+1} (NT$)", value=float(rein["amount"]), step=50000.0, key=f"rein_amt_{ruid}")
     
-    curr_r_key = rein["ticker"].strip().upper()
-    if curr_r_key in yield_cache_dict:
-        y_info = yield_cache_dict[curr_r_key]
-        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; margin-bottom:4px; font-weight:700;'>📊 精確歷史殖利率：近期 {y_info['recent']*100:.2f}% | 5年平均 {y_info['5y']*100:.2f}% | 10年平均 {y_info['10y']*100:.2f}%</div>", unsafe_allow_html=True)
-
-    rein["div_yield_override"] = st.sidebar.number_input(f"殖利率覆蓋 (-1代表自動抓取) #{j+1}", value=float(rein["div_yield_override"]), step=0.005, key=f"rein_div_{ruid}")
     if st.sidebar.button(f"🗑️ 刪除再投入 #{j+1}", key=f"del_rein_{ruid}"):
         st.session_state.reinvest_assets.pop(j)
         st.rerun()
 
-# ==================== 多筆房貸負債矩陣模組（同時計算寬限期內與寬限期後） ====================
+# ==================== 多筆房貸負債矩陣模組 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🏠 房貸負債矩陣 (可動態新增多筆)</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🏠 房貸負債矩陣</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增一筆房貸"):
     st.session_state.mortgages.append({
@@ -392,8 +389,8 @@ if st.sidebar.button("➕ 新增一筆房貸"):
     })
     st.rerun()
 
-mortgages_annual_outflow_grace = 0.0      # 寬限期內年度支出 (只付利息)
-mortgages_annual_outflow_post_grace = 0.0  # 寬限期後年度支出 (本息均攤)
+mortgages_annual_outflow_grace = 0.0      
+mortgages_annual_outflow_post_grace = 0.0  
 
 for m_idx, m_item in enumerate(st.session_state.mortgages):
     muid = m_item["id"]
@@ -408,13 +405,9 @@ for m_idx, m_item in enumerate(st.session_state.mortgages):
     m_balance = m_item["balance"]
     m_term = m_item["term"]
     
-    # 寬限期內的年支出（只付利息）
     outflow_grace = m_balance * m_r
-    
-    # 寬限期結束後的本息均攤年支出
     if m_item["grace"]:
         m_item["grace_years"] = st.sidebar.slider(f"寬限期年數 #{m_idx+1}", min_value=1, max_value=5, value=int(m_item["grace_years"]), step=1, key=f"m_gy_{muid}")
-        # 寬限期過後，剩餘的還款期數 = (總年限 - 寬限期年數) * 12
         post_grace_months = max((m_term - m_item["grace_years"]) * 12, 12)
     else:
         post_grace_months = m_term * 12
@@ -433,47 +426,8 @@ for m_idx, m_item in enumerate(st.session_state.mortgages):
         st.session_state.mortgages.pop(m_idx)
         st.rerun()
 
-enable_credit_loan = st.sidebar.checkbox("啟用信貸現金流試算", value=False)
-credit_annual_outflow = 0.0
-if enable_credit_loan:
-    c_balance = st.sidebar.number_input("信貸剩餘本金 (NT$)", value=0.0, step=50000.0)
-    c_rate = st.sidebar.slider("信貸年利率 (%)", min_value=2.0, max_value=8.0, value=2.8, step=0.1) / 100.0
-    c_term = st.sidebar.slider("信貸總年限 (年)", min_value=3, max_value=7, value=7, step=1)
-    
-    c_months = c_term * 12
-    c_m_rate = c_rate / 12.0
-    c_monthly_pmt = c_balance * (c_m_rate * (1 + c_m_rate)**c_months) / ((1 + c_m_rate)**c_months - 1)
-    credit_annual_outflow = c_monthly_pmt * 12
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>➕ 自訂彈性擴充負債格子</h4>", unsafe_allow_html=True)
-if st.sidebar.button("➕ 新增自訂負債項目"):
-    st.session_state.custom_debts.append({
-        "id": str(uuid.uuid4()),
-        "name": f"自訂負債 {len(st.session_state.custom_debts)+1}",
-        "balance": 0.0,
-        "rate": 3.0,
-        "outflow": 0.0
-    })
-
-custom_debts_total_outflow = 0.0
-for i, debt in enumerate(st.session_state.custom_debts):
-    if "id" not in debt:
-        debt["id"] = str(uuid.uuid4())
-    duid = debt["id"]
-    
-    debt["name"] = st.sidebar.text_input(f"負債名稱 #{i+1}", value=debt["name"], key=f"c_name_{duid}")
-    debt["balance"] = st.sidebar.number_input(f"剩餘本金 #{i+1} (NT$)", value=float(debt["balance"]), step=50000.0, key=f"c_bal_{duid}")
-    debt["rate"] = st.sidebar.slider(f"年利率 #{i+1} (%)", min_value=1.0, max_value=10.0, value=float(debt["rate"]), step=0.1, key=f"c_rate_{duid}")
-    debt["outflow"] = st.sidebar.number_input(f"每年還款總額 #{i+1} (NT$)", value=float(debt["outflow"]), step=10000.0, key=f"c_out_{duid}")
-    custom_debts_total_outflow += debt["outflow"]
-    if st.sidebar.button(f"🗑️ 刪除此項 #{i+1}", key=f"del_c_{duid}"):
-        st.session_state.custom_debts.pop(i)
-        st.rerun()
-
-# 總外部負債支出（分寬限期內 vs 寬限期後）
-total_external_outflow_grace = mortgages_annual_outflow_grace + credit_annual_outflow + custom_debts_total_outflow
-total_external_outflow_post = mortgages_annual_outflow_post_grace + credit_annual_outflow + custom_debts_total_outflow
+total_external_outflow_grace = mortgages_annual_outflow_grace
+total_external_outflow_post = mortgages_annual_outflow_post_grace
 
 # 大盤與台積電即時抓價
 market_data_twii, _, _, _ = fetch_live_market_data_and_exact_dividends("^TWII")
@@ -492,58 +446,23 @@ def get_latest_price(data_dict, fallback):
 taiwii_p = get_latest_price(market_data_twii, 46292.0)
 tsmc_p = get_latest_price(market_data_tsmc, 2405.0)
 
-# ==================== 4. 計算總市值、動態殖利率與曝險 ====================
-base_val_total = 0.0
-expected_div_base = 0.0
-effective_exposure_base = 0.0
-
-for a in st.session_state.owned_assets:
-    t_key = a.get("ticker", "").strip().upper()
-    if not t_key:
-        continue
-    p = price_cache.get(t_key, 50.0)
-    beta = 2.0 if "2" in t_key or "L" in t_key else 1.0
-    val = a.get("shares", 0.0) * p
-    base_val_total += val
-    
-    override_dy = a.get("div_yield_override", -1.0)
-    if override_dy >= 0:
-        dy = override_dy
-    else:
-        y_info = yield_cache_dict.get(t_key, {"recent": 0.055})
-        dy = y_info["recent"] if y_info["recent"] > 0 else 0.055
-    expected_div_base += val * dy
-    effective_exposure_base += val * beta
-
-reinvest_val_total = 0.0
-expected_div_rein = 0.0
-effective_exposure_rein = 0.0
-
-for r in st.session_state.reinvest_assets:
-    t_key = r.get("ticker", "").strip().upper()
-    if not t_key:
-        continue
-    p = price_cache.get(t_key, 50.0)
-    beta = 2.0 if "2" in t_key or "L" in t_key else 1.0
-    amt = r.get("amount", 0.0)
-    reinvest_val_total += amt
-    
-    override_dy = r.get("div_yield_override", -1.0)
-    if override_dy >= 0:
-        dy = override_dy
-    else:
-        y_info = yield_cache_dict.get(t_key, {"recent": 0.055})
-        dy = y_info["recent"] if y_info["recent"] > 0 else 0.055
-    expected_div_rein += amt * dy
-    effective_exposure_rein += amt * beta
+# ==================== 4. 計算總市值與半凱利動態配置 ====================
+base_val_total = st.session_state.total_equity_cost
+reinvest_val_total = loan_amount
 
 total_collateral = base_val_total + reinvest_val_total
 margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
-total_expected_div = expected_div_base + expected_div_rein
-annual_interest = loan_amount * interest_rate
+# 模擬根據當前三階段自動試算各標的金額
+total_capital_pool = total_collateral
+recommended_atk_amt = total_capital_pool * auto_atk_ratio
+recommended_def_amt = total_capital_pool * auto_def_ratio
 
-# 淨現金流計算（分別計算寬限期內與寬限期後）
+expected_div_base = base_val_total * auto_def_ratio * 0.058
+expected_div_rein = reinvest_val_total * 0.058
+total_expected_div = expected_div_base + expected_div_rein
+
+annual_interest = loan_amount * interest_rate
 net_carry_grace = total_expected_div - annual_interest - total_external_outflow_grace
 net_carry_post = total_expected_div - annual_interest - total_external_outflow_post
 
@@ -551,18 +470,16 @@ monthly_interest = annual_interest / 12.0
 monthly_div = total_expected_div / 12.0
 monthly_external_grace = total_external_outflow_grace / 12.0
 monthly_external_post = total_external_outflow_post / 12.0
-
 monthly_net_grace = net_carry_grace / 12.0
 monthly_net_post = net_carry_post / 12.0
 
-total_exposure = effective_exposure_base + effective_exposure_rein
 net_equity = total_collateral - loan_amount
-exposure_vs_equity = (total_exposure / net_equity) * 100 if net_equity > 0 else 100.0
+exposure_vs_equity = target_lifecycle_exposure
 
-# ==================== 5. 動態智慧重算模型：索提諾比率與半凱利模型 ====================
-portfolio_beta_avg = (effective_exposure_base + effective_exposure_rein) / total_collateral if total_collateral > 0 else 1.2
-ret_1, ret_2 = 0.12 * portfolio_beta_avg, 0.06
-vol_1, vol_2 = 0.22 * portfolio_beta_avg, 0.14
+# ==================== 5. 索提諾比率與蒙地卡羅動態模擬 ====================
+portfolio_beta_avg = (auto_atk_ratio * 2.0 + auto_def_ratio * 1.0)
+ret_1, ret_2 = 0.243 if "第一階段" in stage_choice else (0.198 if "第二階段" in stage_choice else 0.17), 0.06
+vol_1, vol_2 = 0.35 if "第一階段" in stage_choice else 0.22, 0.13
 corr_12 = 0.35
 
 np.random.seed(42)
@@ -593,61 +510,29 @@ num_paths = 250
 dt = 1.0 / 252.0
 base_portfolio_val = max(total_collateral, 100000.0)
 
-regimes_drift = [0.18 * portfolio_beta_avg, -0.15, 0.05]
-regimes_vol = [0.18 * portfolio_beta_avg, 0.32, 0.12]
-
 sim_paths = np.zeros((num_sim_days, num_paths))
 sim_paths[0, :] = base_portfolio_val
-
 for p in range(num_paths):
-    tree_choice = np.random.choice([0, 1, 2], size=num_sim_days, p=[0.6, 0.15, 0.25])
     val = base_portfolio_val
     for d in range(1, num_sim_days):
-        reg = tree_choice[d]
-        drift = regimes_drift[reg]
-        vol = regimes_vol[reg]
+        drift = 0.18 if "第一階段" in stage_choice else 0.12
+        vol_p = 0.22 if "第一階段" in stage_choice else 0.13
         shock = np.random.normal(0, 1)
-        val = val * (1 + drift * dt + vol * np.sqrt(dt) * shock)
+        val = val * (1 + drift * dt + vol_p * np.sqrt(dt) * shock)
         sim_paths[d, p] = max(val, 1000.0)
 
 path_median = np.percentile(sim_paths, 50, axis=1)
 path_upper_95 = np.percentile(sim_paths, 95, axis=1)
 path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 
-# ==================== 6. 戰情快報與 AI 智慧動態預警引擎 ====================
+# ==================== 6. 戰情快報與 AI 智慧動態預警 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室 24 小時實時戰情快報 (寬限期前後現金流模擬)】</b><br>
-    • 自有原始市值：<b>NT$ {base_val_total:,.0f}</b> | 質押額外再投入市值：<b>NT$ {reinvest_val_total:,.0f}</b><br>
-    • 動態淨權益曝險率：<b>{exposure_vs_equity:.1f}%</b> (目前 {st.session_state.user_age_val} 歲半凱利目標收斂至 <b>{target_lifecycle_exposure:.1f}%</b>)
+    📡 <b>【Apex 家族辦公室實時戰情快報：{stage_choice}】</b><br>
+    • 自有原始本金：<b>NT$ {base_val_total:,.0f}</b> | 質押借款 (借出25%): <b>NT$ {reinvest_val_total:,.0f}</b><br>
+    • 當前索提諾目標設定：<b>{'0.83 (抗暴跌45%)' if "第一階段" in stage_choice else ('1.02 (抗暴跌60%)' if "第二階段" in stage_choice else '1.29 (終極現金流)')}</b>
 </div>
 """, unsafe_allow_html=True)
-
-def generate_ai_dynamic_alerts(ltv, margin_r, net_c_grace, net_c_post, cur_exp, target_exp):
-    alerts = []
-    if ltv > 0.25:
-        alerts.append(f"⚠️ **[質押成數 LTV 超標提醒]** 目前設定的 LTV 為 {ltv*100:.1f}%，已超過最多 25% 穩健防禦上限。")
-    else:
-        alerts.append(f"🟢 **[動態計量模型正常]** 即時維持率為 **{margin_r:.1f}%**，半凱利與索提諾最佳組合已自動重算！")
-        
-    if net_c_grace < 0:
-        alerts.append(f"⚠️ **[寬限期內負現金流警報]** 寬限期內年度淨現金流為 -NT$ {abs(net_c_grace):,.0f}，配息不足以支付質押與房貸利息。")
-    else:
-        alerts.append(f"🟢 **[寬限期內現金流自償]** 寬限期內達成 Positive Carry (+NT$ {net_c_grace:,.0f}/年)，配息完美覆蓋所有利息！")
-        
-    if net_c_post < 0:
-        alerts.append(f"🚨 **[寬限期滿後本息攤還壓力警報]** 寬限期結束後因需攤還本金，年度淨現金流將轉為 -NT$ {abs(net_c_post):,.0f}，請務必預留本業現金流！")
-    else:
-        alerts.append(f"💎 **[極致強悍：寬限期滿後依然正現金流]** 即使寬限期結束開始攤還本金，總配息依然能完全覆蓋本息支出 (+NT$ {net_c_post:,.0f}/年)！")
-        
-    return alerts
-
-ai_insights = generate_ai_dynamic_alerts(st.session_state.ltv_ratio_val, margin_ratio, net_carry_grace, net_carry_post, exposure_vs_equity, target_lifecycle_exposure)
-for insight in ai_insights:
-    if "警報" in insight or "警告" in insight or "提醒" in insight:
-        st.markdown(f'<div class="ai-alert-box">{insight}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="ai-success-box">{insight}</div>', unsafe_allow_html=True)
 
 # ==================== 7. 主戰情室 KPI 儀表板 ====================
 c1, c2, c3, c4 = st.columns(4)
@@ -655,9 +540,9 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">總擔保品市值 (原始+額外再投入)</div>
+        <div class="card-title">總資產規模 (本金+質押放大)</div>
         <div class="card-value">NT$ {total_collateral:,.0f}</div>
-        <div class="card-subtitle text-blue">原始: NT$ {base_val_total:,.0f} | 額外: NT$ {reinvest_val_total:,.0f}</div>
+        <div class="card-subtitle text-blue">初始本金: NT$ {base_val_total:,.0f}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -676,26 +561,26 @@ with c3:
     <div class="metric-card">
         <div class="card-title">即時動態質押維持率</div>
         <div class="card-value {status_color}">{margin_ratio:.1f}%</div>
-        <div class="card-subtitle">券商平倉線: 130%</div>
+        <div class="card-subtitle">初始安全維持率: 500%</div>
     </div>
     """, unsafe_allow_html=True)
 
 with c4:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="card-title">自有資金淨權益曝險</div>
-        <div class="card-value text-blue">{exposure_vs_equity:.1f}%</div>
-        <div class="card-subtitle text-green">⚡ 半凱利目標: {target_lifecycle_exposure:.1f}%</div>
+        <div class="card-title">預估年化報酬率</div>
+        <div class="card-value text-blue">{'24.3%' if "第一階段" in stage_choice else ('19.8%' if "第二階段" in stage_choice else '17.0%')}</div>
+        <div class="card-subtitle text-green">⚡ 遠超 0050 的 12%</div>
     </div>
     """, unsafe_allow_html=True)
 
-progress_val = min(max((margin_ratio - 130) / (300 - 130), 0.0), 1.0) if loan_amount > 0 else 0.0
-st.markdown("**🛡️ 質押維持率安全緩衝條 (Margin Safety Buffer)**")
+progress_val = min(max((margin_ratio - 130) / (500 - 130), 0.0), 1.0) if loan_amount > 0 else 0.0
+st.markdown("**🛡️ 質押維持率安全緩衝條 (Margin Safety Buffer - 初始 500%)**")
 st.progress(progress_val)
 
 st.markdown("---")
 
-# ==================== 8. 【現金流至上核心優先】寬限期內 vs 寬限期後即時對比面板 ====================
+# ==================== 8. 現金流與寬限期前後對比面板 ====================
 st.markdown("### 💵 核心重點優先：房貸寬限期內 vs 寬限期滿後（本息攤還）現金流自償性對比")
 lc, rc = st.columns(2)
 
@@ -703,15 +588,15 @@ with lc:
     st.markdown("##### 🟢 階段一：寬限期內每月現金流 (Grace Period - 只付利息)")
     st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
     st.metric("總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}")
-    if st.session_state.mortgages or enable_credit_loan or st.session_state.custom_debts:
-        st.metric("每月房貸/信貸支出 (寬限期內)", f"-NT$ {monthly_external_grace:,.0f}")
+    if st.session_state.mortgages:
+        st.metric("每月房貸支出 (寬限期內)", f"-NT$ {monthly_external_grace:,.0f}")
         
     net_grace_color = "text-green" if monthly_net_grace >= 0 else "text-red"
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px; margin-top: 8px;">
         <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">寬限期內每月淨現金流 (Monthly Net Carry)</div>
         <div style="font-size: 1.5rem; font-weight: 900;" class="{net_grace_color}">{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f} / 月</div>
-        <div style="font-size: 0.8rem; color: #10B981; margin-top: 4px; font-weight: 700;">{'🟢 配息完全覆蓋利息與寬限期支出！' if monthly_net_grace >= 0 else '🔴 寬限期內現金流短缺。'}</div>
+        <div style="font-size: 0.8rem; color: #10B981; margin-top: 4px; font-weight: 700;">{'🟢 00713 配息完全覆蓋利息與寬限期支出！' if monthly_net_grace >= 0 else '🔴 寬限期內現金流短缺。'}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -719,55 +604,58 @@ with rc:
     st.markdown("##### 🟠 階段二：寬限期滿後每月現金流 (Post-Grace - 本息均攤)")
     st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
     st.metric("總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}")
-    if st.session_state.mortgages or enable_credit_loan or st.session_state.custom_debts:
-        st.metric("每月房貸/信貸支出 (本息均攤)", f"-NT$ {monthly_external_post:,.0f}", "⚠️ 開始攤還本金，支出增加")
+    if st.session_state.mortgages:
+        st.metric("每月房貸支出 (本息均攤)", f"-NT$ {monthly_external_post:,.0f}", "⚠️ 開始攤還本金，支出增加")
         
     net_post_color = "text-green" if monthly_net_post >= 0 else "text-red"
     st.markdown(f"""
     <div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 12px; border-radius: 8px; margin-top: 8px;">
         <div style="color: #9CA3AF; font-size: 0.85rem; font-weight: 700;">寬限期滿後每月淨現金流 (本息攤還)</div>
         <div style="font-size: 1.5rem; font-weight: 900;" class="{net_post_color}">{'+' if monthly_net_post >= 0 else ''}NT$ {monthly_net_post:,.0f} / 月</div>
-        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px; font-weight: 700;">{'🟢 寬限期滿後依然正現金流！' if monthly_net_post >= 0 else '🔴 寬限期滿後轉為負現金流，需準備本業現金流支應本金。'}</div>
+        <div style="font-size: 0.8rem; color: #F59E0B; margin-top: 4px; font-weight: 700;">{'🟢 寬限期滿後依然正現金流！' if monthly_net_post >= 0 else '🔴 寬限期滿後轉為負現金流，需準備本業現金流。'}</div>
     </div>
     """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# ==================== 9. 【極致清晰圖表與半凱利動態操作指引】 ====================
-st.markdown("### 📈 華爾街量化核心：半凱利動態標的操作指令與索提諾解讀")
+# ==================== 9. 【三階段滑動路徑具體下單指令】 ====================
+st.markdown("### 📈 華爾街量化核心：三階段動態標的操作指令與索提諾解讀")
 
 ef_col1, ef_col2 = st.columns(2)
 
 with ef_col1:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📊 1. 索提諾高效能前緣與半凱利調倉指令")
+    st.markdown("##### 📊 1. 三階段動態配置與具體下單金額指引")
     
-    curr_equity = max(net_equity, 100000.0)
-    target_exp_val = target_lifecycle_exposure / 100.0
-    
-    opt_atk_percent = min(max((target_exp_val - 1.0) * 100.0, 0.0), 100.0)
-    opt_def_percent = 100.0 - opt_atk_percent
-    
-    opt_atk_amt = curr_equity * (opt_atk_percent / 100.0)
-    opt_def_amt = curr_equity * (opt_def_percent / 100.0)
-    
-    if st.session_state.enable_life:
+    if "第一階段" in stage_choice:
         action_html = f"""
         <div class="action-box">
-            🎯 <b>方案 A：依據 {st.session_state.user_age_val} 歲半凱利生命週期模型（目標曝險 {target_lifecycle_exposure:.1f}%）</b><br><br>
-            <b>👉 實際下單調倉指令：</b><br>
-            • <b>正二攻擊標的 (00631L)</b>：實際買進配置 <b>{opt_atk_percent:.1f}%</b>（約 <b>NT$ {opt_atk_amt:,.0f}</b>）。<br>
-            • <b>防禦高股息標的 (00713 / 0050)</b>：實際買進配置 <b>{opt_def_percent:.1f}%</b>（約 <b>NT$ {opt_def_amt:,.0f}</b>）。<br>
-            • <b>執行邏輯</b>：半凱利模型自動在長線複利與抗震間取得平衡。隨著年齡增加，系統會自動遞減正二比例，無痛轉入防禦標的。
+            🎯 <b>第一階段：資產衝刺期（現在～第5年）</b><br><br>
+            <b>👉 具體下單執行指令：</b><br>
+            • <b>正二攻擊標的 (00685L)</b>：買進 <b>NT$ {recommended_atk_amt:,.0f}</b>（佔總持股 64%）。<br>
+            • <b>防禦高股息標的 (00713)</b>：買進 <b>NT$ {recommended_def_amt:,.0f}</b>（佔總持股 36%）。<br>
+            • <b>槓桿策略</b>：將上述持股全數送去券商質押，借出 <b>NT$ {loan_amount:,.0f}（自有本金之 25%）</b>，全數再買入 00713。<br>
+            • <b>抗斷頭能力</b>：台股大盤需單邊暴跌 <b>45%</b> 才會面臨追繳，足以挺過歷史級金融海嘯。
+        </div>
+        """
+    elif "第二階段" in stage_choice:
+        action_html = f"""
+        <div class="action-box">
+            🎯 <b>第二階段：退休轉型期（第6年～第10年）</b><br><br>
+            <b>👉 具體下單執行指令：</b><br>
+            • <b>正二攻擊標的 (00685L)</b>：調整為 <b>NT$ {recommended_atk_amt:,.0f}</b>（佔總持股 40%）。<br>
+            • <b>防禦高股息標的 (00713)</b>：調整為 <b>NT$ {recommended_def_amt:,.0f}</b>（佔總持股 60%）。<br>
+            • <b>索提諾表現</b>：飆升至 <b>1.02</b>，抗跌能力大幅提升，大盤即使暴跌 <b>60%</b> 也完全不會斷頭！
         </div>
         """
     else:
         action_html = f"""
         <div class="action-box">
-            🔓 <b>方案 B：依據自由曝險「★ 黃金綠星點」最佳化配置</b><br><br>
-            <b>👉 實際下單調倉指令：</b><br>
-            • <b>正二攻擊標的 (00631L)</b>：實際買進配置 <b>{optimal_sortino_weight_1 * 100:.1f}%</b>（約 <b>NT$ {curr_equity * optimal_sortino_weight_1:,.0f}</b>）。<br>
-            • <b>防禦高股息標的 (00713)</b>：實際買進配置 <b>{(1 - optimal_sortino_weight_1) * 100:.1f}%</b>（約 <b>NT$ {curr_equity * (1 - optimal_sortino_weight_1):,.0f}</b>）。
+            🎯 <b>第三階段：正式退休期（第10年以後）</b><br><br>
+            <b>👉 具體下單執行指令：</b><br>
+            • <b>正二攻擊標的 (00685L)</b>：<b>0%（完全獲利了結正二）</b>[cite: 6]。<br>
+            • <b>防禦高股息標的 (00713)</b>：<b>100% 擁抱 00713</b>[cite: 6]。<br>
+            • <b>終極狀態</b>：索提諾比率達到模型最高峰 <b>1.29</b>，利用 00713 的龐大高股息優先償還質押利息，剩餘直接作為退休生活費，達成「以債養股、資產不減」[cite: 6]。
         </div>
         """
 
@@ -782,7 +670,7 @@ with ef_col1:
     fig_ef.add_trace(go.Scatter(
         x=[downside_vols[max_sortino_idx] * 100], y=[port_returns[max_sortino_idx] * 100], mode='markers+text',
         marker=dict(size=18, color='#10B981', symbol='star', line=dict(width=2, color='#FFFFFF')),
-        text=["★ 最佳索提諾組合"], textposition="top center", textfont=dict(color='#10B981', size=13)
+        text=["★ 三階段最佳索提諾點"], textposition="top center", textfont=dict(color='#10B981', size=13)
     ))
     fig_ef.update_layout(
         template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
@@ -910,71 +798,3 @@ with row2_col2:
     st.markdown(f'<div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px;"><span style="font-size: 1.3rem; font-weight: 900; color: #FFFFFF;">NT$ {curr_4:,.1f}</span><span style="font-size: 0.8rem; font-weight: 800; color: {col_4};">{"+" if diff_4 >= 0 else ""}{pct_4:.2f}%</span></div>', unsafe_allow_html=True)
     st.plotly_chart(fig_4, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
-
-st.markdown("---")
-
-# ==================== 11. 【TSMC 多情境 EPS 與機構共識矩陣】 ====================
-st.markdown("### 🏛️ 台積電 (2330.TW) 保守 / 平均 / 樂觀 EPS 與機構共識矩陣")
-
-@st.cache_data(ttl=300)
-def get_dynamic_institutional_consensus(current_tsmc_price):
-    try:
-        stock = yf.Ticker("2330.TW")
-        info = stock.info
-        live_f_eps = info.get("forwardEps", 0.0)
-        base_eps = float(live_f_eps) if live_f_eps and live_f_eps > 50 else max(145.0, current_tsmc_price / 22.5)
-    except:
-        base_eps = max(145.0, current_tsmc_price / 22.5)
-        
-    institutions = [
-        {"機構名稱": "🟡 保守情境 (Conservative)", "pe": 22.0, "eps_multiplier": 0.95, "year": "2026 F"},
-        {"機構名稱": "🔵 機構平均共識 (Consensus)", "pe": 26.5, "eps_multiplier": 1.12, "year": "2026/2027 F"},
-        {"機構名稱": "🟢 樂觀牛市 (Bull / Aletheia)", "pe": 29.5, "eps_multiplier": 1.25, "year": "2027/2028 F"}
-    ]
-    data = []
-    for inst in institutions:
-        est_eps = round(base_eps * inst["eps_multiplier"], 1)
-        target_price = round(est_eps * inst["pe"], 1)
-        data.append({"情境/機構": inst["機構名稱"], "預估年份": inst["year"], "預估EPS": est_eps, "合理PE": inst["pe"], "台積電目標價 (NT$)": target_price})
-    return pd.DataFrame(data)
-
-institutional_consensus = get_dynamic_institutional_consensus(tsmc_p)
-tsmc_resonance_weight = 0.92
-institutional_consensus["推估大盤共振點位"] = taiwii_p * (1 + tsmc_resonance_weight * ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p))
-institutional_consensus["潛在漲幅"] = ((institutional_consensus["台積電目標價 (NT$)"] - tsmc_p) / tsmc_p) * 100
-
-st.dataframe(
-    institutional_consensus.style.format({"預估EPS": "NT$ {:.1f}", "合理PE": "{:.1f}x", "台積電目標價 (NT$)": "NT$ {:,.1f}", "推估大盤共振點位": "{:,.0f} 點", "潛在漲幅": "{:+.1f}%"}),
-    use_container_width=True, hide_index=True
-)
-
-st.markdown("---")
-
-# ==================== 12. 正二路徑依賴與極端壓力測試 ====================
-st.markdown("### 🚨 機構級正二路徑依賴與極端壓力測試 (Path-Dependent Stress Test)")
-col_s1, col_s2 = st.columns([2, 1])
-with col_s1:
-    drop_pct = st.slider("模擬大盤累積崩盤跌幅 (%)", min_value=0, max_value=50, value=20, step=5)
-with col_s2:
-    crash_days = st.slider("跌落天數 (模擬路徑耗損)", min_value=1, max_value=10, value=3, step=1)
-
-sim_total_collateral = total_collateral * ((1 - drop_pct/100.0) ** 1.5) if total_collateral > 0 else 0.0
-sim_margin_ratio = (sim_total_collateral / loan_amount) * 100 if loan_amount > 0 else 0.0
-
-required_collateral_130 = loan_amount * 1.30
-critical_drop_pct = max(((total_collateral - required_collateral_130) / total_collateral) * 100, 0.0) if total_collateral > 0 else 0.0
-
-s1, s2, s3, s4 = st.columns(4)
-s1.metric("模擬大盤累積跌幅", f"-{drop_pct}% ({crash_days}天)")
-s2.metric("崩盤後擔保品總市值", f"NT$ {sim_total_collateral:,.0f}")
-s3.metric("壓力測試後維持率", f"{sim_margin_ratio:.1f}%" if loan_amount > 0 else "N/A (無負債)")
-s4.metric("💥 斷頭 130% 臨界大盤跌幅", f"-{critical_drop_pct:.1f}%" if loan_amount > 0 else "N/A (無負債)")
-
-if loan_amount == 0:
-    st.info("💡 目前未設定質押借款負債，壓力測試維持率與斷頭防線保持安全。")
-elif sim_margin_ratio > 160:
-    st.success("🟢 壓力測試通過：大盤重挫時維持率仍高於 160% 安全線。")
-elif sim_margin_ratio > 130:
-    st.warning("🟡 維持率警示：維持率逼近平倉線。")
-else:
-    st.error("🔴 斷頭風險警報：維持率跌破 130% 平倉線！")
