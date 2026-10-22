@@ -71,7 +71,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 嚴格實時 Beta 偵測引擎 • 索提諾與半凱利生命週期連續平滑模型 (240% → 150%)
+        💎 富人思維槓桿戰情室 • 索提諾動態效率前緣矩陣 • 實時 Beta 檢測與生命週期平滑模型
     </p>
 </div>
 """,
@@ -338,7 +338,7 @@ corr_12 = 0.30
 
 np.random.seed(42)
 num_portfolios = 1500
-weights_1_arr = np.random.uniform(0.1, 0.95, num_portfolios)
+weights_1_arr = np.random.uniform(0.0, 1.0, num_portfolios)
 port_returns = weights_1_arr * ret_1 + (1 - weights_1_arr) * ret_2
 port_vols = np.sqrt(weights_1_arr**2 * vol_1**2 + (1 - weights_1_arr)**2 * vol_2**2 + 2 * weights_1_arr * (1 - weights_1_arr) * vol_1 * vol_2 * corr_12)
 risk_free_rate = 0.015
@@ -383,7 +383,7 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室實時戰情快報 (真實實時 Beta 偵測引擎)】</b><br>
+    📡 <b>【Apex 家族辦公室實時戰情快報 (實時 Beta 偵測引擎)】</b><br>
     • 當前持股加權平均 Beta：<b>{portfolio_beta:.2f}</b> | 目前年齡：<b>{st.session_state.user_age_val} 歲</b><br>
     • 半凱利生命週期動態目標曝險：<b>{target_lifecycle_exposure:.1f}%</b> (240% → 150%)
 </div>
@@ -473,23 +473,54 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 9. 實時索提諾與半凱利最佳下單指令 ====================
-st.markdown("### 📈 華爾街量化核心：實時 Beta 偵測與索提諾最佳化下單指引")
+# ==================== 9. 【核心新增】三大核心策略數據對比表與索提諾效率前緣詳細解析 ====================
+st.markdown("### 🏛️ 核心策略數據對比表與索提諾效率前緣詳細解析")
 
+# 三大策略對比表格（呼應您提供的第一張截圖數據）
+strategy_comparison_df = pd.DataFrame([
+    {
+        "配置策略": "1. 歐印 0050 (基準線)[cite: 7]",
+        "年化預期報酬率": "12.02%[cite: 7]",
+        "年化下行風險 (σd)": "16.67%[cite: 7]",
+        "索提諾比率 (Sortino)": "0.72[cite: 7]",
+        "數據結論與說明": "風險報酬效率最低的標準配置[cite: 7]。無抗震護城河，面臨大盤下殺時承受全額下行波動。"
+    },
+    {
+        "配置策略": "2. 策略 A (衝刺期) 100% 正二 + 25% 質押 00713[cite: 7]",
+        "年化預期報酬率": "26.96%[cite: 7]",
+        "年化下行風險 (σd)": "35.14%[cite: 7]",
+        "索提諾比率 (Sortino)": "0.77[cite: 7]",
+        "數據結論與說明": "絕對報酬最高！效率略贏 0050，但下行震盪極大[cite: 7]。適合年輕資產累積期追求極致複利。"
+    },
+    {
+        "配置策略": "3. 策略 B (轉型期) 70% 正二 + 30% 00713 + 30% 質押 00713[cite: 7]",
+        "年化預期報酬率": "24.51%[cite: 7]",
+        "年化下行風險 (σd)": "27.86%[cite: 7]",
+        "索提諾比率 (Sortino)": "0.88[cite: 7]",
+        "數據結論與說明": "效率大幅提升！犧牲微小報酬，換取風險暴跌 20%[cite: 7]。完美銜接資產中期的防禦轉型。"
+    }
+])
+
+st.dataframe(strategy_comparison_df, use_container_width=True, hide_index=True)
+
+st.markdown("---")
+
+# 索提諾效率前緣各比例權重與詳細說明區塊
 ef_col1, ef_col2 = st.columns(2)
 
 with ef_col1:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📊 1. 索提諾效率前緣與半凱利動態調倉指令")
+    st.markdown("##### 📊 1. 索提諾效率前緣與各比例權重詳細解析")
     
     action_html = f"""
     <div class="action-box">
-        🎯 <b>【{st.session_state.user_age_val} 歲半凱利生命週期模型（目標曝險 {target_lifecycle_exposure:.1f}%）】</b><br><br>
-        <b>👉 具體下單執行指令（完全依據實時 Beta 計算）：</b><br>
+        🎯 <b>【半凱利動態生命週期模型與權重拆解】</b><br><br>
+        <b>👉 具體下單執行指令（基於實時 Beta 計算）：</b><br>
         • <b>正二攻擊標的 (00685L / 實時 Beta=2.00)</b>：實際配置 <b>{calculated_atk_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_atk_amt:,.0f}</b>）。<br>
-        • <b>防禦高股息標的 (00713 / 實時 Beta={beta_def:.2f})</b>：實際配置 <b>{calculated_def_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_def_amt:,.0f}</b>）。<br>
-        • <b>★ 索提諾黃金綠星點最佳解</b>：系統即時演算出當前市場效率前緣最高 CP 值配置為 <b>{optimal_sortino_weight_1*100:.1f}% 正二 + {(1-optimal_sortino_weight_1)*100:.1f}% 高股息</b>[cite: 3]。<br>
-        • <b>動態收斂機制</b>：隨著年齡增長，目標曝險從 240% 平滑遞減至 150%，系統自動指引您將正二獲利了結轉入 00713[cite: 4]。
+        • <b>防禦高股息標的 (00713 / 實時 Beta={beta_def:.2f})</b>：實際配置 <b>{calculated_def_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_def_amt:,.0f}</b>）。<br><br>
+        <b>💡 索提諾效率前緣（Efficient Frontier）黃金比例解析：</b><br>
+        • <b>數學上的「最高索提諾比率」點</b>：當權重配置落在約 <b>0% 正二 + 100% 00713（搭配額外質押 30% 買 00713）</b>時，索提諾比率高達 <b>1.29</b>（預期報酬 17.56%，下行風險僅 13.68%）[cite: 8]。因為 00713 抗跌防禦力極強，分母（下行受傷風險）小到極致，所以在「純效率」上拿下一黃金第一[cite: 8]。<br>
+        • <b>兼顧「最高報酬」與「高防禦效率」的平衡甜密點 (Balanced Sweet Spot)</b>：如果您無法放棄正二的超額暴利，又希望索提諾比率逼近 1.0 的高水準，最佳權重落在 <b>30% 正二 + 70% 00713</b>[cite: 8]。
     </div>
     """
     st.markdown(action_html, unsafe_allow_html=True)
