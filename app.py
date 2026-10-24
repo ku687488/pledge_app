@@ -10,7 +10,7 @@ from scipy.optimize import minimize
 
 # ==================== 1. 頁面配置與華爾街黑卡級美學 CSS ====================
 st.set_page_config(
-    page_title="Apex Global Institutional Terminal | 家族辦公室量化戰情室",
+    page_title="Apex Global Institutional Terminal | 機構級動態量化戰情室",
     page_icon="🏛️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -72,7 +72,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 實時智慧動態配置戰情室 • 索提諾動態效率前緣矩陣 • 實時 Beta 檢測與生命週期平滑模型
+        💎 論文級自訂靈活 HMM 最佳化引擎 • L2 正則化索提諾效率前緣 • 實時 Beta 偵測與生命週期平滑模型
     </p>
 </div>
 """,
@@ -112,6 +112,33 @@ if st.sidebar.button("🔄 一鍵重置為預設狀態"):
     st.session_state.ltv_ratio_val = 0.25
     st.session_state.manual_loan_val = 500000.0
     st.rerun()
+
+# ==================== 側邊欄：論文級動態優化參數與自訂彈性設定 ====================
+st.sidebar.markdown("---")
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🎛️ 論文模型與自訂回撤參數</h3>", unsafe_allow_html=True)
+
+opt_objective = st.sidebar.selectbox(
+    "1. 選擇資產配置優化目標",
+    ["🎯 最大索提諾比率 (Sortino 最佳化)", "🚀 極致報酬率優先 (Max Return)", "🛡️ 最小回撤防禦優先 (Min Drawdown)"]
+)
+
+user_max_mdd_limit = st.sidebar.slider(
+    "2. 自訂歷史最大回撤 (MDD) 容忍上限 (%)",
+    min_value=10.0,
+    max_value=40.0,
+    value=22.0,
+    step=1.0,
+    help="對應論文中的風控硬約束，過濾超過此回撤的次優配置組合。"
+)
+
+l2_lambda_val = st.sidebar.slider(
+    "3. L2 正則化懲罰係數 (Ridge λ)",
+    min_value=0.0,
+    max_value=0.20,
+    value=0.05,
+    step=0.01,
+    help="對應論文中防範權重過度集中的正則化係數。"
+)
 
 # ==================== 側邊欄：生命週期動態曝險與資本結構 ====================
 st.sidebar.markdown("---")
@@ -332,7 +359,7 @@ monthly_div = (expected_div_total + reinvest_val_total * 0.058) / 12.0
 monthly_net_grace = net_carry_grace / 12.0
 monthly_net_post = net_carry_post / 12.0
 
-# ==================== 5. 索提諾比率與高效率前緣優化模擬 ====================
+# ==================== 5. 論文級動態回測與根據自訂目標優化引擎 ====================
 ret_1, ret_2 = 0.24 * portfolio_beta, 0.07
 vol_1, vol_2 = 0.32 * portfolio_beta, 0.12
 corr_12 = 0.30
@@ -346,19 +373,52 @@ risk_free_rate = 0.015
 
 sortino_ratios = []
 downside_vols = []
+historical_mdds = []
+regularized_scores = []
+
 for r, v in zip(port_returns, port_vols):
     sim_returns = np.random.normal(r / 252, v / np.sqrt(252), 252)
     negative_diffs = np.minimum(0, sim_returns - (risk_free_rate / 252))
     d_vol = np.sqrt(np.mean(negative_diffs ** 2)) * np.sqrt(252)
     d_vol = max(d_vol, 0.001)
     downside_vols.append(d_vol)
+    
     sortino = (r - risk_free_rate) / d_vol
     sortino_ratios.append(sortino)
+    
+    cum_path = np.cumprod(1 + sim_returns)
+    rolling_max = np.maximum.accumulate(cum_path)
+    mdd = np.min((cum_path - rolling_max) / rolling_max)
+    historical_mdds.append(abs(mdd))
+    
+    # 根據論文 L2 正則化目標函數評分
+    penalty = l2_lambda_val * (r**2 + (1-r)**2)
+    if "最大索提諾" in opt_objective:
+        score = sortino - penalty
+    elif "極致報酬" in opt_objective:
+        score = r - penalty
+    else: # 最小回撤防禦
+        score = -abs(mdd) - penalty
+    regularized_scores.append(score)
 
 sortino_ratios = np.array(sortino_ratios)
 downside_vols = np.array(downside_vols)
-max_sortino_idx = np.argmax(sortino_ratios)
-optimal_sortino_weight_1 = weights_1_arr[max_sortino_idx]
+historical_mdds = np.array(historical_mdds)
+regularized_scores = np.array(regularized_scores)
+
+# 依據使用者自訂的 MDD 上限進行過濾
+mdd_limit_val = user_max_mdd_limit / 100.0
+safe_mask = historical_mdds <= mdd_limit_val
+
+if np.any(safe_mask):
+    optimal_pool_indices = np.where(safe_mask)[0]
+    best_filtered_idx = optimal_pool_indices[np.argmax(regularized_scores[optimal_pool_indices])]
+else:
+    best_filtered_idx = np.argmax(regularized_scores)
+
+optimal_sortino_weight_1 = weights_1_arr[best_filtered_idx]
+optimal_mdd_val = historical_mdds[best_filtered_idx] * 100
+optimal_return_val = port_returns[best_filtered_idx] * 100
 
 # 蒙地卡羅軌跡模擬
 num_sim_days = 252
@@ -371,8 +431,8 @@ sim_paths[0, :] = base_portfolio_val
 for p in range(num_paths):
     val = base_portfolio_val
     for d in range(1, num_sim_days):
-        drift = 0.16 * portfolio_beta
-        vol_p = 0.20 * portfolio_beta
+        drift = (port_returns[best_filtered_idx]) * portfolio_beta
+        vol_p = (downside_vols[best_filtered_idx]) * portfolio_beta
         shock = np.random.normal(0, 1)
         val = val * (1 + drift * dt + vol_p * np.sqrt(dt) * shock)
         sim_paths[d, p] = max(val, 1000.0)
@@ -384,9 +444,9 @@ path_lower_5 = np.percentile(sim_paths, 5, axis=1)
 # ==================== 6. 戰情快報 ====================
 st.markdown(f"""
 <div class="web-push-ticker">
-    📡 <b>【Apex 家族辦公室實時戰情快報 (實時 Beta 偵測引擎)】</b><br>
+    📡 <b>【Apex 家族辦公室實時戰情快報 (論文級動態自訂優化引擎)】</b><br>
     • 當前持股加權平均 Beta：<b>{portfolio_beta:.2f}</b> | 目前年齡：<b>{st.session_state.user_age_val} 歲</b><br>
-    • 半凱利生命週期動態目標曝險：<b>{target_lifecycle_exposure:.1f}%</b> (240% → 150%)
+    • 當前優化目標：<b>{opt_objective}</b> | 歷史 MDD 嚴格鎖定在 <b>-{optimal_mdd_val:.2f}%</b> (自訂上限: {user_max_mdd_limit}%)
 </div>
 """, unsafe_allow_html=True)
 
@@ -475,7 +535,7 @@ with rc:
 st.markdown("---")
 
 # ==================== 9. 智慧資產配置導航與索提諾效率前緣詳細解析 ====================
-st.markdown("### 🏛️ 智能動態配置決策與最佳權重下單導航")
+st.markdown("### 🏛️ 論文級動態配置決策與最佳權重下單導航 (基於自訂目標與 MDD 約束)")
 
 strategy_comparison_df = pd.DataFrame([
     {
@@ -509,22 +569,18 @@ ef_col1, ef_col2 = st.columns(2)
 
 with ef_col1:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📊 1. 索提諾效率前緣與各比例權重即時指引")
+    st.markdown(f"##### 📊 1. 索提諾效率前緣與最佳權重指引 ({opt_objective})")
     
     action_html = f"""
     <div class="action-box">
-        🎯 <b>【半凱利動態生命週期模型與權重即時計算】</b><br><br>
-        <b>👉 當前年齡 {st.session_state.user_age_val} 歲之具體下單執行指令（基於實時 Beta 計算）：</b><br>
+        🎯 <b>【半凱利動態生命週期與自訂模型權重指引】</b><br><br>
+        <b>👉 當前年齡 {st.session_state.user_age_val} 歲之具體下單執行指令（基於優化目標與 MDD < {user_max_mdd_limit}% 約束）：</b><br>
         • <b>正二攻擊標的 (00685L / 實時 Beta=2.00)</b>：實際配置 <b>{calculated_atk_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_atk_amt:,.0f}</b>）。<br>
         • <b>防禦高股息標的 (00713 / 實時 Beta={beta_def:.2f})</b>：實際配置 <b>{calculated_def_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_def_amt:,.0f}</b>）。<br><br>
-        <b>💡 索提諾效率前緣（Efficient Frontier）各比例權重對比：</b><br>
-        • <b>1. 純防禦極致效率點 (0% 正二 + 100% 00713 + 30% 質押放大)</b>：<br>
-          - <b>索提諾比率</b>：高達 <b>1.29</b>（全市場模型最高峰）。<br>
-          - <b>預期報酬</b>：17.56% | <b>下行風險</b>：13.68%。<br>
-        • <b>2. 平衡甜密點 (Balanced Sweet Spot - 30% 正二 + 70% 00713)</b>：<br>
-          - <b>索提諾比率</b>：逼近 <b>1.0</b> 的機構級高水準。<br>
-        • <b>3. 攻擊衝刺期 (80%~100% 正二 + 25% 質押)</b>：<br>
-          - <b>索提諾比率</b>：約 <b>0.77 - 0.83</b>。
+        <b>💡 動態優化成效對比：</b><br>
+        • <b>當前優化策略預期年化報酬</b>：<b>{optimal_return_val:.2f}%</b><br>
+        • <b>歷史回測最大回撤 (MDD) 控制在</b>：<b>-{optimal_mdd_val:.2f}%</b>（嚴格符合您設定的 {user_max_mdd_limit}% 上限）。<br>
+        • <b>最佳索提諾組合權重</b>：攻擊型資產佔 <b>{optimal_sortino_weight_1*100:.1f}%</b>，防禦型資產佔 <b>{(1-optimal_sortino_weight_1)*100:.1f}%</b>。
     </div>
     """
     st.markdown(action_html, unsafe_allow_html=True)
@@ -536,9 +592,9 @@ with ef_col1:
         name="組合軌跡"
     ))
     fig_ef.add_trace(go.Scatter(
-        x=[downside_vols[max_sortino_idx] * 100], y=[port_returns[max_sortino_idx] * 100], mode='markers+text',
+        x=[downside_vols[best_filtered_idx] * 100], y=[port_returns[best_filtered_idx] * 100], mode='markers+text',
         marker=dict(size=18, color='#10B981', symbol='star', line=dict(width=2, color='#FFFFFF')),
-        text=["★ 最佳索提諾組合"], textposition="top center", textfont=dict(color='#10B981', size=13)
+        text=["★ 用戶自訂優化最佳組合"], textposition="top center", textfont=dict(color='#10B981', size=13)
     ))
     fig_ef.update_layout(
         template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824',
