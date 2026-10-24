@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
 import uuid
+from scipy.optimize import minimize
 
 # ==================== 1. 頁面配置與華爾街黑卡級美學 CSS ====================
 st.set_page_config(
@@ -71,7 +72,7 @@ st.markdown(
 <div class="hero-header">
     <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 富人思維槓桿戰情室 • 索提諾動態效率前緣矩陣 • 實時 Beta 檢測與生命週期平滑模型
+        💎 實時智慧動態配置戰情室 • 索提諾動態效率前緣矩陣 • 實時 Beta 檢測與生命週期平滑模型
     </p>
 </div>
 """,
@@ -123,11 +124,11 @@ age = st.session_state.user_age_val
 if age <= 25:
     target_lifecycle_exposure = 240.0
 elif age <= 40:
-    target_lifecycle_exposure = 240.0 - (age - 25) * 2.0  
+    target_lifecycle_exposure = 240.0 - (age - 25) * 2.0 
 elif age <= 60:
-    target_lifecycle_exposure = 210.0 - (age - 40) * 2.0  
+    target_lifecycle_exposure = 210.0 - (age - 40) * 2.0 
 elif age <= 80:
-    target_lifecycle_exposure = 170.0 - (age - 60) * 1.0  
+    target_lifecycle_exposure = 170.0 - (age - 60) * 1.0 
 else:
     target_lifecycle_exposure = 150.0
 
@@ -458,7 +459,7 @@ with lc:
 with rc:
     st.markdown("##### 🟠 階段二：寬限期滿後每月現金流 (Post-Grace - 本息均攤)")
     st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
-    st.metric("總資產每月預期總配息收益", f"+NT$ {monthly_div:,.0f}")
+    st.metric("總資產每月預期總配息收益", f"-NT$ {monthly_div:,.0f}")
     if st.session_state.mortgages:
         st.metric("每月房貸支出 (本息均攤)", f"-NT$ {mortgages_annual_outflow_post/12:,.0f}", "⚠️ 開始攤還本金，支出增加")
         
@@ -473,10 +474,9 @@ with rc:
 
 st.markdown("---")
 
-# ==================== 9. 【深度強化】核心策略數據對比表與索提諾效率前緣詳細解析 ====================
-st.markdown("### 🏛️ 核心策略數據對比表與索提諾效率前緣詳細解析")
+# ==================== 9. 智慧資產配置導航與索提諾效率前緣詳細解析 ====================
+st.markdown("### 🏛️ 智能動態配置決策與最佳權重下單導航")
 
-# 三大策略對比表格（不含任何 cite 標籤）
 strategy_comparison_df = pd.DataFrame([
     {
         "配置策略": "1. 歐印 0050 (基準線)",
@@ -505,30 +505,26 @@ st.dataframe(strategy_comparison_df, use_container_width=True, hide_index=True)
 
 st.markdown("---")
 
-# 索提諾效率前緣各比例權重與詳細說明區塊（大幅擴充深度與比例拆解）
 ef_col1, ef_col2 = st.columns(2)
 
 with ef_col1:
     st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-    st.markdown("##### 📊 1. 索提諾效率前緣與各比例權重詳細解析")
+    st.markdown("##### 📊 1. 索提諾效率前緣與各比例權重即時指引")
     
     action_html = f"""
     <div class="action-box">
-        🎯 <b>【半凱利動態生命週期模型與權重全景拆解】</b><br><br>
+        🎯 <b>【半凱利動態生命週期模型與權重即時計算】</b><br><br>
         <b>👉 當前年齡 {st.session_state.user_age_val} 歲之具體下單執行指令（基於實時 Beta 計算）：</b><br>
         • <b>正二攻擊標的 (00685L / 實時 Beta=2.00)</b>：實際配置 <b>{calculated_atk_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_atk_amt:,.0f}</b>）。<br>
         • <b>防禦高股息標的 (00713 / 實時 Beta={beta_def:.2f})</b>：實際配置 <b>{calculated_def_ratio*100:.1f}%</b>（約 <b>NT$ {recommended_def_amt:,.0f}</b>）。<br><br>
-        <b>💡 索提諾效率前緣（Efficient Frontier）各比例權重詳細對比：</b><br>
+        <b>💡 索提諾效率前緣（Efficient Frontier）各比例權重對比：</b><br>
         • <b>1. 純防禦極致效率點 (0% 正二 + 100% 00713 + 30% 質押放大)</b>：<br>
           - <b>索提諾比率</b>：高達 <b>1.29</b>（全市場模型最高峰）。<br>
           - <b>預期報酬</b>：17.56% | <b>下行風險</b>：13.68%。<br>
-          - <b>解析</b>：因為 00713 具備極強的抗跌護城河，分子雖不是最高，但分母（下行受傷風險）縮小到極致，在「純效率」上拿下第一。<br>
         • <b>2. 平衡甜密點 (Balanced Sweet Spot - 30% 正二 + 70% 00713)</b>：<br>
           - <b>索提諾比率</b>：逼近 <b>1.0</b> 的機構級高水準。<br>
-          - <b>解析</b>：如果您無法完全放棄正二在牛市的超額暴利，又希望將波動度壓在安全區間，此配置提供完美的風險報酬對稱性。<br>
         • <b>3. 攻擊衝刺期 (80%~100% 正二 + 25% 質押)</b>：<br>
-          - <b>索提諾比率</b>：約 <b>0.77 - 0.83</b>。<br>
-          - <b>解析</b>：年化報酬率高達 24% - 26% 以上，代價是面臨較大的下行震盪，適合本金尚小、需要透過高斜率快速滾大資產的年輕階段。
+          - <b>索提諾比率</b>：約 <b>0.77 - 0.83</b>。
     </div>
     """
     st.markdown(action_html, unsafe_allow_html=True)
