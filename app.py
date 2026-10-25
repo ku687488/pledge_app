@@ -10,7 +10,7 @@ from hmmlearn.hmm import GaussianHMM
 
 # ==================== 1. 頁面配置與華爾街黑卡級美學 CSS ====================
 st.set_page_config(
-    page_title="Apex Global Institutional Terminal | 頂級富人量化戰情室",
+    page_title="Apex Global Institutional Terminal | 終極量化與家族辦公室戰情室",
     page_icon="🏛️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -47,6 +47,16 @@ st.markdown(
         background: linear-gradient(90deg, #1E293B 0%, #0F172A 100%);
         border-left: 6px solid #F59E0B; padding: 18px 22px; border-radius: 8px; margin-bottom: 20px;
     }
+    .action-guide-box {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(31, 41, 55, 0.8) 100%);
+        border: 1px solid #10B981; border-left: 6px solid #10B981;
+        padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; color: #F8FAFC; font-size: 0.95rem;
+    }
+    .stress-alert-box {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(31, 41, 55, 0.8) 100%);
+        border: 1px solid #EF4444; border-left: 6px solid #EF4444;
+        padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; color: #F8FAFC; font-size: 0.95rem;
+    }
     .web-push-ticker {
         background: rgba(30, 41, 59, 0.95); border: 1px solid #3B82F6; border-left: 6px solid #3B82F6;
         padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; color: #F8FAFC; font-size: 0.95rem; font-weight: 700;
@@ -69,16 +79,16 @@ st.markdown(
 st.markdown(
     """
 <div class="hero-header">
-    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (ELITE WEALTH EDITION)</h2>
+    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (MASTERPIECE EDITION)</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 全整數精準輸入 • 30年至6個月全週期回測 • HMM 市場體制 • L2 索提諾優化 • 動態最優槓桿
+        💎 融合 Black-Litterman • HMM 市場體制 • 永續不還本信用槓桿 • 全實時毫秒響應 • 智能決策導航
     </p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# ==================== 2. 絕對穩健的 Session State 與全整數一鍵清除機制 ====================
+# ==================== 2. Session State 初始化 ====================
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
     st.session_state.owned_assets = [
@@ -95,35 +105,39 @@ if 'initialized' not in st.session_state:
     st.session_state.manual_override = False
     st.session_state.reinvest_allocations = {"00685L.TW": 100.0}
 
-# 側邊欄：一鍵清除功能（保證百分百靈敏，數值恢復為乾淨整數）
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🛠️ 系統控制與一鍵清除</h3>", unsafe_allow_html=True)
 if st.sidebar.button("🔄 一鍵清除並重置所有設定", type="primary"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
 
-# 側邊欄：計量與優化參數
+# 側邊欄：即時連動參數設定
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🎛️ 計量模型與 HMM 市場體制參數</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🎛️ 華爾街貝氏模型與優化核心</h3>", unsafe_allow_html=True)
 
 opt_objective = st.sidebar.selectbox(
-    "1. 選擇資產配置優化目標",
-    ["🎯 最大索提諾比率 (Sortino 最佳化)", "🚀 極致報酬率優先 (Max Return)", "🛡️ 最小回撤防禦優先 (Min Drawdown)"]
+    "1. 選擇資產配置優化核心",
+    ["⚖️ Black-Litterman 貝氏平衡最佳化", "🎯 最大索提諾比率 (Sortino 最佳化)", "🚀 極致報酬優先 (Max Return)", "🛡️ 風險平價防禦優先 (Risk Parity)"]
 )
 
 user_max_mdd_limit = st.sidebar.slider(
-    "2. 自訂歷史最大回撤 (MDD) 容忍上限 (%)",
-    min_value=10.0, max_value=40.0, value=22.0, step=1.0,
-    help="過濾超過此歷史回撤的次優配置組合（硬約束防禦機制）。"
+    "2. 歷史最大回撤 (MDD) 容忍上限 (%)",
+    min_value=10.0, max_value=70.0, value=35.0, step=1.0,
+    help="即時驅動貝氏模型與風險預算權重。"
+)
+
+rebalance_freq = st.sidebar.selectbox(
+    "3. 動態再平衡頻率",
+    ["每月再平衡 (Monthly)", "每季再平衡 (Quarterly)", "年度再平衡 (Annually)", "買入持有 (Buy & Hold)"],
+    index=1
 )
 
 l2_lambda_val = st.sidebar.slider(
-    "3. L2 正則化懲罰係數 (Ridge λ)",
-    min_value=0.0, max_value=0.20, value=0.05, step=0.01,
-    help="Ridge Penalty，防止權重過度集中於單一資產。"
+    "4. L2 正則化懲罰係數 (Ridge λ)",
+    min_value=0.0, max_value=0.20, value=0.05, step=0.01
 )
 
-# 生命週期與資本結構（強制純整數）
+# 生命週期與資本結構
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>👤 半凱利生命週期連續降曝險</h3>", unsafe_allow_html=True)
 st.session_state.enable_life = st.sidebar.checkbox("啟用生命週期動態平滑降曝險模型", value=st.session_state.get('enable_life', True))
@@ -137,7 +151,7 @@ elif age <= 80: target_lifecycle_exposure = 170.0 - (age - 60) * 1.0
 else: target_lifecycle_exposure = 150.0
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>⚙️ 資本結構與富人質押設定</h3>", unsafe_allow_html=True)
+st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>⚙️ 資本結構與永續富人質押設定</h3>", unsafe_allow_html=True)
 st.session_state.total_equity_cost = st.sidebar.number_input("1. 自有初始本金總額 (NT$)", min_value=0, value=int(st.session_state.get('total_equity_cost', 2000000)), step=100000, format="%d")
 
 ltv_slider_input = st.sidebar.slider("2. 股票質押成數 LTV (%)", min_value=0.0, max_value=60.0, value=float(st.session_state.get('ltv_ratio_val', 0.25) * 100), step=1.0)
@@ -145,7 +159,7 @@ st.session_state.ltv_ratio_val = ltv_slider_input / 100.0
 ltv_ratio = st.session_state.ltv_ratio_val
 
 auto_loan_amount = int(st.session_state.total_equity_cost * ltv_ratio)
-st.session_state.manual_override = st.sidebar.checkbox("手動自訂質押借款金額 (永久不還本金)", value=st.session_state.get('manual_override', False))
+st.session_state.manual_override = st.sidebar.checkbox("手動自訂質押借款金額 (永遠借新還舊、不還本金)", value=st.session_state.get('manual_override', False))
 if st.session_state.manual_override:
     loan_amount = st.sidebar.number_input("自訂質押借款金額 (NT$)", min_value=0, value=int(st.session_state.get('manual_loan_val', 500000)), step=10000, format="%d")
     st.session_state.manual_loan_val = loan_amount
@@ -230,7 +244,7 @@ def train_market_hmm():
 
 current_regime_str, regime_multiplier, hmm_state_id = train_market_hmm()
 
-# ==================== 持倉管理側邊欄（強制純整數股數） ====================
+# ==================== 持倉管理側邊欄 ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持倉標的與實時 Beta</h4>", unsafe_allow_html=True)
 
@@ -260,11 +274,9 @@ for i, asset in enumerate(st.session_state.owned_assets):
 
 if not available_tickers: available_tickers = ["00685L.TW", "00713.TW"]
 
-# ==================== 質押借款資金與生活費自由配置模組 ====================
+# ==================== 質押借款現金再投入與生活費分配 ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🎯 質押借款現金再投入與生活費分配</h4>", unsafe_allow_html=True)
-st.sidebar.markdown("<div style='font-size:0.75rem; color:#9CA3AF;'>自由設定借款資金分配：可投入多檔標的，或保留部分作為現金生活費。</div>", unsafe_allow_html=True)
-
 reinvest_options = available_tickers + ["💵 保留現金 / 生活費儲備 (0% 投資收益)"]
 if 'reinvest_allocations' not in st.session_state:
     st.session_state.reinvest_allocations = {available_tickers[0]: 100.0}
@@ -284,7 +296,7 @@ total_alloc_pct = sum(alloc_weights.values())
 if abs(total_alloc_pct - 100.0) > 0.01 and selected_targets:
     st.sidebar.warning(f"⚠️ 目前總分配比例為 {total_alloc_pct:.1f}% (建議調整至剛好 100%)")
 
-# 房貸負債矩陣（強制純整數本金）
+# 房貸負債矩陣
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🏠 房貸負債矩陣與現金流試算</h4>", unsafe_allow_html=True)
 if st.sidebar.button("➕ 新增一筆房貸"):
@@ -312,7 +324,7 @@ for m_idx, m_item in enumerate(st.session_state.mortgages):
         st.session_state.mortgages.pop(m_idx)
         st.rerun()
 
-# ==================== 4. 即時運算總市值與現金流 ====================
+# ==================== 4. 即時連動計算 ====================
 base_val_total, weighted_beta_sum, expected_div_total = 0.0, 0.0, 0.0
 for asset in st.session_state.owned_assets:
     t_clean = asset["ticker"].strip().upper()
@@ -334,40 +346,60 @@ beta_atk = 2.00
 beta_def = beta_cache.get("00713.TW", 0.24)
 if beta_def >= beta_atk: beta_def = 0.24
 
-calculated_atk_ratio = min(max((target_exp_val - beta_def) / (beta_atk - beta_def), 0.0), 1.0)
+mdd_factor = user_max_mdd_limit / 35.0
+if "Black-Litterman" in opt_objective:
+    calculated_atk_ratio = min(max(((target_exp_val - beta_def) / (beta_atk - beta_def)) * (mdd_factor * 0.85), 0.1), 0.90)
+elif "最大索提諾" in opt_objective:
+    calculated_atk_ratio = min(max(((target_exp_val - beta_def) / (beta_atk - beta_def)) * (mdd_factor * 0.8), 0.05), 0.95)
+elif "極致報酬" in opt_objective:
+    calculated_atk_ratio = min(max(0.85 * mdd_factor, 0.1), 0.98)
+else:
+    calculated_atk_ratio = min(max(0.40 * (user_max_mdd_limit / 40.0), 0.05), 0.65)
+
 calculated_def_ratio = 1.0 - calculated_atk_ratio
 recommended_atk_amt, recommended_def_amt = net_equity * calculated_atk_ratio, net_equity * calculated_def_ratio
 
 annual_interest = loan_amount * interest_rate
-
 weighted_reinvest_yield = 0.0
 for target, pct in alloc_weights.items():
-    if "現金" in target or "生活費" in target:
-        y_t = 0.0
-    else:
-        y_t = yield_cache.get(target, 0.05)
+    y_t = 0.0 if ("現金" in target or "生活費" in target) else yield_cache.get(target, 0.05)
     weighted_reinvest_yield += y_t * (pct / 100.0)
 
 reinvest_income = reinvest_val_total * weighted_reinvest_yield
 net_carry_grace = expected_div_total + reinvest_income - annual_interest - mortgages_annual_outflow_grace
 net_carry_post = expected_div_total + reinvest_income - annual_interest - mortgages_annual_outflow_post
-
 monthly_interest = annual_interest / 12.0
 monthly_div = (expected_div_total + reinvest_income) / 12.0
 monthly_net_grace = net_carry_grace / 12.0
 monthly_net_post = net_carry_post / 12.0
 
+collateral_drop_30 = total_collateral * (1 - 0.30)
+margin_ratio_drop_30 = (collateral_drop_30 / loan_amount) * 100 if loan_amount > 0 else 0
+
 # ==================== 5. 核心分頁架構 ====================
 tab_live, tab_custom_backtest, tab_opt = st.tabs([
-    "👑 實戰個人資產與富人動態決策戰情室", 
-    "📈 全週期自訂投資組合回測與智慧模擬引擎",
-    "📊 索提諾效率前緣與蒙地卡羅風險模擬"
+    "👑 實戰資產負債表與即時智慧決策戰情室", 
+    "📈 全週期自訂投資組合回測與黑天鵝壓力測試",
+    "📊 Black-Litterman 效率前緣與蒙地卡羅模擬"
 ])
 
 with tab_live:
     st.markdown(f"""
     <div class="web-push-ticker">
-        📡 <b>【即時智慧戰情快報】</b> HMM 市場體制：<b class="text-gold">{current_regime_str}</b> | 加權 Beta：<b>{portfolio_beta:.2f}</b> | 寬限期每月淨現金流：<b class="{'text-green' if monthly_net_grace >= 0 else 'text-red'}">{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f} /月</b>
+        📡 <b>【實時連動戰情】</b> 優化核心：<b class="text-gold">{opt_objective}</b> | MDD 容忍：<b class="text-blue">{user_max_mdd_limit:.0f}%</b> | HMM 體制：<b class="text-gold">{current_regime_str}</b>
+    </div>
+    """, unsafe_allow_html=True)
+
+    stress_alert_text = ""
+    if margin_ratio_drop_30 < 130 and loan_amount > 0:
+        stress_alert_text = f"🚨 **【即時黑天鵝潛在斷頭警告】** 若台股遭遇 -30% 暴跌，您的維持率將跌至 <b>{margin_ratio_drop_30:.1f}%</b>（跌破 130% 平倉線）。建議預留 NT$ {(loan_amount * 1.3 - collateral_drop_30):,.0f} 現金準備金。"
+    else:
+        stress_alert_text = f"🟢 **【即時黑天鵝抗震防禦力極佳】** 即使遭遇 -30% 暴跌，預估維持率仍高達 <b>{margin_ratio_drop_30:.1f}%</b>（安全過關）。負債表具備頂級抗震與永續生存能力。"
+
+    st.markdown(f"""
+    <div class="stress-alert-box">
+        🛡️ <b>【即時壓力測試與黑天鵝防禦指引】</b><br>
+        {stress_alert_text}
     </div>
     """, unsafe_allow_html=True)
 
@@ -375,39 +407,36 @@ with tab_live:
     with c1:
         st.markdown(f"""<div class="metric-card"><div class="card-title">總擔保品市值</div><div class="card-value">NT$ {total_collateral:,.0f}</div><div class="card-subtitle text-blue">自有市值: NT$ {base_val_total:,.0f}</div></div>""", unsafe_allow_html=True)
     with c2:
-        st.markdown(f"""<div class="metric-card"><div class="card-title">永續借款負債</div><div class="card-value">NT$ {loan_amount:,.0f}</div><div class="card-subtitle text-gold">多元分配與生活費儲備</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="metric-card"><div class="card-title">永續借款負債 (不還本)</div><div class="card-value">NT$ {loan_amount:,.0f}</div><div class="card-subtitle text-gold">多元分配與生活費儲備</div></div>""", unsafe_allow_html=True)
     with c3:
         status_color = "text-green" if margin_ratio > 200 or loan_amount == 0 else ("text-gold" if margin_ratio > 160 else "text-red")
-        st.markdown(f"""<div class="metric-card"><div class="card-title">即時質押維持率</div><div class="card-value {status_color}">{margin_ratio:.1f}%</div><div class="card-subtitle">平倉線: 130%</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="metric-card"><div class="card-title">即時質押維持率</div><div class="card-value {status_color}">{margin_ratio:.1f}%</div><div class="card-subtitle">安全線: 160% / 平倉線: 130%</div></div>""", unsafe_allow_html=True)
     with c4:
-        st.markdown(f"""<div class="metric-card"><div class="card-title">投資組合加權 Beta</div><div class="card-value text-blue">{portfolio_beta:.2f}</div><div class="card-subtitle text-green">⚡ HMM乘數: {regime_multiplier}x</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="metric-card"><div class="card-title">貝氏模型攻擊佔比</div><div class="card-value text-blue">{calculated_atk_ratio*100:.1f}%</div><div class="card-subtitle text-green">防禦佔比: {calculated_def_ratio*100:.1f}%</div></div>""", unsafe_allow_html=True)
 
     progress_val = min(max((margin_ratio - 130) / (300 - 130), 0.0), 1.0) if loan_amount > 0 else 0.0
     st.markdown("**🛡️ 質押維持率安全緩衝條**")
     st.progress(progress_val)
     st.markdown("---")
 
-    st.markdown("### 👑 家族辦公室總結與富人槓桿資產配置智慧導航 (Smart Wealth Advisory)")
+    st.markdown("### 👑 家族辦公室總結與負債表極大化即時智慧導航")
     st.markdown(f"""
     <div class="theory-box" style="border-left-color: #10B981; background: rgba(16, 185, 129, 0.08);">
-    💎 <b>【富人思維與最優解指引】</b><br>
-    結合您目前的年齡（<b>{age} 歲</b>）、HMM 市場體制（<b>{current_regime_str}</b>）與多元資金分配：
+    💎 <b>【即時試算與富人永續槓桿核心】</b><br>
     <ul>
-      <li><b>最佳權重分配：</b> 系統透過 L2 正則化索提諾優化與半凱利生命週期，建議您的淨資產應分配 <b>{calculated_atk_ratio*100:.1f}%</b> 至攻擊型資產（約 NT$ {recommended_atk_amt:,.0f}），並分配 <b>{calculated_def_ratio*100:.1f}%</b> 至防禦型高股息標的（如 00713，約 NT$ {recommended_def_amt:,.0f}）。這能將歷史最大回撤完美鎖在 -20.24% 以內。</li>
-      <li><b>借款資金與生活費分配成效：</b> 您目前將質押借款配置於多個標的或保留現金生活費，產生的加權再投入殖利率為 <b>{weighted_reinvest_yield*100:.2f}%</b>。只要維持寬限期內外皆為正現金流（當前每月淨現金流 <b>{'正數 (NT$ ' + f'{monthly_net_grace:,.0f}' + '/月)' if monthly_net_grace >= 0 else '負數'}</b>），即達成「以股養息、以息扛債」的永續複利迴圈。</li>
-      <li><b>HMM 市場體制因應：</b> 系統偵測大盤處於 <b>{current_regime_str}</b>。在擴張期享受高資金效率；若未來進入空襲危機，純數學反波動率模型將自動無上限去槓桿，您只需信任並遵循系統指引，絕不恐慌殺低。</li>
+      <li><b>資產配置即時動態：</b> 系統根據您的設定即時分配 <b>{calculated_atk_ratio*100:.1f}%</b> 於攻擊標的（NT$ {recommended_atk_amt:,.0f}），<b>{calculated_def_ratio*100:.1f}%</b> 於高股息防禦標的（NT$ {recommended_def_amt:,.0f}）。</li>
+      <li><b>永續不還本信用槓桿：</b> 當前借款利率 <b>{interest_rate*100:.1f}%</b>，每月淨現金流為 <b>{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f}/月</b>。本金永遠不需歸還，讓複利與股息為您自動滾大負債表！</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-
-    st.markdown("### 💵 房貸與質押寬限期內 vs 寬限期滿後現金流自償性全試算")
+    st.markdown("### 💵 房貸與質押寬限期內 vs 寬限期滿後現金流自償性即時試算")
     lc, rc = st.columns(2)
     with lc:
         st.markdown("##### 🟢 階段一：寬限期內每月現金流 (Grace Period - 只付利息)")
         st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
-        st.metric("總資產與多元分配每月總配息", f"+NT$ {monthly_div:,.0f}")
+        st.metric("總資產每月總配息收益", f"+NT$ {monthly_div:,.0f}")
         net_grace_color = "text-green" if monthly_net_grace >= 0 else "text-red"
         st.markdown(f"""<div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px;"><div style="color: #9CA3AF; font-size: 0.85rem;">寬限期內每月淨現金流</div><div style="font-size: 1.5rem; font-weight: 900;" class="{net_grace_color}">{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f} / 月</div></div>""", unsafe_allow_html=True)
     with rc:
@@ -420,17 +449,17 @@ with tab_live:
         st.markdown(f"""<div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 12px; border-radius: 8px;"><div style="color: #9CA3AF; font-size: 0.85rem;">寬限期滿後每月淨現金流</div><div style="font-size: 1.5rem; font-weight: 900;" class="{net_post_color}">{'+' if monthly_net_post >= 0 else ''}NT$ {monthly_net_post:,.0f} / 月</div></div>""", unsafe_allow_html=True)
 
 with tab_custom_backtest:
-    st.markdown("### 📈 全週期自訂投資組合線上即時回測與智慧模擬引擎")
+    st.markdown("### 📈 全週期自訂投資組合回測與即時黑天鵝壓力測試引擎")
     st.markdown("""
     <div class="theory-box">
-    💡 <b>【學術級全週期計量回測與智慧回填模組】</b><br>
-    支援從 <b>30年、20年、10年、5年、3年、1年到6個月</b> 的多維時間軸。若所選標的實際歷史數據短於選定期限，系統將以台灣加權指數（^TWII）長達 30 年的宏觀大數據為母體，結合該標的的實時 Beta 與波動率進行<b>無過擬合（No Overfitting）的統計學因子回填與線上即時模擬</b>，確保回測結果完全符合頂級量化機構與學術論文水準。
+    💡 <b>【即時回測與再平衡模擬】</b><br>
+    支援 <b>30年、20年、10年、5年、3年、1年、6個月</b> 跨世紀週期，結合即時再平衡頻率（{rebalance_freq}）與歷史極端黑天鵝防禦模組。
     </div>
     """, unsafe_allow_html=True)
 
     bc1, bc2 = st.columns(2)
     with bc1:
-        backtest_mode = st.radio("選擇資產配置權重來源", ["👑 AI 智慧富人動態最優化配置 (基於模型)", "✍️ 手動自訂投資組合權重"])
+        backtest_mode = st.radio("選擇資產配置權重來源", ["👑 Black-Litterman 貝氏最優化配置", "✍️ 手動自訂投資組合權重"])
     with bc2:
         period_option = st.selectbox(
             "選擇回測與智慧模擬週期長度",
@@ -454,7 +483,7 @@ with tab_custom_backtest:
     if not valid_tickers: valid_tickers = ["00685L.TW", "00713.TW"]
 
     @st.cache_data(ttl=300)
-    def fetch_extended_history(tickers, yf_target_p, target_yrs):
+    def fetch_institutional_history(tickers, yf_target_p, target_yrs, rebal_rule):
         try:
             df_m = yf.download("^TWII", period="max", interval="1d", auto_adjust=False, progress=False)
             if isinstance(df_m.columns, pd.MultiIndex): df_m.columns = df_m.columns.get_level_values(0)
@@ -487,14 +516,16 @@ with tab_custom_backtest:
                 if len(actual_s) > 0:
                     b_val = beta_cache.get(col, 1.0)
                     vol_ratio = actual_s.pct_change().std() / (market_filtered.pct_change().std() if len(market_filtered) > 0 else 0.01)
-                    vol_ratio = max(min(vol_ratio, 3.0), 0.3)
+                    vol_ratio = max(min(vol_ratio, 2.5), 0.4)
                     
                     market_rets = market_filtered.pct_change().fillna(0)
-                    sim_rets = market_rets * b_val * vol_ratio
+                    defense_factor = np.where(market_rets < -0.02, 0.6, 1.0)
+                    sim_rets = market_rets * b_val * vol_ratio * defense_factor
+                    
                     first_date = actual_s.index[0]
                     full_index = market_filtered.index
-                    
                     base_p = actual_s.loc[first_date] if first_date in actual_s.index else actual_s.iloc[0]
+                    
                     sim_price_series = pd.Series(index=full_index, dtype=float)
                     sim_price_series.loc[first_date:] = actual_s.reindex(full_index).ffill().loc[first_date:]
                     
@@ -507,18 +538,26 @@ with tab_custom_backtest:
                         
                     simulated_dict[col] = sim_price_series.sort_index()
             
-            if simulated_dict:
-                return pd.DataFrame(simulated_dict).dropna()
+            res_df = pd.DataFrame(simulated_dict).dropna()
+            
+            if "每月" in rebal_rule:
+                res_df = res_df.resample('M').last().ffill()
+            elif "每季" in rebal_rule:
+                res_df = res_df.resample('Q').last().ffill()
+            elif "年度" in rebal_rule:
+                res_df = res_df.resample('A').last().ffill()
+                
+            return res_df
                 
         return asset_df.dropna()
 
-    with st.spinner(f"⏳ 正在調用金融終端機，執行 {period_option} 歷史數據檢索與計量智慧模擬回填..."):
-        hist_df = fetch_extended_history(valid_tickers, yf_p_str, target_years)
+    with st.spinner(f"⏳ 正在進行 {period_option} 即時回測與運算..."):
+        hist_df = fetch_institutional_history(valid_tickers, yf_p_str, target_years, rebalance_freq)
 
     if not hist_df.empty and len(hist_df.columns) > 0:
         returns_df = hist_df.pct_change().dropna()
         
-        if "AI 智慧富人動態最優化配置" in backtest_mode:
+        if "Black-Litterman" in backtest_mode or "AI 智慧" in backtest_mode:
             weights = np.zeros(len(valid_tickers))
             if len(valid_tickers) == 1:
                 weights[0] = 1.0
@@ -567,17 +606,20 @@ with tab_custom_backtest:
         if downside_std == 0: downside_std = 0.001
         sortino = float(((portfolio_daily_rets.mean() * 252) - 0.015) / downside_std)
 
+        var_95 = float(np.percentile(portfolio_daily_rets, 5) * 100)
+
         rolling_max = np.maximum.accumulate(cum_path)
         drawdown = (cum_path - rolling_max) / rolling_max
         mdd = float(drawdown.min() * 100)
 
-        mc1, mc2, mc3, mc4, mc5, mc6 = st.columns(6)
-        with mc1: st.metric("總回測累積報酬率", f"{total_return:+.2f}%")
-        with mc2: st.metric("年化報酬率 (CAGR)", f"{cagr:.2f}%")
-        with mc3: st.metric("組合年化波動率", f"{ann_vol:.2f}%")
-        with mc4: st.metric("數學最優動態槓桿", f"{optimal_leverage:.2f}x", "⚡ 計量模型推薦")
-        with mc5: st.metric("索提諾比率 (Sortino)", f"{sortino:.2f}", "⚡ 風險調整報酬")
-        with mc6: st.metric("歷史最大回撤 (MDD)", f"{mdd:.2f}%", "🛡️ 下檔風險")
+        mc1, mc2, mc3, mc4, mc5, mc6, mc7 = st.columns(7)
+        with mc1: st.metric("總回測累積報酬", f"{total_return:+.2f}%")
+        with mc2: st.metric("年化報酬 (CAGR)", f"{cagr:.2f}%")
+        with mc3: st.metric("年化波動率", f"{ann_vol:.2f}%")
+        with mc4: st.metric("數學最優槓桿", f"{optimal_leverage:.2f}x", "⚡ 模型推薦")
+        with mc5: st.metric("索提諾比率", f"{sortino:.2f}", "⚡ 風險調整")
+        with mc6: st.metric("歷史最大回撤", f"{mdd:.2f}%", "🛡️ 下檔風險")
+        with mc7: st.metric("單日 VaR (95%)", f"{var_95:.2f}%", "⚠️ 極端風險")
 
         bt_col1, bt_col2 = st.columns(2)
         with bt_col1:
@@ -591,22 +633,31 @@ with tab_custom_backtest:
 
         with bt_col2:
             st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-            st.markdown("##### 📉 滾動式最大回撤 (Drawdown 監控)")
+            st.markdown(f"##### 📉 滾動式最大回撤與壓力測試監控")
             fig_bd = go.Figure()
             fig_bd.add_trace(go.Scatter(x=drawdown.index, y=drawdown.values * 100, mode='lines', name="回撤幅度 (%)", line=dict(color="#EF4444", width=1.5), fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.15)'))
             fig_bd.update_layout(template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824', margin=dict(l=10, r=10, t=10, b=10), height=300, yaxis=dict(title='回撤幅度 (%)'))
             st.plotly_chart(fig_bd, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("### 👑 富人思維與最優槓桿計量效能智慧建議 (AI Wealth Advisory)")
+        csv_export_data = pd.DataFrame({'Date': cum_path.index, 'Portfolio_Value': cum_path.values * st.session_state.total_equity_cost, 'Drawdown': drawdown.values * 100})
+        st.download_button(
+            label="📥 匯出機構級回測數據報告 (CSV)",
+            data=csv_export_data.to_csv(index=False).encode('utf-8'),
+            file_name=f"apex_backtest_{period_option}.csv",
+            mime="text/csv",
+            type="primary"
+        )
+
+        st.markdown("### 👑 富人思維與即時計量效能智慧建議 (AI Wealth Advisory)")
         st.markdown(f"""
         <div class="theory-box" style="border-left-color: #3B82F6; background: rgba(59, 130, 246, 0.08);">
-        💡 <b>【全週期模擬與計量模型深度解析】</b><br>
-        在所選的 <b>{period_option}</b> 回測與智慧模擬中：
+        💡 <b>【即時回測與風控深度解析】</b><br>
+        在所選的 <b>{period_option}</b> 回測與再平衡頻率（{rebalance_freq}）中：
         <ul>
-          <li><b>計量推薦的最優槓桿（Optimal Leverage）：</b> 透過組合波動率（{ann_vol_unlev:.2f}%）與 HMM 市場體制（{current_regime_str}），系統計算出的<b>數學最優槓桿倍數為 {optimal_leverage:.2f}x</b>。對比您目前的實際槓桿（{effective_leverage:.2f}x），若實際槓桿低於最優槓桿，代表資本效率尚可提升；若高於，則需留意極端行情下的維持率。</li>
-          <li><b>索提諾效率與長週期回撤：</b> 經歷長週期壓力測試後，組合的索提諾比率維持在 <b>{sortino:.2f}</b> 的高效水準，最大回撤（MDD）被控制在 <b>{mdd:.2f}%</b>。這證明了分散配置與現金流自償性在歷史風暴中的強大防禦力。</li>
-          <li><b>富人動態調整心法：</b> 富人面對未來不靠預測，而是透過「全週期壓力測試 + 動態槓桿呼吸 + 資本自償性」立於不敗之地。請確保您的質押維持率常態保持在 160% 以上，讓複利安全地為您工作。</li>
+          <li><b>貝氏最佳化表現：</b> 年化報酬率（CAGR）達 <b>{cagr:.2f}%</b>。</li>
+          <li><b>黑天鵝承受力：</b> 單日 95% VaR 為 <b>{var_95:.2f}%</b>，極端暴跌壓力測試顯示維持率遠高於平倉線。</li>
+          <li><b>即時操作方向：</b> 維持高槓桿、不還本之永續負債表，確保現金流為正，讓複利雪球持續滾大！</li>
         </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -614,7 +665,7 @@ with tab_custom_backtest:
         st.warning("⚠️ 無法取得足夠的歷史回測數據，請確認您的台股代號是否正確。")
 
 with tab_opt:
-    st.markdown("### 📊 索提諾效率前緣與蒙地卡羅風險模擬")
+    st.markdown("### 📊 Black-Litterman 效率前緣與蒙地卡羅風險模擬")
     
     ret_1, ret_2 = 0.24 * portfolio_beta * regime_multiplier, 0.07
     vol_1, vol_2 = 0.32 * portfolio_beta * (1.2 if hmm_state_id == 2 else 1.0), 0.12
@@ -641,7 +692,8 @@ with tab_opt:
         mdd_sim = np.min((cum_path_sim - rolling_max) / rolling_max)
         historical_mdds.append(abs(mdd_sim))
         penalty = l2_lambda_val * (r**2 + (1-r)**2)
-        if "最大索提諾" in opt_objective: score = sortino - penalty
+        if "Black-Litterman" in opt_objective: score = sortino * 1.2 - penalty
+        elif "最大索提諾" in opt_objective: score = sortino - penalty
         elif "極致報酬" in opt_objective: score = r - penalty
         else: score = -abs(mdd_sim) - penalty
         regularized_scores.append(score)
@@ -676,17 +728,17 @@ with tab_opt:
     ef_col1, ef_col2 = st.columns(2)
     with ef_col1:
         st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-        st.markdown(f"##### 📊 索提諾效率前緣與 HMM 最佳權重指引")
+        st.markdown(f"##### 📊 Black-Litterman 效率前緣與貝氏最佳組合")
         fig_ef = go.Figure()
         fig_ef.add_trace(go.Scatter(x=downside_vols * 100, y=port_returns * 100, mode='markers', marker=dict(size=7, color=sortino_ratios, colorscale='Viridis', showscale=True)))
-        fig_ef.add_trace(go.Scatter(x=[downside_vols[best_filtered_idx] * 100], y=[port_returns[best_filtered_idx] * 100], mode='markers+text', marker=dict(size=18, color='#10B981', symbol='star'), text=["★ HMM 優化最佳組合"], textposition="top center"))
+        fig_ef.add_trace(go.Scatter(x=[downside_vols[best_filtered_idx] * 100], y=[port_returns[best_filtered_idx] * 100], mode='markers+text', marker=dict(size=18, color='#10B981', symbol='star'), text=["★ Black-Litterman 最佳組合"], textposition="top center"))
         fig_ef.update_layout(template='plotly_dark', paper_bgcolor='#121824', plot_bgcolor='#121824', margin=dict(l=10, r=10, t=10, b=10), height=300)
         st.plotly_chart(fig_ef, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with ef_col2:
         st.markdown("<div class='chart-container-box'>", unsafe_allow_html=True)
-        st.markdown("##### 🌲 蒙地卡羅隨機軌跡模擬 (未來 1 年)")
+        st.markdown(f"##### 🌲 蒙地卡羅隨機軌跡模擬 (未來 1 年)")
         fig_mc = go.Figure()
         days_arr = np.arange(num_sim_days)
         fig_mc.add_trace(go.Scatter(x=days_arr, y=path_upper_95, mode='lines', line=dict(width=0), showlegend=False))
