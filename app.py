@@ -453,7 +453,7 @@ with tab_custom_backtest:
     st.markdown("""
     <div class="theory-box">
     💡 <b>【即時回測與再平衡模擬】</b><br>
-    支援 <b>30年、20年、10年、5年、3年、1年、6個月</b> 跨世紀週期，結合即時再平衡頻率（{rebalance_freq}）與歷史極端黑天鵝防禦模組。
+    支援 <b>30年、20年、10年、5年、3年、1年、6個月</b> 跨世紀週期，結合即時再平衡頻率與歷史極端黑天鵝防禦模組。
     </div>
     """, unsafe_allow_html=True)
 
@@ -540,12 +540,13 @@ with tab_custom_backtest:
             
             res_df = pd.DataFrame(simulated_dict).dropna()
             
+            # 修正：使用現代 Pandas 標準頻率縮寫 (ME, QE, YE)
             if "每月" in rebal_rule:
-                res_df = res_df.resample('M').last().ffill()
+                res_df = res_df.resample('ME').last().ffill()
             elif "每季" in rebal_rule:
-                res_df = res_df.resample('Q').last().ffill()
+                res_df = res_df.resample('QE').last().ffill()
             elif "年度" in rebal_rule:
-                res_df = res_df.resample('A').last().ffill()
+                res_df = res_df.resample('YE').last().ffill()
                 
             return res_df
                 
