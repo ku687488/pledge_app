@@ -74,9 +74,9 @@ st.markdown(
 st.markdown(
     """
 <div class="hero-header">
-    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (RIGOROUS FINANCIAL MODEL)</h2>
+    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (LIVE MARKET EDITION)</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 日頻率完整數據 • 20% 槓桿極限截斷 • 嚴格年化複利 CAGR 公式
+        💎 全實時金融市場追蹤 • 無預設動態價格 • 全市場資產再投入
     </p>
 </div>
 """,
@@ -165,32 +165,34 @@ st.sidebar.markdown("---")
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.get('interest_rate_val', 3.7)), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
 
-# ==================== 3. 實時數據、Beta 與 HMM 訓練引擎 ====================
+# ==================== 3. 實時數據、Beta 與 HMM 訓練引擎 (無預設價格) ====================
 @st.cache_data(ttl=60)
 def fetch_live_data_and_calculate_beta(ticker):
     clean_t = ticker.strip().upper()
     try:
-        df = yf.download(ticker, period="1yr", interval="1d", auto_adjust=True, progress=False)
+        df = yf.download(clean_t, period="1yr", interval="1d", auto_adjust=True, progress=False)
         df_m = yf.download("^TWII", period="1yr", interval="1d", auto_adjust=True, progress=False)
         
-        if not df.empty and not df_m.empty:
+        if not df.empty:
             if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-            if isinstance(df_m.columns, pd.MultiIndex): df_m.columns = df_m.columns.get_level_values(0)
-            
             s = df['Close'].dropna()
-            s_m = df_m['Close'].dropna()
             if isinstance(s, pd.DataFrame): s = s.iloc[:, 0]
-            if isinstance(s_m, pd.DataFrame): s_m = s_m.iloc[:, 0]
-            
-            combined = pd.concat([s, s_m], axis=1).dropna()
-            combined.columns = ['Asset', 'Market']
-            returns = combined.pct_change().dropna()
-            
-            cov_matrix = np.cov(returns['Asset'], returns['Market'])
-            beta_val = float(cov_matrix[0, 1] / cov_matrix[1, 1]) if cov_matrix[1, 1] != 0 else 1.0
             latest_price = float(s.iloc[-1])
             
-            tk_obj = yf.Ticker(ticker)
+            beta_val = 1.0
+            if not df_m.empty:
+                if isinstance(df_m.columns, pd.MultiIndex): df_m.columns = df_m.columns.get_level_values(0)
+                s_m = df_m['Close'].dropna()
+                if isinstance(s_m, pd.DataFrame): s_m = s_m.iloc[:, 0]
+                combined = pd.concat([s, s_m], axis=1).dropna()
+                combined.columns = ['Asset', 'Market']
+                returns = combined.pct_change().dropna()
+                if len(returns) > 1:
+                    cov_matrix = np.cov(returns['Asset'], returns['Market'])
+                    if cov_matrix[1, 1] != 0:
+                        beta_val = float(cov_matrix[0, 1] / cov_matrix[1, 1])
+                        
+            tk_obj = yf.Ticker(clean_t)
             divs = tk_obj.dividends
             recent_yield = 0.0
             if not divs.empty and latest_price > 0:
@@ -198,14 +200,10 @@ def fetch_live_data_and_calculate_beta(ticker):
                 recent_divs = divs.loc[divs.index >= (now_ts - pd.DateOffset(years=1))]
                 recent_yield = float(recent_divs.sum() / latest_price)
                 
-            return latest_price, beta_val, recent_yield, returns['Market']
-    except:
+            return latest_price, beta_val, recent_yield
+    except Exception as e:
         pass
-        
-    if "685L" in clean_t or "631L" in clean_t: return 50.0, 2.00, 0.0, pd.Series()
-    elif "713" in clean_t: return 60.0, 0.24, 0.062, pd.Series()
-    elif "50" in clean_t or "6208" in clean_t: return 100.0, 1.00, 0.032, pd.Series()
-    else: return 50.0, 0.85, 0.05, pd.Series()
+    return 0.0, 1.0, 0.0
 
 @st.cache_data(ttl=300)
 def train_market_hmm():
@@ -241,10 +239,10 @@ current_regime_str, regime_multiplier, hmm_state_id = train_market_hmm()
 
 # ==================== 持倉管理側邊欄 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持倉標的與實時 Beta</h4>", unsafe_allow_html=True)
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🔍 自有資金持倉標的與實時市場追蹤</h4>", unsafe_allow_html=True)
 
 if st.sidebar.button("➕ 新增持倉標的"):
-    st.session_state.owned_assets.append({"id": str(uuid.uuid4()), "ticker": "00713.TW", "shares": 10000})
+    st.session_state.owned_assets.append({"id": str(uuid.uuid4()), "ticker": "0050.TW", "shares": 10000})
     st.rerun()
 
 price_cache, beta_cache, yield_cache, available_tickers = {}, {}, {}, []
@@ -253,15 +251,15 @@ for i, asset in enumerate(st.session_state.owned_assets):
     if "id" not in asset: asset["id"] = str(uuid.uuid4())
     uid = asset["id"]
     st.sidebar.markdown(f"**📌 持倉 #{i+1}**")
-    asset["ticker"] = st.sidebar.text_input(f"台股代號 #{i+1}", value=asset["ticker"], key=f"t_{uid}")
+    asset["ticker"] = st.sidebar.text_input(f"台股/美股代號 #{i+1}", value=asset["ticker"], key=f"t_{uid}")
     asset["shares"] = st.sidebar.number_input(f"持有股數 #{i+1}", min_value=0, value=int(asset["shares"]), step=1000, format="%d", key=f"sh_{uid}")
     
     t_clean = asset["ticker"].strip().upper()
     if t_clean:
         available_tickers.append(t_clean)
-        lp, b_val, y_val, _ = fetch_live_data_and_calculate_beta(t_clean)
+        lp, b_val, y_val = fetch_live_data_and_calculate_beta(t_clean)
         price_cache[t_clean], beta_cache[t_clean], yield_cache[t_clean] = lp, b_val, y_val
-        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; font-weight:700;'>📊 Beta: <b>{b_val:.2f}</b> | 殖利率: <b>{y_val*100:.2f}%</b></div>", unsafe_allow_html=True)
+        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; font-weight:700;'>💲 即時現價: <b>{lp:,.2f}</b> | Beta: <b>{b_val:.2f}</b> | 殖利率: <b>{y_val*100:.2f}%</b></div>", unsafe_allow_html=True)
         
     if st.sidebar.button(f"🗑️ 刪除 #{i+1}", key=f"del_{uid}"):
         st.session_state.owned_assets.pop(i)
@@ -269,15 +267,28 @@ for i, asset in enumerate(st.session_state.owned_assets):
 
 if not available_tickers: available_tickers = ["00685L.TW", "00713.TW"]
 
-# ==================== 質押借款現金再投入與生活費分配 ====================
+# ==================== 質押借款現金再投入與生活費分配 (全金融市場自選) ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🎯 質押借款現金再投入與生活費分配</h4>", unsafe_allow_html=True)
-reinvest_options = available_tickers + ["💵 保留現金 / 生活費儲備 (0% 投資收益)"]
+
+# 提供完整全球與台股主流金融市場候選清單，並允許動態新增任意代號
+default_market_universe = list(set(available_tickers + ["0050.TW", "00631L.TW", "00685L.TW", "00713.TW", "2330.TW", "SPY", "QQQ"]))
+custom_reinvest_input = st.sidebar.text_input("輸入欲追蹤的其他金融市場代號 (以逗號分隔，如 2317.TW, AAPL)", value="")
+if custom_reinvest_input:
+    extra_ts = [t.strip().upper() for t in custom_reinvest_input.split(",") if t.strip()]
+    for et in extra_ts:
+        if et not in default_market_universe:
+            default_market_universe.append(et)
+            lp, b_val, y_val = fetch_live_data_and_calculate_beta(et)
+            price_cache[et], beta_cache[et], yield_cache[et] = lp, b_val, y_val
+
+reinvest_options = default_market_universe + ["💵 保留現金 / 生活費儲備 (0% 投資收益)"]
+
 if 'reinvest_allocations' not in st.session_state:
     st.session_state.reinvest_allocations = {available_tickers[0]: 100.0}
 
 current_allocs = st.session_state.reinvest_allocations
-selected_targets = st.sidebar.multiselect("選擇分配標的與現金儲備", options=reinvest_options, default=list(current_allocs.keys()) if list(current_allocs.keys()) else [reinvest_options[0]])
+selected_targets = st.sidebar.multiselect("選擇全金融市場分配標的與現金儲備", options=reinvest_options, default=list(current_allocs.keys()) if list(current_allocs.keys()) else [reinvest_options[0]])
 
 alloc_weights = {}
 for target in selected_targets:
@@ -324,7 +335,10 @@ base_val_total, weighted_beta_sum, expected_div_total = 0.0, 0.0, 0.0
 for asset in st.session_state.owned_assets:
     t_clean = asset["ticker"].strip().upper()
     shares = asset["shares"]
-    lp, b_val, y_val = price_cache.get(t_clean, 50.0), beta_cache.get(t_clean, 1.0), yield_cache.get(t_clean, 0.05)
+    if t_clean not in price_cache:
+        lp, b_val, y_val = fetch_live_data_and_calculate_beta(t_clean)
+        price_cache[t_clean], beta_cache[t_clean], yield_cache[t_clean] = lp, b_val, y_val
+    lp, b_val, y_val = price_cache.get(t_clean, 0.0), beta_cache.get(t_clean, 1.0), yield_cache.get(t_clean, 0.05)
     val = shares * lp
     base_val_total += val
     weighted_beta_sum += val * b_val
@@ -357,7 +371,13 @@ recommended_atk_amt, recommended_def_amt = net_equity * calculated_atk_ratio, ne
 annual_interest = loan_amount * interest_rate
 weighted_reinvest_yield = 0.0
 for target, pct in alloc_weights.items():
-    y_t = 0.0 if ("現金" in target or "生活費" in target) else yield_cache.get(target, 0.05)
+    if "現金" in target or "生活費" in target:
+        y_t = 0.0
+    else:
+        if target not in yield_cache:
+            _, _, y_t = fetch_live_data_and_calculate_beta(target)
+            yield_cache[target] = y_t
+        y_t = yield_cache.get(target, 0.05)
     weighted_reinvest_yield += y_t * (pct / 100.0)
 
 reinvest_income = reinvest_val_total * weighted_reinvest_yield
@@ -448,7 +468,7 @@ with tab_custom_backtest:
     st.markdown("""
     <div class="theory-box">
     💡 <b>【數學模型嚴格修正說明】</b><br>
-    保留<b>完整日頻率歷史數據（Daily Interval）</b>進行真實再平衡計算；單日槓桿極限設為嚴謹的 <b>$\pm20\%$</b>；並根據真實跨越天數以公式 $\text{CAGR} = (V_{\text{end}}/V_{\text{start}})^{1/\text{Years}} - 1$ 計算年化報酬率，完全杜絕數學採樣失真。
+    即時追蹤全金融市場行情；單日槓桿極限嚴格設為 <b>$\pm20\%$</b>；並根據真實跨越天數以公式 $\text{CAGR} = (V_{\text{end}}/V_{\text{start}})^{1/\text{Years}} - 1$ 嚴格計算年化報酬率。
     </div>
     """, unsafe_allow_html=True)
 
@@ -533,7 +553,6 @@ with tab_custom_backtest:
                         
                     simulated_dict[col] = sim_price_series.sort_index()
             
-            # 保持完整的日頻率 (Daily Data)，不進行模糊抽樣
             res_df = pd.DataFrame(simulated_dict).dropna()
             return res_df
                 
@@ -544,7 +563,6 @@ with tab_custom_backtest:
 
     if not hist_df.empty and len(hist_df.columns) > 0:
         returns_df = hist_df.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
-        # 20% 槓桿極限截斷 (單日極限)
         returns_df = returns_df.clip(-0.20, 0.20)
         
         if "Black-Litterman" in backtest_mode or "AI 智慧" in backtest_mode:
@@ -575,7 +593,6 @@ with tab_custom_backtest:
 
         # ----------------- 嚴格日度金額遞迴模擬模型 -----------------
         r_portfolio = returns_df.dot(weights)
-        # 單日槓桿上限嚴格設定為 20%
         r_portfolio = r_portfolio.clip(-0.20, 0.20)
         
         E_0 = float(st.session_state.total_equity_cost)
@@ -583,19 +600,12 @@ with tab_custom_backtest:
         r_annual = float(interest_rate)
         daily_interest = L * (r_annual / 365.25)
         
-        # 精確處理動態再平衡 (Rebalancing) 邏輯
-        rebal_freq_code = 'ME' if "每月" in rebalance_freq else ('QE' if "每季" in rebalance_freq else ('YE' if "年度" in rebalance_freq else None))
-        
-        rebal_dates = []
-        if rebal_freq_code:
-            rebal_dates = pd.date_range(start=r_portfolio.index[0], end=r_portfolio.index[-1], freq=rebal_freq_code)
-        
         current_assets = E_0 + L
         equity_series = []
         
         for date, r in r_portfolio.items():
             current_assets = current_assets * (1.0 + float(r)) - daily_interest
-            current_assets = max(current_assets, 1000.0) # 下限保護
+            current_assets = max(current_assets, 1000.0)
             
             eq = max(current_assets - L, 100.0)
             equity_series.append(eq)
@@ -609,12 +619,10 @@ with tab_custom_backtest:
 
         total_return = float((cum_path.iloc[-1] - 1.0) * 100) if not cum_path.empty else 0.0
         
-        # 精確計算真實日數與年數
         start_date = cum_path.index[0]
         end_date = cum_path.index[-1]
         years_actual = (end_date - start_date).days / 365.25
         
-        # 100% 嚴格 CAGR 年化複利公式 (無人為限制上限)
         if years_actual > 0 and cum_path.iloc[-1] > 0:
             cagr = float(((cum_path.iloc[-1] ** (1.0 / years_actual)) - 1.0) * 100)
         else:
@@ -679,7 +687,7 @@ with tab_custom_backtest:
         <ul>
           <li><b>計量模型修正表現：</b> 年化報酬率（CAGR）已根據真實天數（{years_actual:.2f} 年）精確計算為 <b>{cagr:.2f}%</b>。</li>
           <li><b>黑天鵝承受力：</b> 單日 95% VaR 為 <b>{var_95:.2f}%</b>，歷史最大回撤為 <b>{mdd:.2f}%</b>。</li>
-          <li><b>即時操作方向：</b> 日頻率無縫計算，融資利息成本已精確內化，數學模型 100% 嚴格！</li>
+          <li><b>即時操作方向：</b> 實時市場追蹤無縫計算，質押現金可自由分配至全金融市場任意資產！</li>
         </ul>
         </div>
         """, unsafe_allow_html=True)
