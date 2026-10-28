@@ -74,9 +74,9 @@ st.markdown(
 st.markdown(
     """
 <div class="hero-header">
-    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (5Y AVERAGE EDITION)</h2>
+    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (DEBT MATRIX EDITION)</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 上下全面採用近5年平均配息與殖利率 • 現金嚴格不計入擔保品 • 全球資產動態連動
+        💎 房貸與信貸合併試算 • 可調式寬限期 • 近5年平均配息 • 現金嚴格不計入擔保品
     </p>
 </div>
 """,
@@ -203,7 +203,6 @@ def fetch_live_data_and_calculate_beta(ticker):
             avg_yield = 0.0
             avg_annual_div = 0.0
             if not divs.empty and latest_price > 0:
-                # 計算近 5 年平均現金股利 (元/股) 與對應殖利率
                 annual_divs = divs.groupby(divs.index.year).sum()
                 last_5y_divs = annual_divs.tail(5)
                 if not last_5y_divs.empty:
@@ -321,31 +320,50 @@ if total_alloc_pct > 100.0:
 elif abs(total_alloc_pct - 100.0) > 0.01 and selected_targets:
     st.sidebar.warning(f"⚠️ 目前總分配比例為 {total_alloc_pct:.1f}% (建議調整至剛好 100%)")
 
-# 房貸負債矩陣
+# ==================== 房貸與信貸負債矩陣與現金流試算 ====================
 st.sidebar.markdown("---")
-st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🏠 房貸負債矩陣與現金流試算</h4>", unsafe_allow_html=True)
-if st.sidebar.button("➕ 新增一筆房貸"):
-    st.session_state.mortgages.append({"id": str(uuid.uuid4()), "name": f"房貸 #{len(st.session_state.mortgages)+1}", "balance": 0, "rate": 2.2, "term": 30, "grace": True, "grace_years": 3})
+st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🏠 房貸與信貸負債矩陣與現金流試算</h4>", unsafe_allow_html=True)
+if st.sidebar.button("➕ 新增一筆負債 (房貸/信貸)"):
+    st.session_state.mortgages.append({
+        "id": str(uuid.uuid4()), 
+        "type": "🏠 房貸 (Mortgage)", 
+        "name": f"負債 #{len(st.session_state.mortgages)+1}", 
+        "balance": 0, 
+        "rate": 2.2, 
+        "term": 30, 
+        "grace": True, 
+        "grace_years": 3
+    })
     st.rerun()
 
 mortgages_annual_outflow_grace, mortgages_annual_outflow_post = 0.0, 0.0
 for m_idx, m_item in enumerate(st.session_state.mortgages):
     muid = m_item["id"]
-    st.sidebar.markdown(f"**📌 房貸項目 #{m_idx+1}**")
-    m_item["name"] = st.sidebar.text_input(f"房貸名稱 #{m_idx+1}", value=m_item["name"], key=f"m_name_{muid}")
+    st.sidebar.markdown(f"**📌 負債項目 #{m_idx+1}**")
+    m_item["type"] = st.sidebar.selectbox(f"負債類型 #{m_idx+1}", ["🏠 房貸 (Mortgage)", "💳 信貸 (Personal Loan)"], index=0 if "房" in m_item.get("type", "房") else 1, key=f"m_type_{muid}")
+    m_item["name"] = st.sidebar.text_input(f"負債名稱 #{m_idx+1}", value=m_item["name"], key=f"m_name_{muid}")
     m_item["balance"] = st.sidebar.number_input(f"剩餘本金 #{m_idx+1} (NT$)", min_value=0, value=int(m_item["balance"]), step=100000, format="%d", key=f"m_bal_{muid}")
-    m_item["rate"] = st.sidebar.slider(f"年利率 #{m_idx+1} (%)", min_value=1.0, max_value=6.0, value=float(m_item["rate"]), step=0.1, key=f"m_rate_{muid}")
-    m_item["term"] = st.sidebar.slider(f"總年限 #{m_idx+1} (年)", min_value=5, max_value=40, value=int(m_item["term"]), step=5, key=f"m_term_{muid}")
+    m_item["rate"] = st.sidebar.slider(f"年利率 #{m_idx+1} (%)", min_value=1.0, max_value=15.0, value=float(m_item["rate"]), step=0.1, key=f"m_rate_{muid}")
+    m_item["term"] = st.sidebar.slider(f"總年限 #{m_idx+1} (年)", min_value=1, max_value=40, value=int(m_item["term"]), step=1, key=f"m_term_{muid}")
     m_item["grace"] = st.sidebar.checkbox(f"享有寬限期 #{m_idx+1}", value=m_item["grace"], key=f"m_grace_{muid}")
+    
+    if m_item["grace"]:
+        m_item["grace_years"] = st.sidebar.slider(f"寬限期年數 #{m_idx+1} (年)", min_value=1, max_value=5, value=int(m_item.get("grace_years", 3)), step=1, key=f"m_gy_{muid}")
+    else:
+        m_item["grace_years"] = 0
     
     m_r = m_item["rate"] / 100.0
     outflow_grace = m_item["balance"] * m_r
-    post_months = max((m_item["term"] - m_item.get("grace_years", 3)) * 12, 12) if m_item["grace"] else m_item["term"] * 12
+    
+    gy = m_item["grace_years"] if m_item["grace"] else 0
+    post_months = max((m_item["term"] - gy) * 12, 12)
     m_m_rate = m_r / 12.0
     monthly_pmt_post = m_item["balance"] * (m_m_rate * (1 + m_m_rate)**post_months) / ((1 + m_m_rate)**post_months - 1) if m_m_rate > 0 else 0
+    
     mortgages_annual_outflow_grace += outflow_grace
     mortgages_annual_outflow_post += monthly_pmt_post * 12
-    if st.sidebar.button(f"🗑️ 刪除房貸 #{m_idx+1}", key=f"del_m_{muid}"):
+    
+    if st.sidebar.button(f"🗑️ 刪除負債 #{m_idx+1}", key=f"del_m_{muid}"):
         st.session_state.mortgages.pop(m_idx)
         st.rerun()
 
@@ -475,20 +493,22 @@ with tab_live:
     """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("### 💵 房貸與質押寬限期內 vs 寬限期滿後現金流自償性即時試算")
+    st.markdown("### 💵 房貸/信貸與質押寬限期內 vs 寬限期滿後現金流自償性即時試算")
     lc, rc = st.columns(2)
     with lc:
         st.markdown("##### 🟢 階段一：寬限期內每月現金流 (Grace Period - 只付利息)")
         st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
         st.metric("總資產每月總配息收益 (近5年平均)", f"+NT$ {monthly_div:,.0f}")
+        if st.session_state.mortgages:
+            st.metric("每月房貸/信貸支出 (寬限期只付息)", f"-NT$ {mortgages_annual_outflow_grace/12:,.0f}")
         net_grace_color = "text-green" if monthly_net_grace >= 0 else "text-red"
         st.markdown(f"""<div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px;"><div style="color: #9CA3AF; font-size: 0.85rem;">寬限期內每月淨現金流</div><div style="font-size: 1.5rem; font-weight: 900;" class="{net_grace_color}">{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f} / 月</div></div>""", unsafe_allow_html=True)
     with rc:
         st.markdown("##### 🟠 階段二：寬限期滿後每月現金流 (Post-Grace - 本息均攤)")
         st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
-        st.metric("總資產每月總配息收益 (近5年平均)", f"-NT$ {monthly_div:,.0f}")
+        st.metric("總資產每月總配息收益 (近5年平均)", f"+NT$ {monthly_div:,.0f}")
         if st.session_state.mortgages:
-            st.metric("每月房貸支出 (本息均攤)", f"-NT$ {mortgages_annual_outflow_post/12:,.0f}", "⚠️ 開始攤還本金")
+            st.metric("每月房貸/信貸支出 (本息均攤)", f"-NT$ {mortgages_annual_outflow_post/12:,.0f}", "⚠️ 開始攤還本金")
         net_post_color = "text-green" if monthly_net_post >= 0 else "text-red"
         st.markdown(f"""<div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #F59E0B; padding: 12px; border-radius: 8px;"><div style="color: #9CA3AF; font-size: 0.85rem;">寬限期滿後每月淨現金流</div><div style="font-size: 1.5rem; font-weight: 900;" class="{net_post_color}">{'+' if monthly_net_post >= 0 else ''}NT$ {monthly_net_post:,.0f} / 月</div></div>""", unsafe_allow_html=True)
 
