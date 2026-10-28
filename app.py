@@ -74,9 +74,9 @@ st.markdown(
 st.markdown(
     """
 <div class="hero-header">
-    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (STRICT COLLATERAL EDITION)</h2>
+    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (DIVIDEND ENGINE)</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 現金嚴格不計入擔保品市值 • 100% 比例檢核 • 全球資產動態連動
+        💎 自動抓取近3年平均配息 • 現金嚴格不計入擔保品 • 全球資產動態連動
     </p>
 </div>
 """,
@@ -165,7 +165,7 @@ st.sidebar.markdown("---")
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.get('interest_rate_val', 3.7)), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
 
-# ==================== 3. 實時數據、Beta 與 HMM 訓練引擎 ====================
+# ==================== 3. 實時數據、Beta 與 平均配息引擎 ====================
 @st.cache_data(ttl=60)
 def fetch_live_data_and_calculate_beta(ticker):
     clean_t = ticker.strip().upper()
@@ -201,22 +201,30 @@ def fetch_live_data_and_calculate_beta(ticker):
                         
             divs = tk.dividends
             recent_yield = 0.0
-            if not divs.empty and latest_price > 0:
+            avg_annual_div = 0.0
+            if not divs.empty:
                 now_ts = pd.Timestamp.now()
                 recent_divs = divs.loc[divs.index >= (now_ts - pd.DateOffset(years=1))]
-                recent_yield = float(recent_divs.sum() / latest_price)
+                if latest_price > 0 and not recent_divs.empty:
+                    recent_yield = float(recent_divs.sum() / latest_price)
                 
-            return latest_price, beta_val, recent_yield
+                # 計算近 3 年平均現金股利 (元/股)
+                annual_divs = divs.groupby(divs.index.year).sum()
+                last_3y_divs = annual_divs.tail(3)
+                if not last_3y_divs.empty:
+                    avg_annual_div = float(last_3y_divs.mean())
+                
+            return latest_price, beta_val, recent_yield, avg_annual_div
     except Exception as e:
         pass
         
-    if "685L" in clean_t: return 16.5, 2.0, 0.0
-    elif "631L" in clean_t: return 25.0, 2.0, 0.0
-    elif "713" in clean_t: return 58.5, 0.24, 0.062
-    elif "50" in clean_t or "6208" in clean_t: return 150.0, 1.0, 0.032
-    elif "SPY" in clean_t: return 580.0, 1.0, 0.015
-    elif "QQQ" in clean_t: return 500.0, 1.2, 0.008
-    else: return 50.0, 1.0, 0.03
+    if "685L" in clean_t: return 16.5, 2.0, 0.0, 0.0
+    elif "631L" in clean_t: return 25.0, 2.0, 0.0, 0.0
+    elif "713" in clean_t: return 58.5, 0.24, 0.062, 3.6
+    elif "50" in clean_t or "6208" in clean_t: return 150.0, 1.0, 0.032, 4.5
+    elif "SPY" in clean_t: return 580.0, 1.0, 0.015, 7.0
+    elif "QQQ" in clean_t: return 500.0, 1.2, 0.008, 3.0
+    else: return 50.0, 1.0, 0.03, 1.5
 
 @st.cache_data(ttl=300)
 def train_market_hmm():
@@ -258,7 +266,7 @@ if st.sidebar.button("➕ 新增持倉標的"):
     st.session_state.owned_assets.append({"id": str(uuid.uuid4()), "ticker": "0050.TW", "shares": 10000})
     st.rerun()
 
-price_cache, beta_cache, yield_cache, available_tickers = {}, {}, {}, []
+price_cache, beta_cache, yield_cache, avg_div_cache, available_tickers = {}, {}, {}, {}, []
 
 for i, asset in enumerate(st.session_state.owned_assets):
     if "id" not in asset: asset["id"] = str(uuid.uuid4())
@@ -270,9 +278,9 @@ for i, asset in enumerate(st.session_state.owned_assets):
     t_clean = asset["ticker"].strip().upper()
     if t_clean:
         available_tickers.append(t_clean)
-        lp, b_val, y_val = fetch_live_data_and_calculate_beta(t_clean)
-        price_cache[t_clean], beta_cache[t_clean], yield_cache[t_clean] = lp, b_val, y_val
-        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; font-weight:700;'>💲 即時現價: <b>{lp:,.2f}</b> | Beta: <b>{b_val:.2f}</b> | 殖利率: <b>{y_val*100:.2f}%</b></div>", unsafe_allow_html=True)
+        lp, b_val, y_val, avg_div = fetch_live_data_and_calculate_beta(t_clean)
+        price_cache[t_clean], beta_cache[t_clean], yield_cache[t_clean], avg_div_cache[t_clean] = lp, b_val, y_val, avg_div
+        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; font-weight:700;'>💲 現價: <b>{lp:,.2f}</b> | 殖利率: <b>{y_val*100:.2f}%</b> | 近3年均配: <b>{avg_div:.2f}元</b></div>", unsafe_allow_html=True)
         
     if st.sidebar.button(f"🗑️ 刪除 #{i+1}", key=f"del_{uid}"):
         st.session_state.owned_assets.pop(i)
@@ -280,7 +288,7 @@ for i, asset in enumerate(st.session_state.owned_assets):
 
 if not available_tickers: available_tickers = ["00685L.TW", "00713.TW"]
 
-# ==================== 質押借款現金再投入與生活費分配 (強制檢核總和 <= 100%) ====================
+# ==================== 質押借款現金再投入與生活費分配 ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🎯 質押借款現金再投入與生活費分配</h4>", unsafe_allow_html=True)
 
@@ -291,8 +299,8 @@ if custom_reinvest_input:
     for et in extra_ts:
         if et not in default_market_universe:
             default_market_universe.append(et)
-            lp, b_val, y_val = fetch_live_data_and_calculate_beta(et)
-            price_cache[et], beta_cache[et], yield_cache[et] = lp, b_val, y_val
+            lp, b_val, y_val, avg_div = fetch_live_data_and_calculate_beta(et)
+            price_cache[et], beta_cache[et], yield_cache[et], avg_div_cache[et] = lp, b_val, y_val, avg_div
 
 reinvest_options = default_market_universe + ["💵 保留現金 / 生活費儲備 (0% 投資收益)"]
 
@@ -311,7 +319,6 @@ for target in selected_targets:
 st.session_state.reinvest_allocations = alloc_weights
 total_alloc_pct = sum(alloc_weights.values())
 
-# 嚴格 100% 上限檢核
 if total_alloc_pct > 100.0:
     st.sidebar.error(f"🚨 總分配比例為 {total_alloc_pct:.1f}%，已超過 100% 上限！請調降各標的分配比例。")
     st.stop()
@@ -352,8 +359,8 @@ for asset in st.session_state.owned_assets:
     t_clean = asset["ticker"].strip().upper()
     shares = asset["shares"]
     if t_clean not in price_cache:
-        lp, b_val, y_val = fetch_live_data_and_calculate_beta(t_clean)
-        price_cache[t_clean], beta_cache[t_clean], yield_cache[t_clean] = lp, b_val, y_val
+        lp, b_val, y_val, avg_div = fetch_live_data_and_calculate_beta(t_clean)
+        price_cache[t_clean], beta_cache[t_clean], yield_cache[t_clean], avg_div_cache[t_clean] = lp, b_val, y_val, avg_div
     lp, b_val, y_val = price_cache.get(t_clean, 0.0), beta_cache.get(t_clean, 1.0), yield_cache.get(t_clean, 0.05)
     val = shares * lp
     base_val_total += val
@@ -362,7 +369,6 @@ for asset in st.session_state.owned_assets:
 
 portfolio_beta = weighted_beta_sum / base_val_total if base_val_total > 0 else 1.0
 
-# 計算現金儲備比例與實際投入股市的借款金額
 cash_alloc_pct = 0.0
 for target, pct in alloc_weights.items():
     if "現金" in target or "生活費" in target:
@@ -372,7 +378,7 @@ for target, pct in alloc_weights.items():
 cash_reserve_amount = loan_amount * (cash_alloc_pct / 100.0)
 invested_loan_amount = loan_amount - cash_reserve_amount
 
-# 總擔保品市值 = 自有股票市值 + 投入股市的借款部位市值（嚴格排除現金儲備）
+# 總擔保品市值嚴格排除現金儲備
 total_collateral = base_val_total + invested_loan_amount
 net_equity = max(base_val_total + cash_reserve_amount, 100000.0)
 margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
@@ -402,7 +408,7 @@ for target, pct in alloc_weights.items():
         y_t = 0.0
     else:
         if target not in yield_cache:
-            _, _, y_t = fetch_live_data_and_calculate_beta(target)
+            _, _, y_t, _ = fetch_live_data_and_calculate_beta(target)
             yield_cache[target] = y_t
         y_t = yield_cache.get(target, 0.05)
     weighted_reinvest_yield += y_t * (pct / 100.0)
@@ -415,7 +421,6 @@ monthly_div = (expected_div_total + reinvest_income) / 12.0
 monthly_net_grace = net_carry_grace / 12.0
 monthly_net_post = net_carry_post / 12.0
 
-# 壓力測試：股市暴跌 -30% 時，擔保品市值下跌 30%
 collateral_drop_30 = total_collateral * (1 - 0.30)
 margin_ratio_drop_30 = (collateral_drop_30 / loan_amount) * 100 if loan_amount > 0 else 0
 
@@ -448,7 +453,7 @@ with tab_live:
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(f"""<div class="metric-card"><div class="card-title">總擔保品市值</div><div class="card-value">NT$ {total_collateral:,.0f}</div><div class="card-subtitle text-blue">自有 + 投入借款 (不含現金)</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="metric-card"><div class="card-title">總擔保品市值</div><div class="card-value">NT$ {total_collateral:,.0f}</div><div class="card-subtitle text-blue">自有 + 投入借款 (嚴格不含現金)</div></div>""", unsafe_allow_html=True)
     with c2:
         st.markdown(f"""<div class="metric-card"><div class="card-title">永續借款負債 (不還本)</div><div class="card-value">NT$ {loan_amount:,.0f}</div><div class="card-subtitle text-gold">現金儲備: NT$ {cash_reserve_amount:,.0f} ({cash_alloc_pct:.0f}%)</div></div>""", unsafe_allow_html=True)
     with c3:
@@ -468,7 +473,7 @@ with tab_live:
     💎 <b>【即時試算與富人永續槓桿核心】</b><br>
     <ul>
       <li><b>資產配置即時動態：</b> 系統根據您的設定即時分配 <b>{calculated_atk_ratio*100:.1f}%</b> 於攻擊標的（NT$ {recommended_atk_amt:,.0f}），<b>{calculated_def_ratio*100:.1f}%</b> 於高股息防禦標的（NT$ {recommended_def_amt:,.0f}）。</li>
-      <li><b>永續不還本信用槓桿：</b> 當前借款利率 <b>{interest_rate*100:.1f}%</b>，每月淨現金流為 <b>{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f}/月</b>。現金保留 <b>{cash_alloc_pct:.0f}%</b>（NT$ {cash_reserve_amount:,.0f}），擔保品市值已自動排除現金。</li>
+      <li><b>永續不還本信用槓桿：</b> 當前借款利率 <b>{interest_rate*100:.1f}%</b>，每月淨現金流為 <b>{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f}/月</b>。現金保留 <b>{cash_alloc_pct:.0f}%</b>（NT$ {cash_reserve_amount:,.0f}），擔保品市值已嚴格排除現金。</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -619,7 +624,6 @@ with tab_custom_backtest:
                 st.warning(f"⚠️ 目前手動權重總和為 {weight_sum_chk:.1f}%（建議調整至 100%）")
                 if weight_sum_chk > 0: weights = weights / (weight_sum_chk / 100.0)
 
-        # ----------------- 嚴格日度金額遞迴模擬模型 -----------------
         r_portfolio = returns_df.dot(weights)
         r_portfolio = r_portfolio.clip(-0.20, 0.20)
         
@@ -643,7 +647,6 @@ with tab_custom_backtest:
         
         portfolio_daily_rets = pd.Series(equity_arr, index=r_portfolio.index).pct_change().fillna(0.0)
         portfolio_daily_rets = portfolio_daily_rets.clip(-0.20, 0.20)
-        # -----------------------------------------------------------------------------
 
         total_return = float((cum_path.iloc[-1] - 1.0) * 100) if not cum_path.empty else 0.0
         
@@ -706,19 +709,6 @@ with tab_custom_backtest:
             mime="text/csv",
             type="primary"
         )
-
-        st.markdown("### 👑 富人思維與即時計量效能智慧建議 (AI Wealth Advisory)")
-        st.markdown(f"""
-        <div class="theory-box" style="border-left-color: #3B82F6; background: rgba(59, 130, 246, 0.08);">
-        💡 <b>【嚴格計量風控深度解析】</b><br>
-        在所選的 <b>{period_option}</b> 回測與再平衡頻率（{rebalance_freq}）中：
-        <ul>
-          <li><b>計量模型修正表現：</b> 年化報酬率（CAGR）已根據真實天數（{years_actual:.2f} 年）精確計算為 <b>{cagr:.2f}%</b>。</li>
-          <li><b>黑天鵝承受力：</b> 單日 95% VaR 為 <b>{var_95:.2f}%</b>，歷史最大回撤為 <b>{mdd:.2f}%</b>。</li>
-          <li><b>即時操作方向：</b> 總擔保品市值已嚴格排除現金儲備（NT$ {cash_reserve_amount:,.0f}），真實反映持股維持率！</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
     else:
         st.warning("⚠️ 無法取得足夠的歷史回測數據，請確認您的台股代號是否正確。")
 
@@ -760,10 +750,6 @@ with tab_opt:
     mdd_limit_val = user_max_mdd_limit / 100.0
     safe_mask = historical_mdds <= mdd_limit_val
     best_filtered_idx = np.where(safe_mask)[0][np.argmax(regularized_scores[safe_mask])] if np.any(safe_mask) else np.argmax(regularized_scores)
-
-    optimal_sortino_weight_1 = weights_1_arr[best_filtered_idx]
-    optimal_mdd_val = historical_mdds[best_filtered_idx] * 100
-    optimal_return_val = port_returns[best_filtered_idx] * 100
 
     num_sim_days, num_paths = 252, 250
     dt = 1.0 / 252.0
