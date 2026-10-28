@@ -74,9 +74,9 @@ st.markdown(
 st.markdown(
     """
 <div class="hero-header">
-    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (ROBUST LIVE EDITION)</h2>
+    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (STRICT COLLATERAL EDITION)</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 全市場實時動態現價追蹤 • 智慧備援防歸零 • 全球資產再投入
+        💎 現金嚴格不計入擔保品市值 • 100% 比例檢核 • 全球資產動態連動
     </p>
 </div>
 """,
@@ -98,7 +98,7 @@ if 'initialized' not in st.session_state:
     st.session_state.user_age_val = 25
     st.session_state.enable_life = True
     st.session_state.manual_override = False
-    st.session_state.reinvest_allocations = {"00685L.TW": 100.0}
+    st.session_state.reinvest_allocations = {"00713.TW": 75.0, "💵 保留現金 / 生活費儲備 (0% 投資收益)": 25.0}
 
 st.sidebar.markdown("<h3 style='color:#FFFFFF; font-weight:900;'>🛠️ 系統控制與一鍵清除</h3>", unsafe_allow_html=True)
 if st.sidebar.button("🔄 一鍵清除並重置所有設定", type="primary"):
@@ -165,7 +165,7 @@ st.sidebar.markdown("---")
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.get('interest_rate_val', 3.7)), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
 
-# ==================== 3. 實時數據、Beta 與 HMM 訓練引擎 (強固防歸零版) ====================
+# ==================== 3. 實時數據、Beta 與 HMM 訓練引擎 ====================
 @st.cache_data(ttl=60)
 def fetch_live_data_and_calculate_beta(ticker):
     clean_t = ticker.strip().upper()
@@ -210,15 +210,12 @@ def fetch_live_data_and_calculate_beta(ticker):
     except Exception as e:
         pass
         
-    # 智慧備援價格估算（防止網路異常或無數據時歸零）
     if "685L" in clean_t: return 16.5, 2.0, 0.0
     elif "631L" in clean_t: return 25.0, 2.0, 0.0
     elif "713" in clean_t: return 58.5, 0.24, 0.062
     elif "50" in clean_t or "6208" in clean_t: return 150.0, 1.0, 0.032
     elif "SPY" in clean_t: return 580.0, 1.0, 0.015
     elif "QQQ" in clean_t: return 500.0, 1.2, 0.008
-    elif "AAPL" in clean_t: return 230.0, 1.1, 0.005
-    elif "2317" in clean_t: return 200.0, 1.1, 0.04
     else: return 50.0, 1.0, 0.03
 
 @st.cache_data(ttl=300)
@@ -283,7 +280,7 @@ for i, asset in enumerate(st.session_state.owned_assets):
 
 if not available_tickers: available_tickers = ["00685L.TW", "00713.TW"]
 
-# ==================== 質押借款現金再投入與生活費分配 (全金融市場自選) ====================
+# ==================== 質押借款現金再投入與生活費分配 (強制檢核總和 <= 100%) ====================
 st.sidebar.markdown("---")
 st.sidebar.markdown("<h4 style='color:#FFFFFF; font-weight:900;'>🎯 質押借款現金再投入與生活費分配</h4>", unsafe_allow_html=True)
 
@@ -300,7 +297,7 @@ if custom_reinvest_input:
 reinvest_options = default_market_universe + ["💵 保留現金 / 生活費儲備 (0% 投資收益)"]
 
 if 'reinvest_allocations' not in st.session_state:
-    st.session_state.reinvest_allocations = {available_tickers[0]: 100.0}
+    st.session_state.reinvest_allocations = {"00713.TW": 75.0, "💵 保留現金 / 生活費儲備 (0% 投資收益)": 25.0}
 
 current_allocs = st.session_state.reinvest_allocations
 selected_targets = st.sidebar.multiselect("選擇全金融市場分配標的與現金儲備", options=reinvest_options, default=list(current_allocs.keys()) if list(current_allocs.keys()) else [reinvest_options[0]])
@@ -314,7 +311,11 @@ for target in selected_targets:
 st.session_state.reinvest_allocations = alloc_weights
 total_alloc_pct = sum(alloc_weights.values())
 
-if abs(total_alloc_pct - 100.0) > 0.01 and selected_targets:
+# 嚴格 100% 上限檢核
+if total_alloc_pct > 100.0:
+    st.sidebar.error(f"🚨 總分配比例為 {total_alloc_pct:.1f}%，已超過 100% 上限！請調降各標的分配比例。")
+    st.stop()
+elif abs(total_alloc_pct - 100.0) > 0.01 and selected_targets:
     st.sidebar.warning(f"⚠️ 目前總分配比例為 {total_alloc_pct:.1f}% (建議調整至剛好 100%)")
 
 # 房貸負債矩陣
@@ -360,9 +361,20 @@ for asset in st.session_state.owned_assets:
     expected_div_total += val * y_val
 
 portfolio_beta = weighted_beta_sum / base_val_total if base_val_total > 0 else 1.0
-reinvest_val_total = loan_amount
-total_collateral = base_val_total + reinvest_val_total
-net_equity = max(total_collateral - loan_amount, 100000.0)
+
+# 計算現金儲備比例與實際投入股市的借款金額
+cash_alloc_pct = 0.0
+for target, pct in alloc_weights.items():
+    if "現金" in target or "生活費" in target:
+        cash_alloc_pct = pct
+        break
+
+cash_reserve_amount = loan_amount * (cash_alloc_pct / 100.0)
+invested_loan_amount = loan_amount - cash_reserve_amount
+
+# 總擔保品市值 = 自有股票市值 + 投入股市的借款部位市值（嚴格排除現金儲備）
+total_collateral = base_val_total + invested_loan_amount
+net_equity = max(base_val_total + cash_reserve_amount, 100000.0)
 margin_ratio = (total_collateral / loan_amount) * 100 if loan_amount > 0 else 0
 
 target_exp_val = target_lifecycle_exposure / 100.0
@@ -395,7 +407,7 @@ for target, pct in alloc_weights.items():
         y_t = yield_cache.get(target, 0.05)
     weighted_reinvest_yield += y_t * (pct / 100.0)
 
-reinvest_income = reinvest_val_total * weighted_reinvest_yield
+reinvest_income = loan_amount * weighted_reinvest_yield
 net_carry_grace = expected_div_total + reinvest_income - annual_interest - mortgages_annual_outflow_grace
 net_carry_post = expected_div_total + reinvest_income - annual_interest - mortgages_annual_outflow_post
 monthly_interest = annual_interest / 12.0
@@ -403,6 +415,7 @@ monthly_div = (expected_div_total + reinvest_income) / 12.0
 monthly_net_grace = net_carry_grace / 12.0
 monthly_net_post = net_carry_post / 12.0
 
+# 壓力測試：股市暴跌 -30% 時，擔保品市值下跌 30%
 collateral_drop_30 = total_collateral * (1 - 0.30)
 margin_ratio_drop_30 = (collateral_drop_30 / loan_amount) * 100 if loan_amount > 0 else 0
 
@@ -435,9 +448,9 @@ with tab_live:
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(f"""<div class="metric-card"><div class="card-title">總擔保品市值</div><div class="card-value">NT$ {total_collateral:,.0f}</div><div class="card-subtitle text-blue">自有市值: NT$ {base_val_total:,.0f}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="metric-card"><div class="card-title">總擔保品市值</div><div class="card-value">NT$ {total_collateral:,.0f}</div><div class="card-subtitle text-blue">自有 + 投入借款 (不含現金)</div></div>""", unsafe_allow_html=True)
     with c2:
-        st.markdown(f"""<div class="metric-card"><div class="card-title">永續借款負債 (不還本)</div><div class="card-value">NT$ {loan_amount:,.0f}</div><div class="card-subtitle text-gold">多元分配與生活費儲備</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="metric-card"><div class="card-title">永續借款負債 (不還本)</div><div class="card-value">NT$ {loan_amount:,.0f}</div><div class="card-subtitle text-gold">現金儲備: NT$ {cash_reserve_amount:,.0f} ({cash_alloc_pct:.0f}%)</div></div>""", unsafe_allow_html=True)
     with c3:
         status_color = "text-green" if margin_ratio > 200 or loan_amount == 0 else ("text-gold" if margin_ratio > 160 else "text-red")
         st.markdown(f"""<div class="metric-card"><div class="card-title">即時質押維持率</div><div class="card-value {status_color}">{margin_ratio:.1f}%</div><div class="card-subtitle">安全線: 160% / 平倉線: 130%</div></div>""", unsafe_allow_html=True)
@@ -455,7 +468,7 @@ with tab_live:
     💎 <b>【即時試算與富人永續槓桿核心】</b><br>
     <ul>
       <li><b>資產配置即時動態：</b> 系統根據您的設定即時分配 <b>{calculated_atk_ratio*100:.1f}%</b> 於攻擊標的（NT$ {recommended_atk_amt:,.0f}），<b>{calculated_def_ratio*100:.1f}%</b> 於高股息防禦標的（NT$ {recommended_def_amt:,.0f}）。</li>
-      <li><b>永續不還本信用槓桿：</b> 當前借款利率 <b>{interest_rate*100:.1f}%</b>，每月淨現金流為 <b>{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f}/月</b>。本金永遠不需歸還，讓複利與股息為您自動滾大負債表！</li>
+      <li><b>永續不還本信用槓桿：</b> 當前借款利率 <b>{interest_rate*100:.1f}%</b>，每月淨現金流為 <b>{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f}/月</b>。現金保留 <b>{cash_alloc_pct:.0f}%</b>（NT$ {cash_reserve_amount:,.0f}），擔保品市值已自動排除現金。</li>
     </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -483,7 +496,7 @@ with tab_custom_backtest:
     st.markdown("""
     <div class="theory-box">
     💡 <b>【數學模型嚴格修正說明】</b><br>
-    即時追蹤全金融市場行情；單日槓桿極限嚴格設為 <b>$\pm20\%$</b>；並根據真實跨越天數以公式 $\text{CAGR} = (V_{\text{end}}/V_{\text{start}})^{1/\text{Years}} - 1$ 嚴格計算年化報酬率。
+    即時追蹤全金融市場行情；擔保品市值嚴格排除現金儲備；單日槓桿極限設為 <b>$\pm20\%$</b>；並根據真實跨越天數以公式 $\text{CAGR} = (V_{\text{end}}/V_{\text{start}})^{1/\text{Years}} - 1$ 嚴格計算年化報酬率。
     </div>
     """, unsafe_allow_html=True)
 
@@ -702,7 +715,7 @@ with tab_custom_backtest:
         <ul>
           <li><b>計量模型修正表現：</b> 年化報酬率（CAGR）已根據真實天數（{years_actual:.2f} 年）精確計算為 <b>{cagr:.2f}%</b>。</li>
           <li><b>黑天鵝承受力：</b> 單日 95% VaR 為 <b>{var_95:.2f}%</b>，歷史最大回撤為 <b>{mdd:.2f}%</b>。</li>
-          <li><b>即時操作方向：</b> 實時市場追蹤無縫計算，質押現金可自由分配至全金融市場任意資產！</li>
+          <li><b>即時操作方向：</b> 總擔保品市值已嚴格排除現金儲備（NT$ {cash_reserve_amount:,.0f}），真實反映持股維持率！</li>
         </ul>
         </div>
         """, unsafe_allow_html=True)
