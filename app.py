@@ -74,9 +74,9 @@ st.markdown(
 st.markdown(
     """
 <div class="hero-header">
-    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (DIVIDEND ENGINE)</h2>
+    <h2 style="margin:0; color:#FFFFFF; font-weight:900; letter-spacing:-0.5px;">🏛️ APEX GLOBAL INSTITUTIONAL TERMINAL (5Y AVERAGE EDITION)</h2>
     <p style="margin:6px 0 0 0; color:#F59E0B; font-size:0.95rem; font-weight:800;">
-        💎 自動抓取近3年平均配息 • 現金嚴格不計入擔保品 • 全球資產動態連動
+        💎 上下全面採用近5年平均配息與殖利率 • 現金嚴格不計入擔保品 • 全球資產動態連動
     </p>
 </div>
 """,
@@ -165,7 +165,7 @@ st.sidebar.markdown("---")
 st.session_state.interest_rate_val = st.sidebar.slider("3. 質押貸款年利率 (%)", min_value=2.0, max_value=6.0, value=float(st.session_state.get('interest_rate_val', 3.7)), step=0.1)
 interest_rate = st.session_state.interest_rate_val / 100.0
 
-# ==================== 3. 實時數據、Beta 與 平均配息引擎 ====================
+# ==================== 3. 實時數據、Beta 與 近5年平均配息引擎 ====================
 @st.cache_data(ttl=60)
 def fetch_live_data_and_calculate_beta(ticker):
     clean_t = ticker.strip().upper()
@@ -200,21 +200,17 @@ def fetch_live_data_and_calculate_beta(ticker):
                         beta_val = float(cov_matrix[0, 1] / cov_matrix[1, 1])
                         
             divs = tk.dividends
-            recent_yield = 0.0
+            avg_yield = 0.0
             avg_annual_div = 0.0
-            if not divs.empty:
-                now_ts = pd.Timestamp.now()
-                recent_divs = divs.loc[divs.index >= (now_ts - pd.DateOffset(years=1))]
-                if latest_price > 0 and not recent_divs.empty:
-                    recent_yield = float(recent_divs.sum() / latest_price)
-                
-                # 計算近 3 年平均現金股利 (元/股)
+            if not divs.empty and latest_price > 0:
+                # 計算近 5 年平均現金股利 (元/股) 與對應殖利率
                 annual_divs = divs.groupby(divs.index.year).sum()
-                last_3y_divs = annual_divs.tail(3)
-                if not last_3y_divs.empty:
-                    avg_annual_div = float(last_3y_divs.mean())
+                last_5y_divs = annual_divs.tail(5)
+                if not last_5y_divs.empty:
+                    avg_annual_div = float(last_5y_divs.mean())
+                    avg_yield = avg_annual_div / latest_price
                 
-            return latest_price, beta_val, recent_yield, avg_annual_div
+            return latest_price, beta_val, avg_yield, avg_annual_div
     except Exception as e:
         pass
         
@@ -280,7 +276,7 @@ for i, asset in enumerate(st.session_state.owned_assets):
         available_tickers.append(t_clean)
         lp, b_val, y_val, avg_div = fetch_live_data_and_calculate_beta(t_clean)
         price_cache[t_clean], beta_cache[t_clean], yield_cache[t_clean], avg_div_cache[t_clean] = lp, b_val, y_val, avg_div
-        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; font-weight:700;'>💲 現價: <b>{lp:,.2f}</b> | 殖利率: <b>{y_val*100:.2f}%</b> | 近3年均配: <b>{avg_div:.2f}元</b></div>", unsafe_allow_html=True)
+        st.sidebar.markdown(f"<div style='font-size:0.75rem; color:#10B981; font-weight:700;'>💲 現價: <b>{lp:,.2f}</b> | 近5年均殖: <b>{y_val*100:.2f}%</b> | 近5年均配: <b>{avg_div:.2f}元</b></div>", unsafe_allow_html=True)
         
     if st.sidebar.button(f"🗑️ 刪除 #{i+1}", key=f"del_{uid}"):
         st.session_state.owned_assets.pop(i)
@@ -484,13 +480,13 @@ with tab_live:
     with lc:
         st.markdown("##### 🟢 階段一：寬限期內每月現金流 (Grace Period - 只付利息)")
         st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
-        st.metric("總資產每月總配息收益", f"+NT$ {monthly_div:,.0f}")
+        st.metric("總資產每月總配息收益 (近5年平均)", f"+NT$ {monthly_div:,.0f}")
         net_grace_color = "text-green" if monthly_net_grace >= 0 else "text-red"
         st.markdown(f"""<div style="background: rgba(25, 32, 45, 0.9); border: 1px solid #10B981; padding: 12px; border-radius: 8px;"><div style="color: #9CA3AF; font-size: 0.85rem;">寬限期內每月淨現金流</div><div style="font-size: 1.5rem; font-weight: 900;" class="{net_grace_color}">{'+' if monthly_net_grace >= 0 else ''}NT$ {monthly_net_grace:,.0f} / 月</div></div>""", unsafe_allow_html=True)
     with rc:
         st.markdown("##### 🟠 階段二：寬限期滿後每月現金流 (Post-Grace - 本息均攤)")
         st.metric("每月質押利息支出", f"-NT$ {monthly_interest:,.0f}")
-        st.metric("總資產每月總配息收益", f"-NT$ {monthly_div:,.0f}")
+        st.metric("總資產每月總配息收益 (近5年平均)", f"-NT$ {monthly_div:,.0f}")
         if st.session_state.mortgages:
             st.metric("每月房貸支出 (本息均攤)", f"-NT$ {mortgages_annual_outflow_post/12:,.0f}", "⚠️ 開始攤還本金")
         net_post_color = "text-green" if monthly_net_post >= 0 else "text-red"
